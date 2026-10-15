@@ -94,14 +94,29 @@
     })}</div>`;
   }
 
+  /* Dolumu yapanlar: çoklu seçim (dokununca seçilir / bırakılır); listede olmayan kişi "Başka kişi" ile eklenir. */
+  function DolduranSecimi({ secili, degis }) {
+    const [yeni, setYeni] = useState('');
+    const liste = [...new Set([...H.dolumKisileri(depo()), ...secili])];
+    const sec = (a) => degis(secili.includes(a) ? secili.filter((x) => x !== a) : [...secili, a]);
+    const ekle = () => { const a = yeni.trim().replace(/\s+/g, ' '); if (a && !secili.includes(a)) degis([...secili, a]); setYeni(''); };
+    return html`<div class="secenekler">${liste.map((a) => html`<button type="button" class=${'secenek' + (secili.includes(a) ? ' secili' : '')} aria-pressed=${secili.includes(a)} onClick=${() => sec(a)}>${secili.includes(a) && html`<${Ikon} ad="tik" boyut=${12} /> `}${a}</button>`)}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;max-width:360px">
+        <input class="girdi" placeholder="Başka kişi…" value=${yeni} onInput=${(e) => setYeni(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); ekle(); } }} />
+        <button type="button" class="d kucuk-d" disabled=${!yeni.trim()} onClick=${ekle}><${Ikon} ad="arti" boyut=${14} />Ekle</button>
+      </div>`;
+  }
+  NT.ui.DolduranSecimi = DolduranSecimi;
+  NT.ui.DEGER_YAZ.dolduranlar = (v) => (Array.isArray(v) && v.length ? v.join(', ') : '—');
+
   /* ---------------- Dolum ---------------- */
   function DolumFormu({ kayit, kapat, on = {} }) {
     const d = depo();
     const urunler = H.urunler(d);
     const amb = H.ambalajlar(d);
     const [f, setF] = useState(() => kayit
-      ? { tarih: kayit.tarih || bugun(), urun: kayit.urun, parti: kayit.parti || '', ambalaj: kayit.ambalaj, adet: kayit.adet, hazirlayan: kayit.hazirlayan || '', kaynakTur: kayit.kaynakTur || '', kaynakNo: kayit.kaynakNo || '', notlar: kayit.notlar || '', ekler: kayit.ekler || [] }
-      : { tarih: bugun(), urun: urunler[0]?.ad || '', parti: '', ambalaj: '1L', adet: 1, hazirlayan: kullanici(), kaynakTur: '', kaynakNo: '', notlar: '', ekler: [], ...on });
+      ? { tarih: kayit.tarih || bugun(), urun: kayit.urun, parti: kayit.parti || '', ambalaj: kayit.ambalaj, adet: kayit.adet, hazirlayan: kayit.hazirlayan || '', dolduranlar: kayit.dolduranlar || [], kaynakTur: kayit.kaynakTur || '', kaynakNo: kayit.kaynakNo || '', notlar: kayit.notlar || '', ekler: kayit.ekler || [] }
+      : { tarih: bugun(), urun: urunler[0]?.ad || '', parti: '', ambalaj: '1L', adet: 1, hazirlayan: kullanici(), dolduranlar: [], kaynakTur: '', kaynakNo: '', notlar: '', ekler: [], ...on });
     const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
     const [denendi, setDenendi] = useState(false);
     const urun = H.urunBul(d, f.urun);
@@ -116,6 +131,7 @@
       parti: partili && !f.parti.trim() && 'Bu ürün parti takipli; parti numarası girin',
       adet: !(sayi(f.adet) > 0) && 'Adet 0’dan büyük olmalı',
       tarih: !f.tarih && 'Tarih girin',
+      dolduranlar: !kayit && !f.dolduranlar.length && 'Dolumu yapan kişiyi seçin',
     };
     const gecerli = !Object.values(hatalar).some(Boolean);
 
@@ -123,7 +139,7 @@
       setDenendi(true);
       if (!gecerli) return;
       if (yetersiz && !(await onayla(`${H.ambalajAdi(d, f.ambalaj)} boş şişe stokunda ${bos} adet görünüyor, ${f.adet} adet dolum girdiniz. Kaydederseniz boş şişe stoku eksiye düşer — sayım farkı olabilir.`, { baslik: 'Boş şişe yetersiz', evet: 'Yine de kaydet' }))) return;
-      const v = { tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), kaynakTur: f.kaynakTur, kaynakNo: f.kaynakTur ? f.kaynakNo.trim() : '', notlar: f.notlar.trim(), ekler: f.ekler };
+      const v = { tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), dolduranlar: f.dolduranlar, kaynakTur: f.kaynakTur, kaynakNo: f.kaynakTur ? f.kaynakNo.trim() : '', notlar: f.notlar.trim(), ekler: f.ekler };
       if (kayit) {
         const fark = farklar(kayit, v);
         if (Object.keys(fark).length) await d.kaydet([{ c: 'dolum', k: kayit.id, v: fark }]);
@@ -161,6 +177,9 @@
         <${Alan} etiket="Hazırlayan" sinif="s4">
           <input class="girdi" list="hazirlayan-dl" value=${f.hazirlayan} onInput=${(e) => s('hazirlayan')(e.target.value)} />
           <${Oneri} id="hazirlayan-dl" liste=${benzersiz(d.kayitlar('dolum').map((r) => r.hazirlayan))} />
+        <//>
+        <${Alan} etiket="Dolumu yapanlar" hata=${denendi && hatalar.dolduranlar} ipucu="Birden fazla kişi seçilebilir. Hazırlayan: kaydı giren kişi.">
+          <${DolduranSecimi} secili=${f.dolduranlar} degis=${s('dolduranlar')} />
         <//>
         ${yetersiz && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${H.ambalajAdi(d, f.ambalaj)} boş şişe stoku ${bos} adet. Bu dolum stoku eksiye düşürür.</span></div>`}
         <${Alan} etiket="Nereden dolduruldu?" sinif=${f.kaynakTur ? 's8' : 's12'}>

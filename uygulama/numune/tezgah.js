@@ -106,7 +106,7 @@
   function DolumSihirbazi({ kapat, on = {} }) {
     const d = depo();
     const urunler = H.urunler(d);
-    const [f, setF] = useState({ urun: '', parti: '', ambalaj: '', adet: 1, tarih: bugun(), hazirlayan: b.kullanici, kaynakTur: '', kaynakNo: '', notlar: '', karisim: null, ...on });
+    const [f, setF] = useState({ urun: '', parti: '', ambalaj: '', adet: 1, tarih: bugun(), hazirlayan: b.kullanici, dolduranlar: [], kaynakTur: '', kaynakNo: '', notlar: '', karisim: null, ...on });
     const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
     const u = H.urunBul(d, f.urun);
     const partili = !!u?.partili;
@@ -167,8 +167,13 @@
           ${sayi(f.adet) > bos && html`<div class="uyari-kutu kritik" style="margin-top:18px"><${Ikon} ad="uyari" /><span>Rafta ${bos} boş ${amb(f.ambalaj)} şişe görünüyor. Kaydederseniz boş şişe stoku eksiye düşer; bir sayım farkı olabilir.</span></div>`}`,
       },
       {
+        soru: 'Dolumu kimler yaptı?', ipucu: 'Dolumu yapan herkese dokunun; birden fazla kişi seçilebilir.', gecerli: () => f.dolduranlar.length > 0,
+        icerik: () => html`<${NT.ui.DolduranSecimi} secili=${f.dolduranlar} degis=${(v) => s('dolduranlar', v)} />`,
+      },
+      {
         soru: 'Kontrol edip kaydedin',
-        icerik: () => html`<p class="tz-ozet"><em>${f.adet} şişe</em> ${f.urun}${f.parti ? html` · <em>${f.parti}</em>` : ''}, <em>${amb(f.ambalaj)}</em> ambalaja dolduruldu${f.kaynakTur ? html` (kaynak: <em>${H.dolumKaynagi(f)}</em>)` : ''}.<br />
+        icerik: () => html`<p class="tz-ozet"><em>${f.adet} şişe</em> ${f.urun}${f.parti ? html` · <em>${f.parti}</em>` : ''}, <em>${amb(f.ambalaj)}</em> ambalaja dolduruldu${f.kaynakTur ? html` (kaynak: <em>${H.dolumKaynagi(f)}</em>)` : ''}.
+            Dolduran: <em>${H.dolduranYaz(f)}</em>.<br />
             <span class="soluk" style="font-size:16px">Boş ${amb(f.ambalaj)} şişe: ${bos} → ${bos - sayi(f.adet)}</span></p>
           <div class="form-izgara">
             <div class="alan s4"><label>Tarih</label><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih', e.target.value)} /></div>
@@ -180,7 +185,7 @@
     async function kaydet() {
       if (sayi(f.adet) > bos && !(await onayla(`Boş ${amb(f.ambalaj)} şişe stoku eksiye düşecek. Yine de kaydedilsin mi?`, { baslik: 'Boş şişe yetersiz', evet: 'Kaydet' }))) return false;
       const no = H.yeniNo(d, 'dolum', f.tarih);
-      const v = { no, tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ...(partili && f.karisim?.length > 1 ? { karisim: f.karisim } : {}), ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim(), notlar: f.notlar.trim(), ekler: [] };
+      const v = { no, tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ...(partili && f.karisim?.length > 1 ? { karisim: f.karisim } : {}), ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), dolduranlar: f.dolduranlar, kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim(), notlar: f.notlar.trim(), ekler: [] };
       await d.kaydet([{ c: 'dolum', k: uid(), v }]);
       bildir(`${no} · ${v.adet} × ${v.urun} ${amb(v.ambalaj)} rafa eklendi.`);
     }
@@ -420,7 +425,7 @@
   /* ---------------- Hareket listesi (akış ve geçmiş) ---------------- */
   function hareketler(d) {
     const l = [];
-    for (const r of d.kayitlar('dolum')) l.push({ c: 'dolum', r, tarih: r.tarih, metin: html`<b>${r.adet} × ${r.urun}</b> ${r.parti || ''} · ${amb(r.ambalaj)} dolduruldu${r.kaynakTur ? html` <span class="soluk">(${H.dolumKaynagi(r)})</span>` : ''}`, miktar: `+${r.adet}`, tur: 'arti' });
+    for (const r of d.kayitlar('dolum')) l.push({ c: 'dolum', r, tarih: r.tarih, metin: html`<b>${r.adet} × ${r.urun}</b> ${r.parti || ''} · ${amb(r.ambalaj)} dolduruldu${r.kaynakTur ? html` <span class="soluk">(${H.dolumKaynagi(r)})</span>` : ''}${r.dolduranlar?.length ? html` <span class="soluk">· ${H.dolduranYaz(r)}</span>` : ''}`, miktar: `+${r.adet}`, tur: 'arti' });
     for (const r of d.kayitlar('sevk')) {
       const n = (r.kalemler || []).reduce((t, k) => t + sayi(k.adet), 0);
       l.push({ c: 'sevk', r, tarih: r.tarih, metin: html`<b>${r.firma}</b> firmasına ${n} şişe · ${DURUM_ADI[r.durum] || r.durum}`, miktar: r.durum === 'Gönderildi' ? `−${n}` : `${n} rezerve`, tur: r.durum === 'Gönderildi' ? 'eksi' : 'notr' });

@@ -189,7 +189,7 @@
 
   /* Kayıt geçmişi: kim, ne zaman, hangi alanı neden neye çevirdi. */
   const ALAN_ADLARI = {
-    tarih: 'Tarih', urun: 'Ürün', parti: 'Parti', ambalaj: 'Ambalaj', adet: 'Adet', hazirlayan: 'Hazırlayan', notlar: 'Not',
+    tarih: 'Tarih', urun: 'Ürün', parti: 'Parti', ambalaj: 'Ambalaj', adet: 'Adet', hazirlayan: 'Hazırlayan', dolduranlar: 'Dolumu yapanlar', notlar: 'Not',
     firma: 'Firma', yetkili: 'Yetkili', sekil: 'Gönderi şekli', sebep: 'Talep sebebi', durum: 'Durum', kargoFirma: 'Kargo firması',
     takipNo: 'Takip no', adres: 'Adres', kalemler: 'Kalemler', tedarikci: 'Tedarikçi', faturaNo: 'Fatura no', birimFiyat: 'Birim fiyat',
     ekler: 'Ekler', fark: 'Fark', sayilan: 'Sayılan', neden: 'Neden', no: 'Kayıt no', ad: 'Ad', partili: 'Parti takibi', alarm: 'Stok alarmı',

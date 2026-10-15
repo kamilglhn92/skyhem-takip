@@ -34,6 +34,14 @@
     const k = DOLUM_KAYNAKLARI.find((x) => x.id === r.kaynakTur);
     return k ? `${k.ad}${r.kaynakNo ? ' · ' + r.kaynakNo : ''}` : '';
   };
+  /* Dolumu yapan kişiler (dolum kaydında dolduranlar: [ad, …], 2026-10-15). Liste Yoklama personeli + önceki dolumlarda
+     elle eklenen adlar; eski kayıtlarda alan yoktur. */
+  const DOLUM_KISILERI = ['Nurettin Durak', 'Kamil Gülhan', 'Onur Erkek', 'Yusuf Yılmaz', 'Erkan Eser'];
+  const dolumKisileri = (depo) => {
+    const ek = depo.kayitlar('dolum').flatMap((r) => r.dolduranlar || []).filter((a) => a && !DOLUM_KISILERI.includes(a));
+    return [...DOLUM_KISILERI, ...[...new Set(ek)].sort((a, b) => a.localeCompare(b, 'tr'))];
+  };
+  const dolduranYaz = (r) => (r.dolduranlar || []).join(', ');
 
   /* Stoku etkileyen gönderi mi? İptal edilenler ve açılış sayımından önceki kayıtlar (gecmis: true) etkilemez. */
   const sevkEtkili = (s) => !s.gecmis && !s.iptal;
@@ -316,7 +324,7 @@
       for (const r of kayit('dolum')) if (r.ambalaj === ambalaj) h.push({ tarih: r.tarih, t: r._olusturma, c: 'dolum', r, adet: -sayi(r.adet), aciklama: `${r.urun}${r.parti ? ' · ' + r.parti : ''} dolumu` });
       for (const r of kayit('sayim')) if (r.tur === 'bos' && r.ambalaj === ambalaj) h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama: r.neden || 'Sayım düzeltmesi' });
     } else {
-      for (const r of kayit('dolum')) if (ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'dolum', r, adet: sayi(r.adet), aciklama: ['Dolum', dolumKaynagi(r), r.hazirlayan].filter(Boolean).join(' · ') });
+      for (const r of kayit('dolum')) if (ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'dolum', r, adet: sayi(r.adet), aciklama: ['Dolum', dolumKaynagi(r), r.dolduranlar?.length ? 'Dolduran: ' + dolduranYaz(r) : r.hazirlayan].filter(Boolean).join(' · ') });
       for (const s of kayit('sevk')) {
         const adet = (s.kalemler || []).filter(ayni).reduce((t, k) => t + sayi(k.adet), 0);
         if (adet) h.push({ tarih: s.tarih, t: s._olusturma, c: 'sevk', r: s, adet: s.durum === 'Gönderildi' ? -adet : 0, rezerve: s.durum !== 'Gönderildi' ? adet : 0, aciklama: `${s.firma} · ${s.durum}` });
@@ -462,7 +470,7 @@
   }
 
   NT.hesap = {
-    AMBALAJLAR, URUNLER, SEVK_DURUMLARI, GONDERI_SEKILLERI, DOLUM_KAYNAKLARI, dolumKaynagi, ONEK,
+    AMBALAJLAR, URUNLER, SEVK_DURUMLARI, GONDERI_SEKILLERI, DOLUM_KAYNAKLARI, dolumKaynagi, DOLUM_KISILERI, dolumKisileri, dolduranYaz, ONEK,
     kisaAd, anahtar, ambalajlar, ambalajAdi, urunler, urunBul, varsayilanlariYaz, stok, bosMevcut, doluMevcut,
     sevkKontrol, yeniNo, partiler, sonrakiParti, partiNo, defter, whatsappMetni, eskiVeriyiAktar, yedek, yedektenYukle,
     siseSlotlari, siseTemizle, siseBul, sevkEtkili, sevkLitre, firmaBilgisi, ulkeler, ulkeIngilizce, ulkeTelefonlari, telefonCoz, telefonBirlestir, ulkeIso,

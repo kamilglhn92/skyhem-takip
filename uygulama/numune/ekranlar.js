@@ -108,7 +108,7 @@
       tabloIndir('dolumlar', 'Dolumlar', d.kayitlar('dolum').sort(yeniden), [
         { baslik: 'No', deger: (r) => r.no, genislik: 15 }, { baslik: 'Tarih', deger: (r) => r.tarih, tur: 'tarih', genislik: 12 }, { baslik: 'Ürün', deger: (r) => r.urun, genislik: 18 },
         { baslik: 'Parti', deger: (r) => r.parti }, { baslik: 'Ambalaj', deger: (r) => H.ambalajAdi(d, r.ambalaj), genislik: 10 }, { baslik: 'Adet', deger: (r) => r.adet, tur: 'sayi', genislik: 8 },
-        { baslik: 'Hazırlayan', deger: (r) => r.hazirlayan, genislik: 18 }, { baslik: 'Nereden dolduruldu', deger: (r) => H.dolumKaynagi(r), genislik: 26, hiza: 'sol' }, { baslik: 'Not', deger: (r) => r.notlar, genislik: 36, hiza: 'sol' }, { baslik: 'Kaydeden', deger: (r) => r._olusturan, genislik: 18 }]);
+        { baslik: 'Hazırlayan', deger: (r) => r.hazirlayan, genislik: 18 }, { baslik: 'Dolumu yapanlar', deger: (r) => H.dolduranYaz(r), genislik: 28, hiza: 'sol' }, { baslik: 'Nereden dolduruldu', deger: (r) => H.dolumKaynagi(r), genislik: 26, hiza: 'sol' }, { baslik: 'Not', deger: (r) => r.notlar, genislik: 36, hiza: 'sol' }, { baslik: 'Kaydeden', deger: (r) => r._olusturan, genislik: 18 }]);
     },
     /* Farukcan'ın !SAMPLES.xlsx şablonu: aynı 15 sütun, sıra, genişlik ve gizli sütunlar (Request date,
        Responsible person, Feedback), aynı renkler. Gönderi başına bir satır; yalnızca yola çıkmış ve iptal
