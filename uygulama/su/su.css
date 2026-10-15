@@ -1,0 +1,56 @@
+/* İçme Suyu'na özel görünüm (iskelet ve kartlar ortak tezgah.css'tedir). */
+.su-cizim { display: block; flex: none; }
+.su-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 14px; }
+.su-izgara .tz-gonderi + .tz-gonderi { margin-top: 0; }
+.su-kart .bas .rozet { flex: none; }
+.su-kalemler { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.su-kalem { display: inline-flex; align-items: center; gap: 8px; background: var(--yuzey3); border-radius: 12px; padding: 5px 12px 5px 7px; font-size: 13px; color: var(--ikincil); }
+.su-kalem b { color: var(--murekkep); }
+.su-kalem small { display: block; font-size: 12px; color: var(--soluk); }
+.su-toplam { margin-left: auto; font: 700 18px var(--baslik); font-variant-numeric: tabular-nums; text-align: right; }
+.su-toplam small { display: block; font: 600 12px var(--yazi); color: var(--soluk); }
+
+/* Sipariş / teslimat penceresi: ürün kutuları */
+.su-urunler { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 12px; }
+.su-urunler .hata-yazi { grid-column: 1 / -1; }
+.su-urun { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 10px 14px; align-items: center; padding: 14px 16px; border: 1.5px solid var(--cizgi2); border-radius: 16px; background: var(--yuzey2); }
+.su-urun .su-cizim { grid-row: span 2; }
+.su-urun.secili { border-color: var(--bilgi); background: var(--bilgi-z); }
+.su-urun-ad { display: flex; flex-direction: column; gap: 2px; }
+.su-urun-ad b { font: 700 15px var(--baslik); }
+.su-urun .adet-girdi { justify-self: start; }
+.su-urun .su-birim { display: none; }
+.su-tahmin { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--yuzey3); font-variant-numeric: tabular-nums; }
+
+/* WhatsApp mesaj önizlemesi */
+.su-mesaj { border: 1px solid var(--cizgi); border-radius: 14px; padding: 12px 14px; background: var(--yuzey2); }
+.su-mesaj-bas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; color: var(--ikincil); }
+.su-mesaj-bas .ikon { color: #25a244; }
+.su-balon { position: relative; max-width: 520px; padding: 9px 12px; border-radius: 12px 12px 12px 4px; background: #dcf8c6; color: #111b21; font-size: 14px; line-height: 1.45; white-space: pre-wrap; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+:root[data-tema="koyu"] .su-balon { background: #005c4b; color: #e9edef; }
+@media (prefers-color-scheme: dark) { :root:not([data-tema="acik"]) .su-balon { background: #005c4b; color: #e9edef; } }
+
+/* Fatura penceresi özet şeridi */
+.su-serit { display: flex; gap: 10px; flex-wrap: wrap; }
+.su-serit > div { flex: 1 1 140px; background: var(--yuzey2); border: 1px solid var(--cizgi); border-radius: 12px; padding: 10px 14px; }
+.su-serit small, .su-serit span { display: block; font-size: 12px; color: var(--soluk); }
+.su-serit b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* Güncel fiyat ve litre kutuları */
+.su-fiyat { display: grid; gap: 8px; }
+.su-fiyat > div { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--yuzey2); }
+.su-fiyat span { flex: 1; font-weight: 600; }
+.su-fiyat small { display: block; font-weight: 400; font-size: 12px; color: var(--soluk); }
+.su-fiyat b { font: 700 18px var(--baslik); font-variant-numeric: tabular-nums; }
+
+/* Fatura kontrolü listesi */
+.su-kontrol { display: grid; gap: 2px; }
+.su-kontrol button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px; border: 0; border-radius: 10px; background: transparent; text-align: left; cursor: pointer; color: var(--murekkep); font-size: 13.5px; }
+.su-kontrol button:hover { background: var(--yuzey2); }
+.su-kontrol small { display: block; font-size: 12px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+.su-kontrol .rozet { flex: none; }
+.su-fatura-tablo td { white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .su-toplam { margin-left: 0; text-align: left; width: 100%; }
+}

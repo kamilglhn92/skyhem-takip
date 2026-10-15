@@ -1,0 +1,52 @@
+/* Yoklama'ya özel görünüm (iskelet ve kartlar ortak tezgah.css'tedir). */
+
+/* Bugün: kişi kartları */
+.yk-bugun { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; margin-bottom: 18px; }
+.yk-kisi { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--cizgi); border-radius: 14px; background: var(--yuzey); }
+.yk-kisi .ad { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.yk-kisi .ad b { font: 700 14.5px var(--baslik); }
+.yk-kisi .ad span { font-size: 12.5px; color: var(--iyi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yk-kisi.yok { background: var(--kritik-z); border-color: color-mix(in srgb, var(--kritik) 40%, transparent); }
+.yk-kisi.yok .ad span { color: var(--kritik); font-weight: 600; }
+
+/* Tür seçimi */
+.secenek.yk-tur.secili.yok { background: var(--yok-z); border-color: var(--yok); color: var(--yok); }
+.secenek.yk-tur.secili.bilgi { background: var(--bilgi-z); border-color: var(--bilgi); color: var(--bilgi); }
+.secenek.yk-tur.secili.mor { background: var(--mor-z); border-color: var(--mor); color: var(--mor); }
+.secenek.yk-tur.secili.kritik { background: var(--kritik-z); border-color: var(--kritik); color: var(--kritik); }
+
+/* Ay seçici */
+.yk-ay-sec { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+.yk-ay-sec b { min-width: 130px; text-align: center; font: 700 17px var(--baslik); }
+
+/* Aylık çizelge (kişi × gün) */
+.yk-cizelge-kap { overflow-x: auto; border: 1px solid var(--cizgi); border-radius: 14px; background: var(--yuzey); }
+.yk-cizelge { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+.yk-cizelge th, .yk-cizelge td { border-bottom: 1px solid var(--cizgi); border-right: 1px solid var(--cizgi); text-align: center; padding: 0; min-width: 30px; height: 34px; }
+.yk-cizelge thead th { font-weight: 700; color: var(--ikincil); padding: 4px 2px; background: var(--yuzey2); }
+.yk-cizelge thead th span { display: block; font-size: 13px; }
+.yk-cizelge thead th small { display: block; font-size: 10px; font-weight: 500; color: var(--soluk); }
+.yk-cizelge th.ad { position: sticky; left: 0; z-index: 1; min-width: 150px; padding: 0 12px; text-align: left; white-space: nowrap; background: var(--yuzey2); color: var(--murekkep); }
+.yk-cizelge td { cursor: pointer; font-weight: 700; font-variant-numeric: tabular-nums; }
+.yk-cizelge td:hover { outline: 2px solid var(--ana); outline-offset: -2px; }
+.yk-cizelge .kapali { background: var(--yuzey3); color: var(--soluk); font-weight: 500; }
+.yk-cizelge .bugun { box-shadow: inset 0 0 0 2px var(--ana); }
+.yk-cizelge td.isde { color: var(--iyi); }
+.yk-cizelge td.gelecek { background: var(--yuzey); }
+.yk-cizelge td.disarda { background: repeating-linear-gradient(135deg, var(--yuzey2), var(--yuzey2) 4px, var(--yuzey3) 4px, var(--yuzey3) 8px); cursor: default; }
+.yk-cizelge td.mesai, .yk-cizelge td.tatil-calisma { background: var(--iyi-z); color: var(--iyi); }
+.yk-cizelge td.yok.yok { background: var(--yok-z); color: var(--yok); }
+.yk-cizelge td.yok.bilgi { background: var(--bilgi-z); color: var(--bilgi); }
+.yk-cizelge td.yok.mor { background: var(--mor-z); color: var(--mor); }
+.yk-cizelge td.yok.kritik { background: var(--kritik-z); color: var(--kritik); }
+.yk-lejant { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--ikincil); }
+.yk-lejant span { display: inline-flex; align-items: center; gap: 6px; }
+.yk-lejant i { font-style: normal; min-width: 26px; padding: 2px 4px; border-radius: 6px; text-align: center; font-weight: 700; background: var(--yuzey3); }
+.yk-lejant i.isde { color: var(--iyi); background: var(--yuzey); border: 1px solid var(--cizgi); }
+.yk-lejant i.mesai, .yk-lejant i.tatil-calisma { background: var(--iyi-z); color: var(--iyi); }
+.yk-lejant i.yok.yok { background: var(--yok-z); color: var(--yok); }
+.yk-lejant i.yok.bilgi { background: var(--bilgi-z); color: var(--bilgi); }
+.yk-lejant i.yok.mor { background: var(--mor-z); color: var(--mor); }
+.yk-lejant i.yok.kritik { background: var(--kritik-z); color: var(--kritik); }
+.yk-lejant i.kapali { color: var(--soluk); }
+.yk-ozet td, .yk-ozet th { white-space: nowrap; }

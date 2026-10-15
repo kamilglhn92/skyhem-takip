@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="tr" class="tezgah">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKYHEM Takip</title>
+  <link rel="icon" href="uygulama/ortak/logo.svg" />
+  <script>try { var t = localStorage.getItem('nt.tema'); if (t && t !== 'oto') document.documentElement.setAttribute('data-tema', t); } catch (e) {}</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#2e7d32" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="SKYHEM" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+</head>
+<body>
+  <div id="uygulama">
+    <div id="yukleme-hatasi" style="display:none;max-width:720px;margin:60px auto;padding:28px 32px;font:15px/1.55 'Segoe UI',system-ui,sans-serif;color:#17201b;background:#fff;border:1px solid #e0e4da;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.08)">
+      <h2 style="margin:0 0 8px;color:#c62828;font-size:20px">Program açılamadı</h2>
+      <p style="margin:0 0 10px">Şu dosya yüklenemedi:</p>
+      <ul style="margin:0 0 14px;padding-left:20px;font:12.5px Consolas,monospace;color:#4f5b53;word-break:break-all"></ul>
+      <p style="margin:0 0 6px"><b>Olası nedenler ve çözüm:</b></p>
+      <ol style="margin:0;padding-left:20px">
+        <li>Bu dosyanın bulunduğu klasörde <b>uygulama</b> alt klasörü yok ya da eksik kopyalanmış. <b>SKYHEM Takip</b> klasörünün <b>tamamını</b> kopyalayın.</li>
+        <li>Programı <b>SKYHEM Takip.exe</b> ile açmayı deneyin.</li>
+      </ol>
+    </div>
+    <noscript>Bu program için JavaScript gerekir.</noscript>
+  </div>
+  <!--
+    SKYHEM Takip — bütün sistemlerin tek giriş dosyası (SKYHEM Takip.html?modul=satis gibi).
+    Dosyaları yükleyici açar; güncellemeler buluttan kendiliğinden gelir (uygulama/yukleyici.js).
+  -->
+  <script src="uygulama/surum.js"></script>
+  <script src="uygulama/yukleyici.js"></script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
+</body>
+</html>

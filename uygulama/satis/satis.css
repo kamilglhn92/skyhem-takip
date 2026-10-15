@@ -1,0 +1,118 @@
+/* Satış Takip'e özel görünüm (iskelet ve kartlar ortak tezgah.css'tedir). */
+.amb-cizim { display: block; flex: none; }
+.st-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr)); gap: 14px; }
+.st-izgara .tz-gonderi + .tz-gonderi { margin-top: 0; }
+.st-kalemler { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.st-kalem { display: inline-flex; align-items: center; gap: 8px; background: var(--yuzey3); border-radius: 12px; padding: 5px 12px 5px 7px; font-size: 13px; color: var(--ikincil); }
+.st-kalem b { color: var(--murekkep); }
+.st-kalem small { display: block; font-size: 12px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+.st-toplam { margin-left: auto; font: 700 18px var(--baslik); font-variant-numeric: tabular-nums; text-align: right; }
+.st-toplam small { display: block; font: 600 12px var(--govde, inherit); color: var(--soluk); }
+
+/* Sevkiyat formu: kalem kartı */
+.st-kalem-satir { position: relative; border: 1px solid var(--cizgi); border-radius: 14px; padding: 12px 14px 14px; background: var(--yuzey2); }
+.st-kalem-satir + .st-kalem-satir { margin-top: 10px; }
+.st-kalem-sil { position: absolute; top: 8px; right: 8px; }
+.st-amb-sec { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding-right: 36px; }
+.st-amb { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 78px; height: 74px; padding: 6px 10px; border: 1.5px solid var(--cizgi2); border-radius: 12px; background: var(--yuzey); cursor: pointer; color: var(--ikincil); font-size: 12px; font-weight: 700; }
+.st-amb:hover { border-color: var(--ana); }
+.st-amb.secili { border-color: var(--ana); background: var(--ana-acik); color: var(--murekkep); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ana) 16%, transparent); }
+.st-net { background: var(--yuzey3); font-weight: 700; }
+.st-fiyat { padding: 12px 14px; border: 1px dashed var(--cizgi2); border-radius: 12px; }
+
+/* Müşteri / parti penceresi özet şeridi */
+.st-ozet-serit { display: flex; gap: 10px; flex-wrap: wrap; }
+.st-ozet-serit > div { flex: 1 1 140px; background: var(--yuzey2); border: 1px solid var(--cizgi); border-radius: 12px; padding: 10px 14px; }
+.st-ozet-serit small { display: block; font-size: 12px; color: var(--soluk); }
+.st-ozet-serit b { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* Müşteri kartları */
+.st-musteriler { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+.st-musteri { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 16px 18px; border: 1px solid var(--cizgi); border-radius: 18px; background: var(--yuzey); cursor: pointer; color: var(--murekkep); }
+.st-musteri:hover { border-color: var(--ana); }
+.st-musteri .ad { font: 700 15.5px var(--baslik); }
+.st-musteri .alt { margin-top: 6px; font-size: 13px; color: var(--ikincil); }
+
+/* Müşteri payı çubukları ve rapor grupları */
+.st-pay { display: grid; gap: 4px; }
+.st-pay-satir { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; text-align: left; padding: 7px 8px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; color: var(--murekkep); font-size: 13.5px; }
+.st-pay-satir:hover { background: var(--yuzey2); }
+.st-pay-satir .ad { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-pay-satir .deger { font-weight: 700; font-variant-numeric: tabular-nums; }
+.st-pay-satir .cubuk { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--yuzey3); overflow: hidden; }
+.st-pay-satir .cubuk i { display: block; height: 100%; background: var(--ana); border-radius: 99px; }
+.st-grup { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--cizgi); font-size: 13.5px; }
+.st-grup:last-child { border-bottom: 0; }
+.st-grup b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .st-kalem-satir .form-izgara > .s4 { grid-column: span 6; }
+  .st-toplam { margin-left: 0; text-align: left; width: 100%; }
+}
+
+/* Kalem: parti karışımı ve kalemin kendi belgeleri */
+.st-link { all: unset; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--ana); align-self: flex-start; }
+.st-link:hover { text-decoration: underline; }
+.st-karisim { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--r); background: var(--yuzey); border: 1px solid var(--cizgi); }
+.st-karisim-bas { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.st-karisim-bas .st-link { margin-left: auto; }
+.st-karisim-satir { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto auto; gap: 6px; align-items: center; }
+.st-karisim-alt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Partiler: kartlar */
+.st-parti-baslik { font-size: 16px; margin: 22px 0 10px; }
+.st-parti-baslik .soluk { font-weight: 500; font-size: 13.5px; }
+.st-parti-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.st-parti-kart { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--yuzey); border: 1px solid var(--cizgi); box-shadow: var(--golge); transition: transform .12s, border-color .12s; }
+.st-parti-kart:hover, .st-parti-kart:focus-visible { border-color: var(--ana-cizgi); transform: translateY(-1px); }
+.st-parti-kart .bas { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-parti-kart .miktar { font-size: 26px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.st-parti-kart .miktar small { font-size: 12.5px; font-weight: 600; color: var(--soluk); letter-spacing: 0; }
+.st-parti-kart .iz { display: flex; gap: 2px; height: 8px; border-radius: 99px; background: var(--yuzey3); overflow: hidden; }
+.st-parti-kart .iz i { display: block; height: 100%; background: var(--ana); border-radius: 99px; }
+.st-parti-kart .iz i.hazir { background: var(--gr-4); }
+.st-parti-kart .musteriler { display: flex; flex-wrap: wrap; gap: 4px; }
+.st-parti-kart .musteriler span { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--yuzey3); color: var(--ikincil); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Genel bakış (pano): grafikler yan yana ---------- */
+.pano-izgara { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+.pano-izgara > .tz-kart { margin: 0; min-width: 0; display: flex; flex-direction: column; }
+.pano-izgara > .p4 { grid-column: span 4; }
+.pano-izgara > .p5 { grid-column: span 5; }
+.pano-izgara > .p7 { grid-column: span 7; }
+@media (max-width: 1250px) { .pano-izgara > .p4 { grid-column: span 6; } .pano-izgara > .p4:last-of-type { grid-column: span 12; } }
+@media (max-width: 980px) { .pano-izgara > .p4, .pano-izgara > .p5, .pano-izgara > .p7 { grid-column: span 12; } }
+.pano-izgara .gr-halka-kap { flex-wrap: nowrap; }
+@media (max-width: 1400px) { .pano-izgara > .p4 .gr-halka-kap { flex-direction: column; align-items: stretch; } .pano-izgara > .p4 .gr-halka { align-self: center; } }
+
+/* Tıklanır özet kutuları */
+.pano-kpi { all: unset; box-sizing: border-box; position: relative; overflow: hidden; cursor: pointer; text-align: left; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: var(--r); transition: transform .12s, box-shadow .12s, border-color .12s; }
+.pano-kpi:hover, .pano-kpi:focus-visible { transform: translateY(-1px); box-shadow: var(--golge); border-color: var(--ana-cizgi); }
+.pano-kpi .pano-ok { margin-left: auto; opacity: 0; transition: opacity .12s; }
+.pano-kpi:hover .pano-ok, .pano-kpi:focus-visible .pano-ok { opacity: .8; }
+.pano-kpi.vurgu { border-color: transparent; }
+.pano-iz { position: absolute; right: 14px; bottom: 12px; width: 42%; height: 34px; color: rgba(255, 255, 255, .55); pointer-events: none; }
+.pano-kpi:not(.vurgu) .pano-iz { color: var(--ana-cizgi); }
+
+/* Ambalaj: çizimler, boyu adede göre */
+.pano-amb-izgara { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; align-items: end; }
+.pano-amb-kutu { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px 10px; border-radius: 14px; background: var(--yuzey2); border: 1px solid transparent; transition: border-color .12s, background .12s; }
+.pano-amb-kutu:hover, .pano-amb-kutu:focus-visible { border-color: var(--ana-cizgi); background: var(--ana-acik); }
+.pano-amb-kutu .cizim { min-height: 76px; display: flex; align-items: flex-end; margin-bottom: 6px; }
+.pano-amb-kutu b { font-size: 26px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pano-amb-kutu span { font-size: 12.5px; font-weight: 600; color: var(--ikincil); }
+.pano-amb-kutu small { font-size: 11.5px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+
+/* Devam eden iş hattı: Sipariş → Hazırlanıyor → Yolda */
+.pano-hat { display: flex; align-items: stretch; gap: 6px; }
+.pano-hat-ok { display: flex; align-items: center; color: var(--cizgi2); }
+.pano-hat-adim { all: unset; box-sizing: border-box; flex: 1; cursor: pointer; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 10px; align-items: center;
+  padding: 14px 16px; border-radius: 14px; background: var(--yuzey2); border: 1px solid var(--cizgi); color: var(--soluk); transition: border-color .12s, background .12s; }
+.pano-hat-adim svg { grid-row: 1 / span 3; }
+.pano-hat-adim b { font-size: 28px; font-weight: 800; line-height: 1.05; color: var(--murekkep); font-variant-numeric: tabular-nums; }
+.pano-hat-adim span { font-size: 12.5px; font-weight: 600; color: var(--ikincil); }
+.pano-hat-adim small { font-size: 11.5px; }
+.pano-hat-adim.dolu { background: var(--ana-acik); border-color: var(--ana-cizgi); color: var(--ana); }
+.pano-hat-adim:hover, .pano-hat-adim:focus-visible { border-color: var(--ana); }
+@media (max-width: 700px) { .pano-hat { flex-direction: column; } .pano-hat-ok { transform: rotate(90deg); justify-content: center; } }
