@@ -1,6 +1,6 @@
 /*
  * Desbaş aylık menü resmini okur:
- *  1) Resimdeki turuncu gün başlıklarını bulur → 7 sütunlu takvim ızgarası (her günün kutusu).
+ *  1) Resimdeki gün başlıklarını (düz renkli şerit: turuncu, siyah vb.) bulur → 7 sütunlu takvim ızgarası (her günün kutusu).
  *  2) Başlıktan ayı ("1 Ekim 2026 Perşembe") ve öğünü ("… AKŞAM MENÜ …") okur.
  *  3) Kutuları ayın günlerine eşler (ilk kutu ayın 1'inin haftanın gününe düşmeli; kutu sayısı = ayın gün sayısı).
  *  4) Her kutuyu yazıya çevirir (Tesseract, Türkçe; ilk kullanımda internetten ~10 MB indirilir).
@@ -22,7 +22,8 @@
     });
   }
 
-  /* Turuncu başlık şeritlerinden takvim ızgarası. Koordinatlar resmin kendi pikselleriyle. */
+  /* Düz renkli gün başlığı şeritlerinden takvim ızgarası (renk sabit değil: Desbaş bir ay turuncu, bir ay siyah gönderdi).
+     Koordinatlar resmin kendi pikselleriyle. */
   function izgaraBul(img) {
     const en = img.naturalWidth, boy = img.naturalHeight;
     const o = Math.min(1, 1600 / en); // çözümleme en fazla 1600 px genişlikte yapılır
@@ -32,49 +33,86 @@
     const cx = cv.getContext('2d', { willReadFrequently: true });
     cx.drawImage(img, 0, 0, W, H);
     const px = cx.getImageData(0, 0, W, H).data;
-    const turuncu = (x, y) => { const i = (y * W + x) * 4, r = px[i], g = px[i + 1], b = px[i + 2]; return r > 190 && g > 70 && g < 150 && b < 80 && r - g > 70; };
+    const dolgu = (x, y) => { const i = (y * W + x) * 4, r = px[i], g = px[i + 1], b = px[i + 2]; return 0.3 * r + 0.59 * g + 0.11 * b < 170; };
 
-    // 1) Satırlarının çoğu turuncu olan, başlık yüksekliğindeki bantlar
+    // 1) Satırlarının önemli bölümü koyu/renkli olan, başlık yüksekliğindeki bantlar
     const bantlar = [];
     let bas = -1;
     for (let y = 0; y <= H; y++) {
       let n = 0;
-      if (y < H) for (let x = 0; x < W; x++) if (turuncu(x, y)) n++;
+      if (y < H) for (let x = 0; x < W; x++) if (dolgu(x, y)) n++;
       const var_ = y < H && n > W * 0.1;
       if (var_ && bas < 0) bas = y;
       if (!var_ && bas >= 0) { const h = y - bas; if (h >= W * 0.006 && h <= W * 0.03) bantlar.push({ y0: bas, y1: y }); bas = -1; }
     }
-    // 2) Her bantta turuncu parçalar (yazı boşlukları kapatılır)
+    // 2) Her bantta dolu parçalar (yazı boşlukları kapatılır)
     for (const b of bantlar) {
       const h = b.y1 - b.y0, bosluk = Math.round(W * 0.03);
       b.parca = [];
       let s = -1, son = -1;
       for (let x = 0; x < W; x++) {
         let n = 0;
-        for (let y = b.y0; y < b.y1; y++) if (turuncu(x, y)) n++;
+        for (let y = b.y0; y < b.y1; y++) if (dolgu(x, y)) n++;
         if (n / h < 0.5) continue;
         if (s < 0) s = x; else if (x - son > bosluk) { b.parca.push([s, son + 1]); s = x; }
         son = x;
       }
       if (s >= 0) b.parca.push([s, son + 1]);
       b.parca = b.parca.filter(([a, z]) => z - a > W * 0.06);
-      // Dolgunluk: gün başlığı düz turuncu şerittir; büyük turuncu başlık yazısının harfleri arası boştur
-      let dolu = 0, alan = 0;
-      for (const [a, z] of b.parca) for (let y = b.y0; y < b.y1; y++) for (let x = a; x < z; x += 2) { alan++; if (turuncu(x, y)) dolu++; }
+      // Dolgunluk: gün başlığı düz şerittir; büyük başlık yazısının ve yemek satırlarının harfleri arası boştur
+      let dolu = 0, alan = 0, tr = 0, tg = 0, tb = 0;
+      for (const [a, z] of b.parca) for (let y = b.y0; y < b.y1; y++) for (let x = a; x < z; x += 2) {
+        alan++;
+        if (!dolgu(x, y)) continue;
+        const i = (y * W + x) * 4;
+        dolu++; tr += px[i]; tg += px[i + 1]; tb += px[i + 2];
+      }
       b.dolgu = alan ? dolu / alan : 0;
+      b.renk = dolu ? [tr / dolu, tg / dolu, tb / dolu] : [255, 255, 255];
     }
     // Gün başlıkları aynı yükseklikte ve dolu şeritlerdir; başlık yazısı gibi aykırı bantlar elenir
     const adaylar = bantlar.filter((b) => b.parca.length && b.dolgu > 0.6);
     const yukseklikler = adaylar.map((b) => b.y1 - b.y0).sort((a, z) => a - z);
     const ortaH = yukseklikler[Math.floor(yukseklikler.length / 2)];
-    const iyi = adaylar.filter((b) => Math.abs((b.y1 - b.y0) - ortaH) <= Math.max(2, ortaH * 0.25));
-    if (iyi.length < 4) return { en, boy, hucreler: [], hata: 'Resimde takvim (turuncu gün başlıkları) bulunamadı.' };
+    const boyUygun = adaylar.filter((b) => Math.abs((b.y1 - b.y0) - ortaH) <= Math.max(2, ortaH * 0.25));
+    // Bütün gün başlıkları aynı renktedir; aynı yükseklikteki kırmızı uyarı yazısı veya logo şeridi böyle elenir
+    const orta = [0, 1, 2].map((k) => { const l = boyUygun.map((b) => b.renk[k]).sort((a, z) => a - z); return l[Math.floor(l.length / 2)]; });
+    const iyi = boyUygun.filter((b) => Math.hypot(b.renk[0] - orta[0], b.renk[1] - orta[1], b.renk[2] - orta[2]) < 45);
+    if (iyi.length < 4) return { en, boy, hucreler: [], hata: 'Resimde takvim (gün başlıkları) bulunamadı.' };
     // 3) Sütun genişliği: en geniş yayılım 7 sütundur
     const minX = Math.min(...iyi.flatMap((b) => b.parca.map((p) => p[0])));
     const maxX = Math.max(...iyi.flatMap((b) => b.parca.map((p) => p[1])));
     const sw = (maxX - minX) / 7;
     const araliklar = iyi.slice(1).map((b, i) => b.y0 - iyi[i].y1).sort((a, z) => a - z);
     const satirH = araliklar[Math.floor(araliklar.length / 2)];
+    // Ayın başı/sonu tek başına kalan bir satırsa ve yanında logo varsa bant bozulur (Kasım 2026: 30'u logolarla bitişik).
+    // Bu yüzden takvimin üstüne ve altına birer satır aralığı uzaklıkta sütun sütun bakılır.
+    const adimlar = iyi.slice(1).map((b, i) => b.y0 - iyi[i].y0).sort((a, z) => a - z);
+    const adim = adimlar[Math.floor(adimlar.length / 2)];
+    const satirDene = (yOrta) => {
+      const parca = [];
+      let enIyiY = yOrta;
+      for (let c = 0; c < 7; c++) {
+        const a = Math.round(minX + c * sw), z = Math.round(minX + (c + 1) * sw);
+        let en = 0, enY = yOrta;
+        for (let y = yOrta - 6; y <= yOrta + 6; y += 2) {
+          if (y < 0 || y + ortaH > H) continue;
+          let dolu = 0, alan = 0, tr = 0, tg = 0, tb = 0;
+          for (let yy = y; yy < y + ortaH; yy += 2) for (let x = a; x < z; x += 3) {
+            alan++;
+            if (!dolgu(x, yy)) continue;
+            const i = (yy * W + x) * 4;
+            dolu++; tr += px[i]; tg += px[i + 1]; tb += px[i + 2];
+          }
+          const uygun = dolu && Math.hypot(tr / dolu - orta[0], tg / dolu - orta[1], tb / dolu - orta[2]) < 45;
+          if (uygun && dolu / alan > en) { en = dolu / alan; enY = y; }
+        }
+        if (en >= 0.6) { parca.push([a, z]); enIyiY = enY; }
+      }
+      return parca.length ? { y0: enIyiY, y1: enIyiY + ortaH, parca } : null;
+    };
+    for (let son = satirDene(iyi[iyi.length - 1].y0 + adim); son; son = satirDene(son.y0 + adim)) iyi.push(son);
+    for (let ilk = satirDene(iyi[0].y0 - adim); ilk; ilk = satirDene(ilk.y0 - adim)) iyi.unshift(ilk);
     const hucreler = [];
     iyi.forEach((b, satir) => {
       const altY = satir + 1 < iyi.length ? iyi[satir + 1].y0 : Math.min(H, b.y1 + satirH);
@@ -86,7 +124,8 @@
         }
       }
     });
-    return { en, boy, hucreler, ilkBant: iyi[0].y0 / o };
+    const tamSatir = iyi.find((b) => b.parca.reduce((t, [a, z]) => t + (z - a), 0) > sw * 3) || iyi[0];
+    return { en, boy, hucreler, ilkBant: tamSatir.y0 / o };
   }
 
   /* --- Yazı tanıma --- */

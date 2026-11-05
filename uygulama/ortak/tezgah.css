@@ -95,7 +95,8 @@
 .tz-m-su      { --imza-1: #1b5e20; --imza-2: #1e8a6e; --imza-3: #6fd3a8; --bant-a: #0b3a2c; --bant-b: #1c7560; --bant-c: #66cfa0; }
 .tz-m-yemek   { --imza-1: #3f6b0c; --imza-2: #6f9e10; --imza-3: #b8e04a; --bant-a: #24400a; --bant-b: #557f12; --bant-c: #b8e04a; }
 .tz-m-yoklama { --imza-1: #1b5e20; --imza-2: #4a7d34; --imza-3: #a8d47a; --bant-a: #13301a; --bant-b: #3e6b2c; --bant-c: #9ccf6a; }
-:is(.tz-m-numune, .tz-m-satis, .tz-m-su, .tz-m-yemek, .tz-m-yoklama) .tz-ust::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--imza-1), var(--imza-2) 55%, var(--imza-3)); }
+.tz-m-klips   { --imza-1: #14532d; --imza-2: #2f9e44; --imza-3: #8ce99a; --bant-a: #0d3b20; --bant-b: #237a3b; --bant-c: #84d98f; }
+:is(.tz-m-numune, .tz-m-satis, .tz-m-su, .tz-m-yemek, .tz-m-yoklama, .tz-m-klips) .tz-ust::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--imza-1), var(--imza-2) 55%, var(--imza-3)); }
 .tz-selam-bant { position: relative; overflow: hidden; align-items: center; padding: 26px 30px; border-radius: 22px; color: #fff; box-shadow: var(--golge);
   background:
     radial-gradient(700px 260px at 92% -20%, color-mix(in srgb, var(--bant-c, #5fa316) 60%, transparent), transparent 70%),

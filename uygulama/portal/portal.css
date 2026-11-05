@@ -62,6 +62,7 @@
 .pt-kart.yakinda { cursor: default; opacity: .62; }
 .pt-ikon { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: var(--ana-acik); color: var(--ana); margin-bottom: 6px; }
 .pt-satis { background: var(--bilgi-z); color: var(--bilgi); }
+.pt-klips { background: var(--iyi-z); color: var(--iyi); }
 .pt-su { background: var(--bilgi-z); color: var(--bilgi); }
 .pt-yemek { background: var(--kritik-z); color: var(--kritik); }
 .pt-yoklama { background: var(--mor-z); color: var(--mor); }

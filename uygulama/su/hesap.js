@@ -2,10 +2,10 @@
  * İçme Suyu — iş kuralları (arayüzsüz; karşılama ekranı da özet için yükler).
  *
  * Koleksiyonlar:
- *   siparis  { no: SU-YYYY-NNNN, tarih, damacana, bardak (istenen adet; bardak = koli), notlar,
+ *   siparis  { no: SU-YYYY-NNNN, tarih, kisi (siparişi veren), damacana, bardak, limonata (istenen adet; bardak ve limonata = koli), notlar,
  *              iptal, iptalNeden, iptalTarihi, kapandi, kapanisNot }   — kapandi: kalanı gelmeyecek, sipariş kapatıldı
- *   teslim   { siparis (id), tarih, damacana, bardak, notlar }         — bir sipariş birden fazla teslimatla (kısmi) gelebilir
- *   fiyat    { tarih (geçerlilik başlangıcı), damacana, bardak, kdv (%), aciklama }
+ *   teslim   { siparis (id), tarih, kisi (teslim alan), damacana, bardak, limonata, fisBelge (su fişi görseli), notlar }         — bir sipariş birden fazla teslimatla (kısmi) gelebilir
+ *   fiyat    { tarih (geçerlilik başlangıcı), damacana, bardak, limonata, kdv (%), aciklama }
  *   fatura   { ay: 'YYYY-MM', tutar, faturaNo, faturaTarihi, notlar, ekler } — anahtar 'ay-YYYY-MM' (aynı ay tek kayıt)
  *   ayar     'genel' { tedarikci, telefon, mesaj, koliBardak, bardakMl, damacanaL }
  *
@@ -20,7 +20,9 @@
   const URUNLER = [
     { id: 'damacana', ad: 'Damacana', birim: 'damacana', excel: 'DAMACANA' },
     { id: 'bardak', ad: 'Bardak su', birim: 'koli', excel: 'BARDAK KOLİ' },
+    { id: 'limonata', ad: 'Limonata', birim: 'koli', excel: 'LİMONATA' }, // tutara girer, litre hesabına girmez
   ];
+  const bosAdet = () => Object.fromEntries(URUNLER.map((u) => [u.id, 0]));
   const VARSAYILAN = {
     tedarikci: '', telefon: '', koliBardak: 60, bardakMl: 200, damacanaL: 19,
     mesaj: 'Merhaba, SKYHEM Kimya için {liste} rica ediyoruz. Teşekkürler.',
@@ -59,7 +61,7 @@
   /* Sipariş durumu: Bekliyor → Kısmi geldi → Geldi; ayrıca İptal ve Kapatıldı (kalanı gelmeyecek). */
   function durum(d, s) {
     const tl = teslimler(d, s);
-    const gelen = { damacana: 0, bardak: 0 };
+    const gelen = bosAdet();
     for (const t of tl) for (const u of URUNLER) gelen[u.id] += sayi(t[u.id]);
     const kalan = {};
     for (const u of URUNLER) kalan[u.id] = Math.max(0, sayi(s[u.id]) - gelen[u.id]);
@@ -90,7 +92,7 @@
     const liste = fiyatlar(d);
     const m = new Map();
     const al = (ay) => {
-      if (!m.has(ay)) m.set(ay, { ay, adet: { damacana: 0, bardak: 0 }, tutar: { damacana: 0, bardak: 0 }, haric: 0, kdv: 0, toplam: 0, litre: 0, teslimler: [], fatura: null });
+      if (!m.has(ay)) m.set(ay, { ay, adet: bosAdet(), tutar: bosAdet(), haric: 0, kdv: 0, toplam: 0, litre: 0, teslimler: [], fatura: null });
       return m.get(ay);
     };
     for (const t of gecerliTeslimler(d)) {
@@ -118,7 +120,7 @@
       const ay = `${yil}-${String(i).padStart(2, '0')}`;
       const x = liste.find((y) => y.ay === ay);
       if (!x && (ay < ilk || ay > bg)) continue;
-      const r = x || { ay, adet: { damacana: 0, bardak: 0 }, tutar: { damacana: 0, bardak: 0 }, haric: 0, kdv: 0, toplam: 0, litre: 0, teslimler: [], fatura: null, faturaVar: false, fark: 0, kontrol: 'yok' };
+      const r = x || { ay, adet: bosAdet(), tutar: bosAdet(), haric: 0, kdv: 0, toplam: 0, litre: 0, teslimler: [], fatura: null, faturaVar: false, fark: 0, kontrol: 'yok' };
       kum += r.litre;
       sonuc.push({ ...r, kumulatif: kum });
     }
@@ -143,7 +145,8 @@
     const p = [];
     if (sayi(x.damacana) > 0) p.push(`${sayi(x.damacana)} damacana`);
     if (sayi(x.bardak) > 0) p.push(`${sayi(x.bardak)} koli bardak su`);
-    return p.join(' ve ');
+    if (sayi(x.limonata) > 0) p.push(`${sayi(x.limonata)} koli limonata`);
+    return p.length > 1 ? `${p.slice(0, -1).join(', ')} ve ${p[p.length - 1]}` : p.join('');
   }
   function whatsappMetni(d, x) {
     return String(ayar(d).mesaj || VARSAYILAN.mesaj).replace(/\{liste\}/g, liste(x) || '…');
@@ -156,10 +159,10 @@
     return `https://wa.me/${tel}?text=${encodeURIComponent(metin)}`;
   }
 
-  /* Yeni sipariş penceresinde önerilecek adetler: son siparişteki adetler; hiç yoksa 10 + 10. */
+  /* Yeni sipariş penceresinde önerilecek adetler: son siparişteki su adetleri; hiç yoksa 10 + 10. Limonata ara sıra alındığı için 0 gelir. */
   function sonAdetler(d) {
     const s = d.kayitlar('siparis').filter((x) => !x.iptal).sort((a, b) => (a.tarih < b.tarih ? 1 : a.tarih > b.tarih ? -1 : b._olusturma - a._olusturma))[0];
-    return s ? { damacana: sayi(s.damacana), bardak: sayi(s.bardak) } : { damacana: 10, bardak: 10 };
+    return s ? { damacana: sayi(s.damacana), bardak: sayi(s.bardak), limonata: 0 } : { damacana: 10, bardak: 10, limonata: 0 };
   }
 
   /* Karşılama ekranı kartı için kısa özet. */
@@ -186,5 +189,5 @@
       fark && { metin: `${fark} ayda su faturası farkı`, sekme: 'faturalar' }].filter(Boolean);
   }
 
-  NT.su = { URUNLER, VARSAYILAN, AY_ADLARI, ayAdi, faturaAnahtari, ayar, litre, fiyatlar, fiyatBul, teslimler, durum, acikMi, teslimTutar, gecerliTeslimler, aylar, yilAylari, aylikLitre, liste, whatsappMetni, whatsappAdresi, sonAdetler, ozet, dikkat };
+  NT.su = { URUNLER, bosAdet, VARSAYILAN, AY_ADLARI, ayAdi, faturaAnahtari, ayar, litre, fiyatlar, fiyatBul, teslimler, durum, acikMi, teslimTutar, gecerliTeslimler, aylar, yilAylari, aylikLitre, liste, whatsappMetni, whatsappAdresi, sonAdetler, ozet, dikkat };
 })(typeof window !== 'undefined' ? window : globalThis);

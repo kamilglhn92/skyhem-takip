@@ -45,6 +45,7 @@
     su: { ad: 'İçme Suyu', tablo: 'olaylar_su', ek: '-su' },
     yemek: { ad: 'Yemek', tablo: 'olaylar_yemek', ek: '-yemek' },
     yoklama: { ad: 'Yoklama', tablo: 'olaylar_yoklama', ek: '-yoklama' },
+    klips: { ad: 'Klips Takip', tablo: 'olaylar_klips', ek: '-klips' },
   };
   const M = Object.assign({ id: 'numune' }, MODULLER[(window.NT_MODUL || {}).id || 'numune'] || {}, window.NT_MODUL || {});
   const onbellekAdi = (m) => 'bulut-olaylar' + m.ek;

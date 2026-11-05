@@ -50,3 +50,7 @@
 .yk-lejant i.yok.kritik { background: var(--kritik-z); color: var(--kritik); }
 .yk-lejant i.kapali { color: var(--soluk); }
 .yk-ozet td, .yk-ozet th { white-space: nowrap; }
+
+/* Yarım gün seçimi */
+.yk-yarim { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.yk-yarim-bilgi { background: var(--yuzey3); color: var(--ikincil); }

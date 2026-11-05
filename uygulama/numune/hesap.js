@@ -36,7 +36,7 @@
   };
   /* Dolumu yapan kişiler (dolum kaydında dolduranlar: [ad, …], 2026-10-15). Liste Yoklama personeli + önceki dolumlarda
      elle eklenen adlar; eski kayıtlarda alan yoktur. */
-  const DOLUM_KISILERI = ['Nurettin Durak', 'Kamil Gülhan', 'Onur Erkek', 'Yusuf Yılmaz', 'Erkan Eser'];
+  const DOLUM_KISILERI = ['Nurettin Durak', 'Kamil Gülhan', 'Onur Özdemir', 'Yusuf Yılmaz', 'Erkan Eser'];
   const dolumKisileri = (depo) => {
     const ek = depo.kayitlar('dolum').flatMap((r) => r.dolduranlar || []).filter((a) => a && !DOLUM_KISILERI.includes(a));
     return [...DOLUM_KISILERI, ...[...new Set(ek)].sort((a, b) => a.localeCompare(b, 'tr'))];

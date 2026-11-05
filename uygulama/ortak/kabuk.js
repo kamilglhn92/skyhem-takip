@@ -16,6 +16,27 @@
   const depo = () => b.depo;
   document.documentElement.classList.add('tezgah');
 
+  /* ---------------- Yazma kısıtı (Satış, Yemek): yalnız Kamil ve Farukcan yazar, diğerleri görür ----------------
+     Giriş ad + ortak erişim kodu olduğundan kısıt ada bakar; gerçek kimlik doğrulaması değildir: kodu bilen biri adını değiştirirse aşılır. */
+  const YAZICILAR = ['kamil', 'farukcan'];
+  const kisit = { var: false, ek: '' };
+  const yetkili = () => YAZICILAR.includes(NT.c.kucuk(String(b.kullanici || '').trim().split(/\s+/)[0]));
+  const yazabilir = () => !kisit.var || yetkili();
+  function yazmaKisitla({ ek = '' } = {}) {
+    kisit.var = true;
+    kisit.ek = ek;
+    const asil = NT.Depo.prototype.kaydet;
+    NT.Depo.prototype.kaydet = function (ops) {
+      /* Sunum modunun örnek verisi hazırlanırken (durum henüz 'hazir' değilken) engellenmez. Başka modülün deposu (Satış'taki klips) etkilenmez. */
+      if (this === b.depo && b.durum === 'hazir' && !yazabilir()) {
+        bildir('Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir.', { tur: 'hata' });
+        return Promise.resolve([]);
+      }
+      return asil.call(this, ops);
+    };
+  }
+  const saltAlt = (kapat) => html`<span class="soluk kucuk" style="margin-right:auto">Yalnız görüntüleme</span><button class="d hayalet" onClick=${kapat}>Kapat</button>`;
+
   /* ---------------- Tema ---------------- */
   const temaAl = () => { try { return localStorage.getItem('nt.tema') || 'oto'; } catch { return 'oto'; } };
   function temaUygula(t) {
@@ -107,6 +128,7 @@
   }
   /* Kayıt penceresinin alt düğmeleri: Sil (varsa) · Vazgeç · Kaydet */
   function FormAlt({ kayit, sil: silFn, kapat, kaydet, mesgul, ek, kaydetYazi = 'Kaydet' }) {
+    if (!yazabilir()) return saltAlt(kapat);
     return html`${(kayit && silFn || ek) && html`<div class="sol">${kayit && silFn && html`<button class="d tehlike" onClick=${silFn}><${Ikon} ad="cop" />Sil</button>`}${ek}</div>`}
       <button class="d hayalet" onClick=${kapat}>Vazgeç</button>
       <button class="d ana-d" disabled=${mesgul} onClick=${kaydet}><${Ikon} ad="tik" />${mesgul ? 'Kaydediliyor…' : kaydetYazi}</button>`;
@@ -216,13 +238,14 @@
   }
   function AyarlarSayfasi({ aciklama, cop, children }) {
     return html`<${Selam} baslik="Ayarlar">${aciklama || 'Buradaki ayarlar bu sistemi kullanan herkes için ortaktır (profil ve görünüm hariç).'}<//>
-      <${Profil} />${children}<${Bulut} />${cop && html`<${CopKutusu} turler=${cop} />`}<${Yedek} onEk=${b.modul.id} />`;
+      <${Profil} />${children}<${Bulut} />${cop && yazabilir() && html`<${CopKutusu} turler=${cop} />`}<${Yedek} onEk=${b.modul.id} />`;
   }
 
   /* ---------------- İskelet ---------------- */
   const sekmeAl = (sekmeler) => { const s = (location.hash.match(/^#\/(\w+)/) || [])[1]; return sekmeler.some((x) => x.id === s) ? s : sekmeler[0].id; };
   function Iskelet({ ayar }) {
-    const { sekmeler, sayfalar, eylemler = [], arama } = ayar;
+    const { sekmeler, sayfalar, arama } = ayar;
+    const eylemler = yazabilir() ? ayar.eylemler || [] : [];
     const [sekme, setSekme] = useState(sekmeAl(sekmeler));
     const d = depo();
     useEffect(() => {
@@ -268,7 +291,7 @@
       <div class="tz-ana">
         ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>SUNUM MODU</b> · Örnek veriler. Burada girdiğiniz hiçbir şey kaydedilmez; sayfa kapanınca silinir.</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>Gerçek verilerle aç →</a></div>`}
         <header class="tz-ust">${arama ? html`<${Arama} kaynak=${arama} />` : ''}<span style="flex:1" /><${TemaDugmesi} /></header>
-        <main class=${'tz-icerik' + (sekme === 'ayarlar' ? ' tz-klasik' : '')}><${Sayfa} /></main>
+        <main class=${'tz-icerik' + (sekme === 'ayarlar' ? ' tz-klasik' : '')}>${!yazabilir() && sekme !== 'ayarlar' && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir; siz görüntüleyebilirsiniz${kisit.ek}.</span></div>`}<${Sayfa} /></main>
       </div>
     </div>`;
   }
@@ -375,7 +398,7 @@
   }
 
   NT.kabuk = {
-    calistir, ac, sil, yeniNo, excel, sayiYaz, demoTanimla, temaUygula, temaAl,
+    yazmaKisitla, yazabilir, saltAlt, calistir, ac, sil, yeniNo, excel, sayiYaz, demoTanimla, temaUygula, temaAl,
     Selam, Kart, Cipler, Kpi, Cubuklar, FormAlt, OneriGirdi, AyarKarti, AyarlarSayfasi, Kurulum, TemaDugmesi, Katman,
   };
 })();

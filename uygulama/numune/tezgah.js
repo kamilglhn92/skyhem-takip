@@ -171,7 +171,7 @@
         icerik: () => html`<${NT.ui.DolduranSecimi} secili=${f.dolduranlar} degis=${(v) => s('dolduranlar', v)} />`,
       },
       {
-        soru: 'Kontrol edip kaydedin',
+        soru: 'Kontrol edip kaydedin', gecerli: () => !!f.tarih,
         icerik: () => html`<p class="tz-ozet"><em>${f.adet} şişe</em> ${f.urun}${f.parti ? html` · <em>${f.parti}</em>` : ''}, <em>${amb(f.ambalaj)}</em> ambalaja dolduruldu${f.kaynakTur ? html` (kaynak: <em>${H.dolumKaynagi(f)}</em>)` : ''}.
             Dolduran: <em>${H.dolduranYaz(f)}</em>.<br />
             <span class="soluk" style="font-size:16px">Boş ${amb(f.ambalaj)} şişe: ${bos} → ${bos - sayi(f.adet)}</span></p>
@@ -197,7 +197,7 @@
     const d = depo();
     const onceki = d.kayitlar('sevk');
     const sonFirmalar = [...new Map([...onceki].sort((a, x) => (a.tarih < x.tarih ? 1 : -1)).map((r) => [r.firma, r])).values()].slice(0, 8);
-    const [f, setF] = useState({ firma: '', yetkili: '', telefon: '', irtibatDetay: '', talepTarihi: bugun(), sorumlu: b.kullanici || '', adres: '', sebep: '', sekil: 'Kargo', kargoFirma: '', takipNo: '', kargoBelge: [], ulke: 'Türkiye', durum: 'Beklemede', tarih: bugun(), sepet: [], siseler: [], ...on });
+    const [f, setF] = useState({ firma: '', yetkili: '', telefon: '', irtibatDetay: '', talepTarihi: bugun(), sorumlu: '', adres: '', sebep: '', sekil: 'Kargo', kargoFirma: '', takipNo: '', kargoBelge: [], ulke: 'Türkiye', durum: 'Beklemede', tarih: bugun(), sepet: [], siseler: [], ...on });
     const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
     const [filtre, setFiltre] = useState('');
     const st = H.stok(d);
@@ -228,8 +228,6 @@
             <div class="alan s12"><label>Talep sebebi</label><input class="girdi" list="tz-sebepler" value=${f.sebep} onInput=${(e) => s('sebep', e.target.value)} placeholder="Örn: Laboratory testing, saha denemesi" />
               <datalist id="tz-sebepler">${[...new Set(onceki.map((r) => (r.sebep || '').trim()).filter(Boolean))].sort(trSirala).map((x) => html`<option value=${x} />`)}</datalist></div>
             <div class="alan s6"><label>Talep tarihi</label><input class="girdi" type="date" value=${f.talepTarihi} onInput=${(e) => s('talepTarihi', e.target.value)} /></div>
-            <div class="alan s6"><label>Sorumlu</label><input class="girdi" list="tz-sorumlular" value=${f.sorumlu} onInput=${(e) => s('sorumlu', e.target.value)} placeholder="Talebi takip eden kişi" />
-              <datalist id="tz-sorumlular">${[...new Set([b.kullanici, ...onceki.map((r) => (r.sorumlu || '').trim())].filter(Boolean))].sort(trSirala).map((x) => html`<option value=${x} />`)}</datalist></div>
           </div>`,
       },
       {
@@ -275,12 +273,16 @@
           </div>`,
       },
       {
-        soru: 'Şu an ne durumda?', ipucu: 'Sadece “Yola çıktı” stoktan düşer. Diğerlerinde şişeler rafta ayrılmış (rezerve) görünür.',
+        soru: 'Şu an ne durumda?', ipucu: 'Sadece “Yola çıktı” stoktan düşer. Diğerlerinde şişeler rafta ayrılmış (rezerve) görünür. Sorumlu ve tarih zorunludur.', gecerli: () => !!f.tarih && !!f.sorumlu.trim(),
         icerik: () => html`<div class="tz-secimler">
             <${Secim} ikon="saat" secili=${f.durum === 'Karar Aşaması'} baslik="Karar aşamasında" alt="Gönderilip gönderilmeyeceği belli değil" onClick=${() => s('durum', 'Karar Aşaması')} />
             <${Secim} ikon="dolum" secili=${f.durum === 'Beklemede'} baslik="Hazırlanıyor" alt="Paketlenecek" onClick=${() => s('durum', 'Beklemede')} />
             <${Secim} ikon="etiket" secili=${f.durum === 'Etiket Bekliyor'} baslik="Etiket bekliyor" alt="Paket hazır" onClick=${() => s('durum', 'Etiket Bekliyor')} />
             <${Secim} ikon="daire_tik" secili=${f.durum === 'Gönderildi'} baslik="Yola çıktı" alt="Stoktan düşer" onClick=${() => s('durum', 'Gönderildi')} />
+          </div>
+          <div class="form-izgara" style="margin-top:22px">
+            <div class="alan s6"><label>Sorumlu (zorunlu)</label><${NT.ui.KisiSec} etiket="Sorumlu" deger=${f.sorumlu} degis=${(v) => s('sorumlu', v)} liste=${NT.ui.kisiListesi(onceki.map((r) => r.sorumlu))} /></div>
+            <div class="alan s6"><label>Tarih (zorunlu)</label><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih', e.target.value)} /></div>
           </div>
           <p class="tz-ozet" style="margin-top:26px"><em>${f.firma}</em> firmasına <em>${toplam} şişe (${litreYaz(H.sevkLitre(d, kalemler))} L)</em>: ${kalemler.map(kalemYazi).join(', ')}.</p>
           ${f.durum === 'Gönderildi' && eksikler.length > 0 && html`<div class="uyari-kutu yok"><${Ikon} ad="uyari" /><span>Rafta yetersiz: ${eksikler.map((e) => `${e.urun} ${e.parti} ${amb(e.ambalaj)} (rafta ${e.mevcut}, istenen ${e.istenen})`).join(' · ')}</span></div>`}`,
@@ -299,16 +301,18 @@
   /* ---------------- Şişe geldi ---------------- */
   function AlimSihirbazi({ kapat, on = {} }) {
     const d = depo();
-    const [f, setF] = useState({ ambalaj: '', adet: 10, tedarikci: '', faturaNo: '', birimFiyat: '', tarih: bugun(), ...on });
+    const [f, setF] = useState({ ambalaj: '', adet: 10, tedarikci: '', faturaNo: '', birimFiyat: '', tarih: bugun(), kisi: '', ...on });
     const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
     const tedarikciler = [...new Set(d.kayitlar('alim').map((r) => r.tedarikci).filter(Boolean))];
     const adimlar = [
       { soru: 'Hangi şişeler geldi?', gecerli: () => !!f.ambalaj,
         icerik: ({ ileri }) => html`<div class="tz-secimler">${H.ambalajlar(d).map((a) => html`<${Secim} sise litre=${a.litre} secili=${f.ambalaj === a.id} baslik=${a.ad} alt=${`şu an ${H.bosMevcut(d, a.id)} boş`} onClick=${() => { s('ambalaj', a.id); ileri(); }} />`)}</div>` },
       { soru: 'Kaç adet?', gecerli: () => sayi(f.adet) > 0, icerik: () => html`<${SayiSecici} deger=${f.adet} degis=${(v) => s('adet', v)} hizli=${[5, 10, 20, 50, 100]} />` },
-      { soru: 'Nereden geldi?', ipucu: 'İsteğe bağlı; boş bırakabilirsiniz.',
+      { soru: 'Kim teslim aldı, nereden geldi?', ipucu: 'Teslim alan ve tarih zorunlu; tedarikçi ve fatura isteğe bağlı.', gecerli: () => !!f.tarih && !!f.kisi.trim(),
         icerik: () => html`${tedarikciler.length > 0 && html`<div class="tz-hizli" style="margin-bottom:16px">${tedarikciler.map((x) => html`<button type="button" class=${'tz-cip' + (f.tedarikci === x ? ' secili' : '')} onClick=${() => s('tedarikci', x)}>${x}</button>`)}</div>`}
           <div class="form-izgara">
+            <div class="alan s6"><label>Teslim alan (zorunlu)</label><${NT.ui.KisiSec} etiket="Teslim alan" deger=${f.kisi} degis=${(v) => s('kisi', v)} liste=${NT.ui.kisiListesi(d.kayitlar('alim').map((r) => r.kisi))} /></div>
+            <div class="alan s6"><label>Tarih (zorunlu)</label><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih', e.target.value)} /></div>
             <div class="alan s6"><label>Tedarikçi</label><input class="girdi" value=${f.tedarikci} onInput=${(e) => s('tedarikci', e.target.value)} /></div>
             <div class="alan s3"><label>Fatura no</label><input class="girdi mono" value=${f.faturaNo} onInput=${(e) => s('faturaNo', e.target.value)} /></div>
             <div class="alan s3"><label>Birim fiyat ₺</label><input class="girdi" inputmode="decimal" value=${f.birimFiyat} onInput=${(e) => s('birimFiyat', e.target.value)} /></div>
@@ -317,7 +321,7 @@
     ];
     async function kaydet() {
       const no = H.yeniNo(d, 'alim', f.tarih);
-      await d.kaydet([{ c: 'alim', k: uid(), v: { no, tarih: f.tarih, ambalaj: f.ambalaj, adet: sayi(f.adet), tedarikci: f.tedarikci.trim(), faturaNo: f.faturaNo.trim(), birimFiyat: f.birimFiyat === '' ? '' : sayi(f.birimFiyat), notlar: '', ekler: [] } }]);
+      await d.kaydet([{ c: 'alim', k: uid(), v: { no, tarih: f.tarih, kisi: f.kisi.trim(), ambalaj: f.ambalaj, adet: sayi(f.adet), tedarikci: f.tedarikci.trim(), faturaNo: f.faturaNo.trim(), birimFiyat: f.birimFiyat === '' ? '' : sayi(f.birimFiyat), notlar: '', ekler: [] } }]);
       bildir(`${no} · ${f.adet} × ${amb(f.ambalaj)} boş şişe rafa eklendi.`);
     }
     return html`<${Sihirbaz} baslik="Şişe geldi" adimlar=${adimlar} kapat=${kapat} kaydet=${kaydet} kaydetYazi="Rafa ekle" />`;
@@ -329,6 +333,8 @@
     const st = H.stok(d);
     const [bolum, setBolum] = useState('');
     const [sayilan, setSayilan] = useState({});
+    const [kisi, setKisi] = useState('');
+    const [tarih, setTarih] = useState(bugun());
     const bolumler = [{ id: 'bos', ad: 'Boş şişeler', alt: `${H.ambalajlar(d).length} ambalaj` },
       ...H.urunler(d).map((u) => ({ id: u.ad, ad: u.ad, alt: `${[...st.dolu.values()].filter((x) => x.urun === u.ad && x.mevcut !== 0).length} kalem rafta` }))];
     const satirlar = bolum === 'bos'
@@ -347,16 +353,19 @@
             <td><input class="girdi sayi" type="number" min="0" value=${v} onFocus=${(e) => e.target.select()} onInput=${(e) => setSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>
             <td class="fark" style=${{ color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : 'var(--soluk)' }}>${fark > 0 ? '+' : ''}${fark || '—'}</td></tr>`;
         })}</tbody></table>` : html`<p class="soluk">Bu rafta kayıtlı numune yok.</p>` },
-      { soru: farklar.length ? `${farklar.length} fark kaydedilecek` : 'Her şey tutuyor 👌', gecerli: () => true,
-        icerik: () => farklar.length ? html`<ul class="tz-akis">${farklar.map((r) => html`<li style="cursor:default"><span class="ik sayim"><${Ikon} ad="sayim" /></span><span class="ne">${r.ad}<small>sistemde ${r.sistem}, sayılan ${r.s}</small></span><span class=${'miktar ' + (r.s - r.sistem > 0 ? 'arti' : 'eksi')}>${r.s - r.sistem > 0 ? '+' : ''}${r.s - r.sistem}</span></li>`)}</ul>`
+      { soru: farklar.length ? `${farklar.length} fark kaydedilecek` : 'Her şey tutuyor 👌', ipucu: farklar.length ? 'Sayan kişi ve tarih zorunlu.' : '', gecerli: () => !farklar.length || (!!tarih && !!kisi.trim()),
+        icerik: () => farklar.length ? html`<div class="form-izgara" style="margin-bottom:16px">
+            <div class="alan s6"><label>Sayan kişi (zorunlu)</label><${NT.ui.KisiSec} etiket="Sayan kişi" deger=${kisi} degis=${setKisi} liste=${NT.ui.kisiListesi(d.kayitlar('sayim').map((r) => r.kisi))} /></div>
+            <div class="alan s6"><label>Tarih (zorunlu)</label><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /></div>
+          </div><ul class="tz-akis">${farklar.map((r) => html`<li style="cursor:default"><span class="ik sayim"><${Ikon} ad="sayim" /></span><span class="ne">${r.ad}<small>sistemde ${r.sistem}, sayılan ${r.s}</small></span><span class=${'miktar ' + (r.s - r.sistem > 0 ? 'arti' : 'eksi')}>${r.s - r.sistem > 0 ? '+' : ''}${r.s - r.sistem}</span></li>`)}</ul>`
           : html`<p class="tz-ozet">Sayım sistemle aynı. Kaydedilecek bir fark yok.</p>` },
     ];
     async function kaydet() {
       if (!farklar.length) return;
-      let no = H.yeniNo(d, 'sayim');
+      let no = H.yeniNo(d, 'sayim', tarih);
       const [on, yil, n] = no.split('-');
       const ops = farklar.map((r, i) => ({ c: 'sayim', k: uid(), v: {
-        no: `${on}-${yil}-${String(+n + i).padStart(4, '0')}`, tarih: bugun(), tur: r.hedef.bos ? 'bos' : 'dolu', urun: r.hedef.urun || '', parti: r.hedef.parti || '',
+        no: `${on}-${yil}-${String(+n + i).padStart(4, '0')}`, tarih, kisi: kisi.trim(), tur: r.hedef.bos ? 'bos' : 'dolu', urun: r.hedef.urun || '', parti: r.hedef.parti || '',
         ambalaj: r.hedef.ambalaj, onceki: r.sistem, sayilan: sayi(r.s), fark: sayi(r.s) - r.sistem, neden: 'Raf sayımı' } }));
       await d.kaydet(ops);
       bildir(`Raf sayımı kaydedildi: ${ops.length} düzeltme.`);

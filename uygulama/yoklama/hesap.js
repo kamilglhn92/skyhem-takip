@@ -6,7 +6,7 @@
  *
  * Koleksiyonlar:
  *   kisi     { ad, aktif, bas (işe başlama / takibe giriş), bit (ayrılış), sira, notlar }
- *   istisna  { kisi (id), tur, bas, bit (tarih aralığı; tek gün için bit = bas), saat, notlar, ekler }
+ *   istisna  { kisi (id), tur, bas, bit (tarih aralığı; tek gün için bit = bas), saat, yarim (tek günlük yokluk yarım gün), notlar, ekler }
  *            tur: rapor | yillik | izin | gelmedi (yok sayılır) · mesai (iş gününde fazla mesai, günlük saat) · tatil (hafta sonu / resmî tatilde çalıştı)
  *   onay     anahtar 'ay-YYYY-MM' { ay, notlar } — "Ayı onayla"; onaylayan ve zaman kaydın geçmişindedir
  *   ayar     'genel' { baslangic } — takibin başladığı gün (önceki günler sayılmaz)
@@ -47,13 +47,17 @@
   const istisnalar = (d) => d.kayitlar('istisna').filter((i) => i.kisi && i.bas);
   const kapsar = (i, t) => i.bas <= t && t <= (i.bit || i.bas);
 
+  /* Yarım gün yokluk: arife günü (öğleden sonrası zaten resmî tatil) kendiliğinden, diğer günlerde kayıttaki seçimle.
+     Yarım gün: yokluğa 0,5 + çalıştı'ya 0,5 yazılır; iş günü 1 kalır. */
+  const yarimMi = (i, t) => T.isGunu(t) && (!!i.yarim || !!T.yarimGun(t));
+
   /* Bir kişinin bir günü: { kod, tur, kayit, kayitlar, yok, calisti, kapali, saat, tatil, disarda, gelecek } */
   function gunDurum(d, k, t, liste = istisnalar(d), a = ayar(d)) {
     if (!takipte(d, k, t, a)) return { kod: '', disarda: true, kayitlar: [] };
     const ilgili = liste.filter((i) => i.kisi === k.id && kapsar(i, t));
     const gelecek = t > bugun();
     const yok = TURLER.filter((x) => x.yok).map((x) => ilgili.find((i) => i.tur === x.id)).find(Boolean);
-    if (yok) return { kod: tur(yok.tur).kod, tur: yok.tur, kayit: yok, kayitlar: ilgili, yok: true, gelecek };
+    if (yok) { const yarim = yarimMi(yok, t); return { kod: tur(yok.tur).kod + (yarim ? '½' : ''), tur: yok.tur, kayit: yok, kayitlar: ilgili, yok: true, yarim, gelecek }; }
     if (!T.isGunu(t)) {
       const c = ilgili.find((i) => i.tur === 'tatil');
       if (c) return { kod: 'Ç' + (sayi(c.saat) ? saatYaz(sayi(c.saat)) : ''), tur: 'tatil', kayit: c, kayitlar: ilgili, calisti: true, tatil: true, saat: sayi(c.saat), gelecek };
@@ -78,10 +82,10 @@
         x.gunler[t] = g;
         if (g.disarda) continue;
         var_ = true;
-        if (g.tur === 'rapor') x.raporTakvim++;
+        if (g.tur === 'rapor') x.raporTakvim += g.yarim ? 0.5 : 1;
         if (T.isGunu(t)) {
           x.isGunu++;
-          if (g.yok) x[g.tur]++;
+          if (g.yok) { x[g.tur] += g.yarim ? 0.5 : 1; if (g.yarim && !g.gelecek) x.calisti += 0.5; }
           else if (g.calisti && !g.gelecek) { x.calisti++; if (g.saat) { x.mesaiSaat += g.saat; x.mesaiGun++; } }
         } else if (g.tatil && !g.gelecek) {
           x.tatilGun++; x.tatilSaat += g.saat || 0;
@@ -102,10 +106,10 @@
     return d.kayitlar('istisna', { silinenler: true }).filter((i) => i._degisim > o._degisim && i.bas <= son && (i.bit || i.bas) >= ilk);
   }
 
-  /* Bir kaydın kapsadığı gün sayıları: iş günü ve takvim günü. */
+  /* Bir kaydın kapsadığı gün sayıları: iş günü (yokluk kaydında yarım günler 0,5) ve takvim günü. */
   function kayitGunleri(i) {
     let is = 0, takvim = 0;
-    for (let t = i.bas; t <= (i.bit || i.bas); t = gunEkle(t, 1)) { takvim++; if (T.isGunu(t)) is++; if (takvim > 400) break; }
+    for (let t = i.bas; t <= (i.bit || i.bas); t = gunEkle(t, 1)) { takvim++; if (T.isGunu(t)) is += i.tur && tur(i.tur).yok && yarimMi(i, t) ? 0.5 : 1; if (takvim > 400) break; }
     return { is, takvim };
   }
   /* Aynı kişide çakışan yokluk kaydı (aynı güne iki farklı izin/rapor). */
@@ -140,5 +144,5 @@
     return [ilk, [yok.length && yok.map((x) => `${x.k.ad.split(' ')[0]}: ${tur(x.g.tur).ad.toLocaleLowerCase('tr')}`).join(', '), `Bu ay ${saatYaz(mesai)} saat fazla mesai`].filter(Boolean).join(' · ')];
   }
 
-  NT.yoklama = { TURLER, tur, AY_ADLARI, ayAdi, gunKisa, ayGunleri, ayKaydir, saatYaz, onayAnahtari, ayar, kisiler, takipte, istisnalar, kapsar, gunDurum, ayOzet, onay, onaydanSonraDegisen, kayitGunleri, cakisanlar, bugunListe, ozet, dikkat };
+  NT.yoklama = { TURLER, tur, AY_ADLARI, ayAdi, gunKisa, ayGunleri, ayKaydir, saatYaz, onayAnahtari, ayar, kisiler, takipte, istisnalar, kapsar, yarimMi, gunDurum, ayOzet, onay, onaydanSonraDegisen, kayitGunleri, cakisanlar, bugunListe, ozet, dikkat };
 })(typeof window !== 'undefined' ? window : globalThis);

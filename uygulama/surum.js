@@ -1,12 +1,12 @@
 window.NT_SURUM = {
-  "surum": 3,
+  "surum": 4,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
       "modul": { "id": "portal", "ad": "SKYHEM Takip", "depoYok": true },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/portal/portal.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/portal/portal.js"]
+        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/klips/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/portal/portal.js"]
     },
     "numune": {
       "baslik": "Numune Takip · SKYHEM",
@@ -18,9 +18,16 @@ window.NT_SURUM = {
     "satis": {
       "baslik": "Satış Takip · SKYHEM",
       "modul": { "id": "satis" },
-      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/satis/satis.css"],
+      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/satis/satis.css", "uygulama/klips/klips.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/ortak/grafik.js", "uygulama/satis/hesap.js", "uygulama/satis/demo.js", "uygulama/satis/arayuz.js"]
+        "uygulama/ortak/grafik.js", "uygulama/satis/hesap.js", "uygulama/satis/demo.js", "uygulama/klips/hesap.js", "uygulama/klips/formlar.js", "uygulama/satis/arayuz.js"]
+    },
+    "klips": {
+      "baslik": "Klips Takip · SKYHEM",
+      "modul": { "id": "klips" },
+      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/klips/klips.css"],
+      "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
+        "uygulama/klips/hesap.js", "uygulama/klips/formlar.js", "uygulama/klips/demo.js", "uygulama/klips/arayuz.js"]
     },
     "su": {
       "baslik": "İçme Suyu · SKYHEM",

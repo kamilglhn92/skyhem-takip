@@ -11,6 +11,8 @@
   const { bugun, sayi, tarihYaz, gunEkle, ara, AYLAR } = NT.c;
   const b = NT.baglanti;
   const depo = () => b.depo;
+  K.yazmaKisitla();
+  const yaz = K.yazabilir;
   const kisaTarih = (t) => `${+t.slice(8, 10)} ${AYLAR[+t.slice(5, 7) - 1]}`;
   const ogunYazi = (g) => (g && g.yemekYok ? 'Yemek yok' : Y.OGUNLER.filter((o) => sayi(g && g[o.id]) > 0).map((o) => `${sayi(g[o.id])} ${o.ad.toLocaleLowerCase('tr')}`).join(' · ') || '—');
 
@@ -144,7 +146,7 @@
           : on.tarih ? `Son girilen günden (${kisaTarih(on.tarih)}) önerildi` : ''}</span>
         <span style="flex:1" />
         <button class="d hayalet kucuk-d" onClick=${() => gunAc(bg)}><${Ikon} ad="kalem" boyut=${15} />Ayrıntı</button>
-        <button class="d ana-d" disabled=${mesgul || (kayitli && !degisti)} onClick=${kaydet}><${Ikon} ad="tik" />${kayitli ? 'Güncelle' : 'Kaydet'}</button>
+        ${yaz() && html`<button class="d ana-d" disabled=${mesgul || (kayitli && !degisti)} onClick=${kaydet}><${Ikon} ad="tik" />${kayitli ? 'Güncelle' : 'Kaydet'}</button>`}
       </div>
     <//>`;
   }
@@ -190,7 +192,7 @@
     const bg = bugun();
     const l = Y.otoKurallar(d).filter((k) => k.bitis >= bg).sort((x, y) => (x.baslangic < y.baslangic ? -1 : 1));
     if (!l.length) return null;
-    return html`<${K.Kart} baslik="Geçici yemek sayıları" sag=${html`<button class="d hayalet kucuk-d" onClick=${() => otoAc()}><${Ikon} ad="arti" boyut=${15} />Ekle</button>`}>
+    return html`<${K.Kart} baslik="Geçici yemek sayıları" sag=${html`${yaz() && html`<button class="d hayalet kucuk-d" onClick=${() => otoAc()}><${Ikon} ad="arti" boyut=${15} />Ekle</button>`}`}>
       <div class="ym-kafe-liste">${l.map((k) => html`<button type="button" class="ym-kafe-satir" onClick=${() => otoAc(k)}>
         <${Ikon} ad="takvim" boyut=${16} /><b>Öğle ${k.ogle}</b><span class="soluk">${aralikYaz(k)} · ${Y.isGunuSay(k.baslangic, k.bitis)} iş günü${k.notlar ? ' · ' + k.notlar : ''}</span>
         <span class="sag">${k.baslangic <= bg ? html`<span class="rozet bilgi">Sürüyor</span>` : html`<span class="soluk kucuk">Başlamadı</span>`}</span></button>`)}</div>
@@ -425,7 +427,7 @@
     return html`<div class="s12 form-bolum">Desbaş Kafe <span class="soluk" style="font-weight:500;text-transform:none;letter-spacing:0">· menü dışı siparişler</span></div>
       <div class="s12">${l.length ? html`<div class="ym-kafe-liste">${l.map((k) => html`<button type="button" class="ym-kafe-satir" onClick=${() => kafeAc(k)}>
           <${Ikon} ad="kahve" boyut=${16} /><b>${kafeYazi(k)}</b><span class="soluk">${(k.kisiler || []).join(', ')}</span><span class="sag">${k.tutar !== '' && k.tutar != null ? tl(sayi(k.tutar)) : ''}</span></button>`)}</div>` : ''}
-        <button type="button" class="d kucuk-d" style="margin-top:${l.length ? 8 : 0}px" onClick=${() => yeniKafe(tarih)}><${Ikon} ad="arti" boyut=${15} />Kafe siparişi ekle</button></div>`;
+        ${yaz() && html`<button type="button" class="d kucuk-d" style="margin-top:${l.length ? 8 : 0}px" onClick=${() => yeniKafe(tarih)}><${Ikon} ad="arti" boyut=${15} />Kafe siparişi ekle</button>`}</div>`;
   }
 
   function KafeSayfasi() {
@@ -433,7 +435,7 @@
     const [ay, setAy] = useState(bugun().slice(0, 7));
     const x = Y.kafeOzet(d, ay);
     return html`<${K.Selam} baslik="Desbaş Kafe" sag=${html`<button class="d" onClick=${() => excelKafe(x)}><${Ikon} ad="indir" boyut=${15} />Excel</button>
-        <button class="d ana-d tz-buyuk" onClick=${() => yeniKafe(ay === bugun().slice(0, 7) ? bugun() : `${ay}-01`)}><${Ikon} ad="arti" />Kafe siparişi</button>`}>
+        ${yaz() && html`<button class="d ana-d tz-buyuk" onClick=${() => yeniKafe(ay === bugun().slice(0, 7) ? bugun() : `${ay}-01`)}><${Ikon} ad="arti" />Kafe siparişi</button>`}`}>
         Menü dışında Desbaş Kafe’den kişilerin ayrıca söylediği yemekler. Öğün sayılarına karışmaz; ay sonunda kafe faturasıyla karşılaştırılır.<//>
       <${AySecici} ay=${ay} setAy=${setAy} />
       <div class="kpi-sira">
@@ -481,9 +483,9 @@
     const kafe = Y.kafeOzet(d, bgAy);
     return html`
       <${K.Selam} bant baslik=${`${saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar'}${adK ? ', ' + adK : ''}.`}
-        sag=${html`<button class="d tz-buyuk" onClick=${() => otoAc()}><${Ikon} ad="takvim" />Geçici sayı</button>
-          <button class="d tz-buyuk" onClick=${() => yeniKafe()}><${Ikon} ad="kahve" />Kafe siparişi</button>
-          <button class="d tz-buyuk" onClick=${() => menuYukle((a) => { location.hash = '#/menu'; })}><${Ikon} ad="yukle" />Menü yükle</button>`}>
+        sag=${html`${yaz() && html`<button class="d tz-buyuk" onClick=${() => otoAc()}><${Ikon} ad="takvim" />Geçici sayı</button>`}
+          ${yaz() && html`<button class="d tz-buyuk" onClick=${() => yeniKafe()}><${Ikon} ad="kahve" />Kafe siparişi</button>`}
+          ${yaz() && html`<button class="d tz-buyuk" onClick=${() => menuYukle((a) => { location.hash = '#/menu'; })}><${Ikon} ad="yukle" />Menü yükle</button>`}`}>
         ${Y.girildiMi(g) ? html`Bugün <b class="v">${ogunYazi(g)}</b> girildi.` : e && e.oto ? html`Bugün otomatik <b class="v">${e.ogle} öğle</b> sayılıyor${e.kural ? ' (geçici sayı)' : ''}; farklıysa aşağıdan değiştirin.`
           : T.isGunu(bg) ? html`Bugünün yemek sayısı <b>henüz girilmedi</b>.` : html`Bugün ${T.tatil(bg) || 'hafta sonu'}.`}
         ${eksik.length > 0 && html` <a href="#/takvim" class="tz-uyari-link" style="color:var(--kritik);font-weight:700">${eksik.length} iş günü girilmemiş →</a>`}
@@ -575,7 +577,7 @@
     const bg = bugun();
     const gunler = Y.ayGunleri(ay);
     const varMi = gunler.some((t) => Y.MENULU.some((o) => Y.yemekler(d, t, o.id).length || Y.kesit(d, t, o.id)));
-    return html`<${K.Selam} baslik="Menü" sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => menuYukle(setAy)}><${Ikon} ad="yukle" />Menü yükle</button>`}>
+    return html`<${K.Selam} baslik="Menü" sag=${html`${yaz() && html`<button class="d ana-d tz-buyuk" onClick=${() => menuYukle(setAy)}><${Ikon} ad="yukle" />Menü yükle</button>`}`}>
         Desbaş’ın her ay gönderdiği menü resmini yükleyin; her günün menüsü kendiliğinden o güne yerleşir. Yazı tanıma hatası varsa güne tıklayıp düzeltin.<//>
       <${AySecici} ay=${ay} setAy=${setAy} />
       <div class="ym-menu-resimler">${Y.MENULU.map((o) => { const m = Y.menu(d, ay, o.id); return html`<div class="ym-menu-resim">
@@ -640,7 +642,7 @@
       kafe: { ad: 'Kafe siparişi', ozet: (r) => `${tarihYaz(r.tarih)} · ${kafeYazi(r)} · ${(r.kisiler || []).join(', ')}` },
       kafefatura: { ad: 'Kafe faturası', ozet: (r) => Y.ayAdi(r.ay) },
       oto: { ad: 'Geçici yemek sayısı', ozet: (r) => `${aralikYaz(r)} · öğle ${r.ogle}${r.notlar ? ' · ' + r.notlar : ''}` },
-    }}><${YemekAyarlari} /><//>`;
+    }}>${yaz() && html`<${YemekAyarlari} />`}<//>`;
   }
 
   /* ---------------- Excel ---------------- */

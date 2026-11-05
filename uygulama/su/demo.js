@@ -13,7 +13,7 @@
       { c: 'ayar', k: 'genel', v: { tedarikci: 'Örnek Su Bayii', telefon: '', mesaj: S.VARSAYILAN.mesaj, koliBardak: 60, bardakMl: 200, damacanaL: 19 } },
       { c: 'fiyat', k: uid(), v: { tarih: gunEkle(bg, -400), damacana: 150, bardak: 125, kdv: 0, aciklama: 'İlk fiyat' } },
     ], gunEkle(bg, -330));
-    await kaydet([{ c: 'fiyat', k: uid(), v: { tarih: gunEkle(bg, -150), damacana: 160, bardak: 135, kdv: 0, aciklama: 'Zam' } }], gunEkle(bg, -150));
+    await kaydet([{ c: 'fiyat', k: uid(), v: { tarih: gunEkle(bg, -150), damacana: 160, bardak: 135, limonata: 350, kdv: 0, aciklama: 'Zam' } }], gunEkle(bg, -150));
 
     /* [sipariş günü (bugünden), damacana, bardak koli, teslimatlar: [gün sonra, damacana, bardak]] */
     const siparisler = [

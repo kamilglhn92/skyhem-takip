@@ -1,0 +1,70 @@
+/* Klips Takip'e özel görünüm (iskelet ve kartlar ortak tezgah.css'tedir). */
+.km-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+.km-kart { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 14px 16px; border: 1px solid var(--cizgi); border-radius: 16px; background: var(--yuzey); color: var(--murekkep); text-align: left; cursor: pointer; font: inherit; }
+.km-kart:hover { border-color: var(--ana); }
+.km-kart:focus-visible { outline: 3px solid var(--ana); outline-offset: 2px; }
+.km-kart-bas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.km-kart-bas b { font: 700 16px var(--baslik); font-variant-numeric: tabular-nums; }
+.km-tur { padding: 2px 8px; border-radius: 99px; background: var(--yuzey3); color: var(--ikincil); font-size: 12px; font-weight: 600; }
+.km-eksik { margin-left: auto; padding: 2px 8px; border-radius: 99px; background: var(--kritik-z); color: var(--kritik); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.km-meta { display: flex; flex-direction: column; gap: 2px; color: var(--ikincil); font-size: 13px; }
+
+/* Klips numarası: klipsin kendisi gibi yeşil şerit; durum renkle ve düz yazıyla ayrılır */
+.km-cipler { display: flex; flex-wrap: wrap; gap: 6px; }
+.km-cip { display: inline-block; padding: 3px 9px; border-radius: 8px; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.km-takili { background: var(--iyi-z); color: var(--iyi); }
+.km-degisti { background: var(--yuzey3); color: var(--soluk); text-decoration: line-through; }
+.km-fire { background: var(--yok-z); color: var(--yok); }
+.km-verildi { background: var(--bilgi-z); color: var(--bilgi); }
+.km-cakisan { background: var(--kritik-z); color: var(--kritik); box-shadow: inset 0 0 0 1.5px var(--kritik); text-decoration: none; }
+.km-bos { background: var(--yuzey2); color: var(--ikincil); box-shadow: inset 0 0 0 1px var(--cizgi); }
+
+/* Klips tak penceresi */
+.km-satirlar { display: grid; gap: 10px; }
+.km-satir { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--cizgi); border-radius: 14px; background: var(--yuzey2); }
+.km-satir-sira { flex: none; width: 26px; height: 26px; margin-top: 6px; border-radius: 50%; display: grid; place-items: center; background: var(--yuzey3); color: var(--ikincil); font-size: 12px; font-weight: 700; }
+.km-satir-ic { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.km-satir-ust { display: grid; grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); gap: 8px; }
+.km-klips-girdiler { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.km-klips-girdi { position: relative; display: inline-flex; }
+.km-klips-girdi input { width: 112px; padding-right: 26px; }
+.km-x { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--soluk); cursor: pointer; }
+.km-x:hover { background: var(--yuzey3); color: var(--murekkep); }
+.km-not { color: var(--kritik); font-size: 13px; }
+.km-satir-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Ambalaj penceresi ve fire listesi */
+.km-klips-liste, .km-fire-liste { display: grid; gap: 6px; }
+.km-fire-liste { max-height: 320px; overflow: auto; }
+.km-klips-satir { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--yuzey2); }
+.km-klips-bilgi { flex: 1; min-width: 0; font-size: 13.5px; }
+.km-klips-bilgi small { display: block; color: var(--soluk); font-size: 12px; }
+
+.km-ara { max-width: 320px; margin-left: 8px; border-radius: 99px; }
+.km-doluluk { height: 12px; border-radius: 99px; background: var(--yuzey3); overflow: hidden; }
+.km-doluluk span { display: block; height: 100%; border-radius: 99px; background: var(--ana); }
+.km-sevk-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.km-sevk-liste li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--yuzey2); }
+.km-sevk-liste small { display: block; color: var(--soluk); font-size: 12px; }
+
+/* Satış'taki sevkiyat penceresinde klips listesi */
+.km-sevk-satir { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 12px; background: var(--yuzey2); color: var(--murekkep); text-align: left; cursor: pointer; font: inherit; }
+.km-sevk-satir:hover { outline: 2px solid var(--ana); }
+.km-sevk-ambalaj { display: inline-flex; align-items: center; gap: 8px; min-width: 150px; }
+
+/* Numara haritası */
+.km-sayfa-sec { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.km-harita { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.km-hucre { min-width: 0; padding: 7px 0; border: 0; border-radius: 6px; font: 600 12px var(--mono); font-variant-numeric: tabular-nums; text-align: center; cursor: pointer; }
+.km-hucre:disabled { cursor: default; }
+.km-hucre:not(:disabled):hover { outline: 2px solid var(--ana); }
+.km-anahtar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; color: var(--ikincil); font-size: 12.5px; }
+.km-anahtar span { display: inline-flex; align-items: center; gap: 6px; }
+.km-anahtar i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .km-harita { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .km-ara { max-width: none; margin-left: 0; flex: 1 1 100%; }
+  .km-satir-sira { display: none; }
+  .km-klips-girdi input { width: 100px; }
+}

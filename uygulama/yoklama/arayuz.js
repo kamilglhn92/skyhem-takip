@@ -27,7 +27,7 @@
   /* Bir günün durum yazısı */
   function durumYazi(g, t) {
     if (g.disarda) return 'Takip dışı';
-    if (g.yok) return Y.tur(g.tur).ad;
+    if (g.yok) return Y.tur(g.tur).ad + (g.yarim ? ` (yarım gün${T.yarimGun(t) ? ', arife' : ''})` : '');
     if (g.tatil) return `Çalıştı (${T.tatil(t) ? 'resmî tatil' : 'hafta sonu'})${g.saat ? ` · ${Y.saatYaz(g.saat)} sa` : ''}`;
     if (g.kapali) return T.tatil(t) || 'Hafta sonu';
     return g.saat ? `İşte · +${Y.saatYaz(g.saat)} sa mesai` : 'İşte';
@@ -37,12 +37,12 @@
   function IstisnaPenceresi({ kayit, on = {}, kapat }) {
     const d = depo();
     const kisiler = Y.kisiler(d);
-    const [f, setF] = useState(() => (kayit ? { kisiler: [kayit.kisi], tur: kayit.tur, bas: kayit.bas, bit: kayit.bit || kayit.bas, saat: kayit.saat ? Y.saatYaz(sayi(kayit.saat)) : '', notlar: kayit.notlar || '', ekler: kayit.ekler || [] }
-      : { kisiler: on.kisi ? [on.kisi] : [], tur: on.tur || '', bas: on.bas || bugun(), bit: on.bas || bugun(), saat: '', notlar: '', ekler: [] }));
+    const [f, setF] = useState(() => (kayit ? { kisiler: [kayit.kisi], tur: kayit.tur, bas: kayit.bas, bit: kayit.bit || kayit.bas, saat: kayit.saat ? Y.saatYaz(sayi(kayit.saat)) : '', yarim: !!kayit.yarim, notlar: kayit.notlar || '', ekler: kayit.ekler || [] }
+      : { kisiler: on.kisi ? [on.kisi] : [], tur: on.tur || '', bas: on.bas || bugun(), bit: on.bas || bugun(), saat: '', yarim: false, notlar: '', ekler: [] }));
     const [denendi, setDenendi] = useState(false);
     const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
     const t = f.tur ? Y.tur(f.tur) : null;
-    const gun = f.bas && f.bit >= f.bas ? Y.kayitGunleri({ bas: f.bas, bit: f.bit }) : { is: 0, takvim: 0 };
+    const gun = f.bas && f.bit >= f.bas ? Y.kayitGunleri({ tur: f.tur, bas: f.bas, bit: f.bit, yarim: f.yarim && f.bas === f.bit }) : { is: 0, takvim: 0 };
     const cakisan = f.tur ? f.kisiler.flatMap((k) => Y.cakisanlar(d, { id: kayit?.id, kisi: k, tur: f.tur, bas: f.bas, bit: f.bit })) : [];
     const hata = !f.kisiler.length ? 'Kişi seçin' : !f.tur ? 'Ne olduğunu seçin' : !f.bas ? 'Tarih seçin' : f.bit < f.bas ? 'Bitiş, başlangıçtan önce olamaz'
       : t.saat && f.tur === 'mesai' && !(saatSayi(f.saat) > 0) ? 'Fazla mesai saatini yazın' : '';
@@ -51,7 +51,7 @@
     async function kaydet() {
       setDenendi(true);
       if (hata) return;
-      const v = { tur: f.tur, bas: f.bas, bit: f.bit || f.bas, saat: t.saat && String(f.saat).trim() !== '' ? saatSayi(f.saat) : '', notlar: f.notlar.trim(), ekler: f.ekler };
+      const v = { tur: f.tur, bas: f.bas, bit: f.bit || f.bas, saat: t.saat && String(f.saat).trim() !== '' ? saatSayi(f.saat) : '', yarim: !!(t.yok && f.yarim && f.bas === f.bit), notlar: f.notlar.trim(), ekler: f.ekler };
       if (kayit) await d.kaydet([{ c: 'istisna', k: kayit.id, v: { kisi: f.kisiler[0], ...v } }]);
       else await d.kaydet(f.kisiler.map((k) => ({ c: 'istisna', k: uid(), v: { kisi: k, ...v } })));
       bildir(`${f.kisiler.map(kisiAdi).join(', ')} · ${t.ad}${v.saat ? ` ${Y.saatYaz(v.saat)} sa` : ''} · ${aralik(v)}`);
@@ -68,9 +68,13 @@
         <${Alan} etiket="Ne oldu" hata=${denendi && !f.tur ? 'Ne olduğunu seçin' : ''} ipucu=${t?.ipucu}>
           <div class="secenekler">${Y.TURLER.map((x) => html`<button type="button" class=${'secenek yk-tur ' + x.renk + (f.tur === x.id ? ' secili' : '')} onClick=${() => s('tur')(x.id)}>${x.ad}</button>`)}</div><//>
         <${Alan} etiket="Başlangıç" sinif="s4"><input class="girdi" type="date" value=${f.bas} onInput=${(e) => setF((p) => ({ ...p, bas: e.target.value, bit: p.bit < e.target.value || p.bit === p.bas ? e.target.value : p.bit }))} /><//>
-        <${Alan} etiket="Bitiş" sinif="s4" hata=${denendi && f.bit < f.bas ? 'Başlangıçtan önce olamaz' : ''} ipucu=${gun.takvim ? `${gun.takvim} gün · ${gun.is} iş günü` : ''}><input class="girdi" type="date" value=${f.bit} min=${f.bas} onInput=${(e) => s('bit')(e.target.value)} /><//>
+        <${Alan} etiket="Bitiş" sinif="s4" hata=${denendi && f.bit < f.bas ? 'Başlangıçtan önce olamaz' : ''} ipucu=${gun.takvim ? `${gun.takvim} gün · ${Y.saatYaz(gun.is)} iş günü` : ''}><input class="girdi" type="date" value=${f.bit} min=${f.bas} onInput=${(e) => s('bit')(e.target.value)} /><//>
         ${t && t.saat ? html`<${Alan} etiket=${f.tur === 'mesai' ? 'Fazla mesai (saat, günlük)' : 'Çalışılan saat (isteğe bağlı)'} sinif="s4" hata=${denendi && f.tur === 'mesai' && !(saatSayi(f.saat) > 0) ? 'Saati yazın' : ''}>
-            <input class="girdi sayi" inputmode="decimal" value=${f.saat} onInput=${(e) => s('saat')(e.target.value)} placeholder="Örn: 2,5" /><//>` : html`<div class="s4" />`}
+            <input class="girdi sayi" inputmode="decimal" value=${f.saat} onInput=${(e) => s('saat')(e.target.value)} placeholder="Örn: 2,5" /><//>`
+          : t && t.yok && f.bas === f.bit && T.isGunu(f.bas) ? (T.yarimGun(f.bas)
+            ? html`<${Alan} etiket="Süre" sinif="s4" ipucu=${T.yarimGun(f.bas)}><div class="girdi yk-yarim-bilgi">Yarım gün sayılır</div><//>`
+            : html`<${Alan} etiket="Süre" sinif="s4"><label class="girdi yk-yarim"><input type="checkbox" checked=${f.yarim} onChange=${(e) => s('yarim')(e.target.checked)} /> Yarım gün</label><//>`)
+          : html`<div class="s4" />`}
         ${uyari && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${uyari}</span></div>`}
         ${cakisan.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>Bu tarihlerde zaten kayıt var: ${cakisan.map((c) => `${kisiAdi(c.kisi)} · ${Y.tur(c.tur).ad} (${aralik(c)})`).join('; ')}</span></div>`}
         <${Alan} etiket="Açıklama"><input class="girdi" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${f.tur === 'yillik' ? 'Örn: Yıllık izin, 3 gün' : f.tur === 'izin' ? 'Örn: Mahkemesi var' : f.tur === 'rapor' ? 'Örn: 2 günlük rapor' : ''} /><//>
@@ -117,9 +121,9 @@
       </div>`)}</div>
       <div class="kpi-sira">
         <${K.Kpi} vurgu ikon="saat" ad="Bu ay fazla mesai" deger=${Y.saatYaz(ay.reduce((s, x) => s + x.mesaiSaat, 0))} birim="saat" alt=${`${ay.reduce((s, x) => s + x.tatilGun, 0)} gün hafta sonu/tatil çalışması`} />
-        <${K.Kpi} ikon="uyari" ad="Raporlu" deger=${ay.reduce((s, x) => s + x.rapor, 0)} birim="iş günü" alt=${Y.ayAdi(bg.slice(0, 7))} />
-        <${K.Kpi} ikon="takvim" ad="İzin" deger=${ay.reduce((s, x) => s + x.yillik + x.izin, 0)} birim="iş günü" alt=${`yıllık ${ay.reduce((s, x) => s + x.yillik, 0)} · mazeret ${ay.reduce((s, x) => s + x.izin, 0)}`} />
-        <${K.Kpi} ikon="kapat" ad="Gelmedi" deger=${ay.reduce((s, x) => s + x.gelmedi, 0)} birim="gün" alt=${Y.ayAdi(bg.slice(0, 7))} />
+        <${K.Kpi} ikon="uyari" ad="Raporlu" deger=${Y.saatYaz(ay.reduce((s, x) => s + x.rapor, 0))} birim="iş günü" alt=${Y.ayAdi(bg.slice(0, 7))} />
+        <${K.Kpi} ikon="takvim" ad="İzin" deger=${Y.saatYaz(ay.reduce((s, x) => s + x.yillik + x.izin, 0))} birim="iş günü" alt=${`yıllık ${Y.saatYaz(ay.reduce((s, x) => s + x.yillik, 0))} · mazeret ${Y.saatYaz(ay.reduce((s, x) => s + x.izin, 0))}`} />
+        <${K.Kpi} ikon="kapat" ad="Gelmedi" deger=${Y.saatYaz(ay.reduce((s, x) => s + x.gelmedi, 0))} birim="gün" alt=${Y.ayAdi(bg.slice(0, 7))} />
       </div>
       <div class="tz-izgara">
         <${K.Kart} baslik=${`${Y.ayAdi(bg.slice(0, 7))} · kişi başı`} sag=${html`<a href="#/cizelge" style="color:var(--ana)">Çizelge →</a>`}>
@@ -141,15 +145,12 @@
   /* Kişi başı özet tablosu (İK karşılaştırması) */
   function OzetTablo({ ozet, tam }) {
     if (!ozet.length) return html`<p class="soluk" style="margin:0">Bu ay takipte kimse yok.</p>`;
-    const top = (k) => ozet.reduce((s, x) => s + x[k], 0);
     return html`<div class="tablo-kap"><table class="tablo yk-ozet"><thead><tr><th>Personel</th><th class="sag" title="Takvimdeki iş günü (hafta içi, tatil hariç)">İş günü</th><th class="sag">Çalıştı</th>
       <th class="sag">Rapor</th><th class="sag">Yıllık izin</th><th class="sag">Mazeret</th><th class="sag">Gelmedi</th><th class="sag">Fazla mesai</th><th class="sag" title="Hafta sonu / resmî tatil çalışması">HS/RT çalışma</th></tr></thead><tbody>
-      ${ozet.map((x) => html`<tr><td><b>${x.kisi.ad}</b></td><td class="sag sayi">${x.isGunu}</td><td class="sag sayi">${x.calisti}</td>
-        <td class="sag sayi">${x.rapor || ''}${x.raporTakvim > x.rapor ? html`<div class="kucuk soluk">${x.raporTakvim} takvim g.</div>` : ''}</td><td class="sag sayi">${x.yillik || ''}</td><td class="sag sayi">${x.izin || ''}</td><td class="sag sayi">${x.gelmedi || ''}</td>
+      ${ozet.map((x) => html`<tr><td><b>${x.kisi.ad}</b></td><td class="sag sayi">${x.isGunu}</td><td class="sag sayi">${Y.saatYaz(x.calisti)}</td>
+        <td class="sag sayi">${x.rapor ? Y.saatYaz(x.rapor) : ''}${x.raporTakvim > x.rapor ? html`<div class="kucuk soluk">${Y.saatYaz(x.raporTakvim)} takvim g.</div>` : ''}</td><td class="sag sayi">${x.yillik ? Y.saatYaz(x.yillik) : ''}</td><td class="sag sayi">${x.izin ? Y.saatYaz(x.izin) : ''}</td><td class="sag sayi">${x.gelmedi ? Y.saatYaz(x.gelmedi) : ''}</td>
         <td class="sag sayi">${x.mesaiSaat ? `${Y.saatYaz(x.mesaiSaat)} sa` : ''}${tam && x.mesaiGun ? html`<div class="kucuk soluk">${x.mesaiGun} günde</div>` : ''}</td>
         <td class="sag sayi">${x.tatilGun ? `${x.tatilGun} g${x.tatilSaat ? ` · ${Y.saatYaz(x.tatilSaat)} sa` : ''}` : ''}${tam && x.tatilGun ? html`<div class="kucuk soluk">${[x.cumartesi && `Cmt ${x.cumartesi}`, x.pazar && `Paz ${x.pazar}`, x.resmi && `RT ${x.resmi}`].filter(Boolean).join(' · ')}</div>` : ''}</td></tr>`)}
-      ${ozet.length > 1 && html`<tr><td><b>Toplam</b></td><td></td><td class="sag sayi">${top('calisti')}</td><td class="sag sayi">${top('rapor') || ''}</td><td class="sag sayi">${top('yillik') || ''}</td><td class="sag sayi">${top('izin') || ''}</td><td class="sag sayi">${top('gelmedi') || ''}</td>
-        <td class="sag sayi"><b>${top('mesaiSaat') ? Y.saatYaz(top('mesaiSaat')) + ' sa' : ''}</b></td><td class="sag sayi">${top('tatilGun') ? top('tatilGun') + ' g' : ''}</td></tr>`}
     </tbody></table></div>`;
   }
 
@@ -183,7 +184,7 @@
           return html`<td class=${sinif + (t === bg ? ' bugun' : '')} title=${`${x.kisi.ad} · ${tarihYaz(t)} · ${durumYazi(g, t)}${g.kayit && g.kayit.notlar ? ' · ' + g.kayit.notlar : ''}`}
             onClick=${() => !g.disarda && hucreAc(x.kisi, t, g)}>${g.kod}</td>`;
         })}</tr>`)}</tbody></table></div>
-        <div class="yk-lejant">${[['isde', '+', 'İşte'], ['mesai', '2', 'Fazla mesai (saat)'], ...Y.TURLER.filter((t) => t.yok).map((t) => ['yok ' + t.renk, t.kod, t.ad]), ['tatil-calisma', 'Ç', 'Hafta sonu / tatil çalıştı'], ['kapali', 'HT', 'Hafta tatili'], ['kapali', 'RT', 'Resmî tatil']]
+        <div class="yk-lejant">${[['isde', '+', 'İşte'], ['mesai', '2', 'Fazla mesai (saat)'], ...Y.TURLER.filter((t) => t.yok).map((t) => ['yok ' + t.renk, t.kod, t.ad]), ['yok bilgi', 'Yİ½', 'Yarım gün (arifede kendiliğinden)'], ['tatil-calisma', 'Ç', 'Hafta sonu / tatil çalıştı'], ['kapali', 'HT', 'Hafta tatili'], ['kapali', 'RT', 'Resmî tatil']]
           .map(([s, k, a]) => html`<span><i class=${s}>${k}</i>${a}</span>`)}</div>
         <${K.Kart} baslik="Özet (İK karşılaştırması)" stil="margin-top:18px"><${OzetTablo} ozet=${ozet} tam /><//>`
       : html`<${BosDurum} ikon="takvim" baslik="Bu ay takipte kimse yok" aciklama=${Y.ayar(d).baslangic ? `Yoklama ${tarihYaz(Y.ayar(d).baslangic)} tarihinden itibaren tutuluyor.` : ''} />`}`;
@@ -223,7 +224,7 @@
       </div>
       <${K.Kart}>${liste.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>Tarih</th><th>Kişi</th><th>Tür</th><th class="sag">Gün</th><th>Açıklama</th><th>Giren</th></tr></thead><tbody>
         ${liste.map((i) => { const g = Y.kayitGunleri(i); return html`<tr class="tik" onClick=${() => kayitAc(i)}><td>${aralik(i)}</td><td><b>${kisiAdi(i.kisi)}</b></td><td><${TurRozeti} id=${i.tur} saat=${i.saat} /></td>
-          <td class="sag sayi">${Y.tur(i.tur).yok ? `${g.is} iş g.` : g.takvim}</td><td class="kucuk">${i.notlar || ''}${(i.ekler || []).length ? html` <${Ikon} ad="etiket" boyut=${13} />` : ''}</td>
+          <td class="sag sayi">${Y.tur(i.tur).yok ? `${Y.saatYaz(g.is)} iş g.` : g.takvim}</td><td class="kucuk">${i.notlar || ''}${(i.ekler || []).length ? html` <${Ikon} ad="etiket" boyut=${13} />` : ''}</td>
           <td class="kucuk soluk">${i._olusturan} · ${onceYaz(i._olusturma)}</td></tr>`; })}
       </tbody></table></div>` : html`<p class="soluk" style="margin:0">Kayıt yok. Herkes işte sayılıyor.</p>`}<//>`;
   }
@@ -299,12 +300,13 @@
   /* ---------------- Excel (İK için): kişi × gün kodları + özet ---------------- */
   const metin = (v, hiza) => ({ v: v ?? '', tur: 'metin', hiza });
   const sayiH = (v) => ({ v: Number(v) || 0, tur: 'sayi' });
+  const gunH = (n) => (Number.isInteger(n) ? sayiH(n) : { v: n, tur: 'ondalik' });
   function excelAy(d, ay) {
     const gunler = Y.ayGunleri(ay);
     const ozet = Y.ayOzet(d, ay);
     if (!ozet.length) return bildir('Bu ay takipte kimse yok.');
     const o = Y.onay(d, ay);
-    const satirlar = ozet.map((x) => ({ hucreler: [metin(x.kisi.ad, 'sol'), ...gunler.map((t) => metin(x.gunler[t].kod)), sayiH(x.isGunu), sayiH(x.calisti), sayiH(x.rapor), sayiH(x.yillik), sayiH(x.izin), sayiH(x.gelmedi),
+    const satirlar = ozet.map((x) => ({ hucreler: [metin(x.kisi.ad, 'sol'), ...gunler.map((t) => metin(x.gunler[t].kod)), sayiH(x.isGunu), gunH(x.calisti), gunH(x.rapor), gunH(x.yillik), gunH(x.izin), gunH(x.gelmedi),
       sayiH(x.mesaiSaat), sayiH(x.tatilGun), sayiH(x.tatilSaat), sayiH(x.pazar)] }));
     satirlar.push({ hucreler: [metin(''), ...gunler.map(() => metin('')), ...Array(10).fill(metin(''))] });
     satirlar.push({ hucreler: [metin('Açıklama', 'sol'), metin('+ işte · sayı: fazla mesai saati · S rapor · Yİ yıllık izin · İ izinli/mazeret · G gelmedi · Ç hafta sonu/tatil çalıştı (saat) · HT hafta tatili · RT resmî tatil', 'sol')] });
