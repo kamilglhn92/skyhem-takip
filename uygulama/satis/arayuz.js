@@ -9,7 +9,7 @@
   const { bugun, uid, sayi, tarihYaz, gunFarki, ara, trSirala, AYLAR } = NT.c;
   const b = NT.baglanti;
   const depo = () => b.depo;
-  K.yazmaKisitla({ ek: ' ve sevkiyatlara klips ekleyebilirsiniz' });
+  K.yazmaKisitla({ ek: '; klipsleri ise herkes girebilir (Klipsler sayfası ve sevkiyat kartındaki Klips düğmesi)' });
   const yaz = K.yazabilir;
   const saltAlt = K.saltAlt;
   NT.klipsUI.satisIcinKur();
@@ -729,10 +729,12 @@
       { id: 'sevkiyatlar', ad: 'Sevkiyatlar', ikon: 'sevk', sayac: (d) => d.kayitlar('sevk').filter(S.aktif).length },
       { id: 'musteriler', ad: 'Müşteriler', ikon: 'bina' },
       { id: 'partiler', ad: 'Partiler', ikon: 'kutu' },
+      // Gümrük klipsleri (2026-11-09: ayrı Klips Takip modülü yerine Satış'ın sayfası)
+      { id: 'klipsler', ad: 'Klipsler', ikon: 'etiket', sayac: () => NT.klipsSayfa.sayac() },
       { id: 'rapor', ad: 'Rapor', ikon: 'rapor' },
       { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
     ],
-    sayfalar: { genel: GenelBakis, sevkiyatlar: Sevkiyatlar, musteriler: Musteriler, partiler: Partiler, rapor: Rapor, ayarlar: Ayarlar },
+    sayfalar: { genel: GenelBakis, sevkiyatlar: Sevkiyatlar, musteriler: Musteriler, partiler: Partiler, klipsler: NT.klipsSayfa.KlipslerSayfasi, rapor: Rapor, ayarlar: Ayarlar },
     eylemler: [
       { ad: 'Yeni sevkiyat', alt: 'Sipariş / sevkiyat kaydı', ikon: 'sevk', tus: 'S', fn: () => yeniSevk() },
       { ad: 'Yeni müşteri', alt: 'Müşteri kartı', ikon: 'bina', tus: 'M', fn: () => K.ac(MusteriPenceresi, {}) },

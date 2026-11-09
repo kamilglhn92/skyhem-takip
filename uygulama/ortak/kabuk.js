@@ -57,6 +57,8 @@
   /* ---------------- Pencere katmanı (iç içe açılabilir: müşteri kartından sevkiyat açmak gibi) ---------------- */
   const katman = { yigin: [], dinle: new Set() };
   const katmanGuncelle = () => katman.dinle.forEach((f) => f());
+  // Pencere içindeki bir bağlantıyla başka sayfaya geçilince (ör. sevkiyat penceresinden "Klipsler sayfası") açık pencereler kapanır.
+  window.addEventListener('hashchange', () => { if (katman.yigin.length) { katman.yigin = []; katmanGuncelle(); } });
   function ac(B, props = {}) {
     const id = Math.random();
     const kapat = () => { katman.yigin = katman.yigin.filter((x) => x.id !== id); katmanGuncelle(); };
@@ -127,8 +129,9 @@
       <div class="cubuk" style=${{ height: `${(x.deger / en) * (yukseklik - 40)}px` }} /><span class="ay">${x.ad}</span></div>`)}</div>`;
   }
   /* Kayıt penceresinin alt düğmeleri: Sil (varsa) · Vazgeç · Kaydet */
-  function FormAlt({ kayit, sil: silFn, kapat, kaydet, mesgul, ek, kaydetYazi = 'Kaydet' }) {
-    if (!yazabilir()) return saltAlt(kapat);
+  /* serbest: yazma kısıtından bağımsız (Satış içindeki klips pencereleri: klipsi herkes girer). */
+  function FormAlt({ kayit, sil: silFn, kapat, kaydet, mesgul, ek, kaydetYazi = 'Kaydet', serbest = false }) {
+    if (!serbest && !yazabilir()) return saltAlt(kapat);
     return html`${(kayit && silFn || ek) && html`<div class="sol">${kayit && silFn && html`<button class="d tehlike" onClick=${silFn}><${Ikon} ad="cop" />Sil</button>`}${ek}</div>`}
       <button class="d hayalet" onClick=${kapat}>Vazgeç</button>
       <button class="d ana-d" disabled=${mesgul} onClick=${kaydet}><${Ikon} ad="tik" />${mesgul ? 'Kaydediliyor…' : kaydetYazi}</button>`;
@@ -218,8 +221,8 @@
     <//>`;
   }
   /* turler: { koleksiyon: { ad: 'Sevkiyat', ozet: (r) => metin } } */
-  function CopKutusu({ turler }) {
-    const d = depo();
+  function CopKutusu({ turler, depo: baskaDepo }) {
+    const d = baskaDepo || depo();
     const silinen = Object.keys(turler).flatMap((c) => d.kayitlar(c, { silinenler: true }).filter((r) => r._silindi).map((r) => ({ c, r })))
       .sort((a, x) => x.r._degisim - a.r._degisim);
     return html`<${AyarKarti} ic=${false} baslik="Çöp kutusu" aciklama="Silinen kayıtlar kalıcı olarak kaybolmaz; buradan geri alınabilir.">
@@ -399,7 +402,7 @@
 
   NT.kabuk = {
     yazmaKisitla, yazabilir, saltAlt, calistir, ac, sil, yeniNo, excel, sayiYaz, demoTanimla, temaUygula, temaAl,
-    Selam, Kart, Cipler, Kpi, Cubuklar, FormAlt, OneriGirdi, AyarKarti, AyarlarSayfasi, Kurulum, TemaDugmesi, Katman,
+    Selam, Kart, Cipler, Kpi, Cubuklar, FormAlt, OneriGirdi, AyarKarti, AyarlarSayfasi, CopKutusu, Kurulum, TemaDugmesi, Katman,
   };
 })();
 

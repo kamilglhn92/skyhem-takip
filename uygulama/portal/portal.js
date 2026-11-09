@@ -28,8 +28,7 @@
   /* dikkat(d): karşılama ekranındaki "dikkat bekleyenler" şeridi için [{ metin, sekme }] (her modülün hesap.js'inde). */
   const MODULLER = [
     { id: 'numune', ad: 'Numune Takip', aciklama: 'Numune şişeleri: dolum, müşteriye gönderi, raf sayımı', ikon: 'dolum', hazir: true, ozet: numuneOzet, dikkat: numuneDikkat },
-    { id: 'satis', ad: 'Satış Takip', aciklama: 'Sevkiyatlar, müşteriler, partiler ve satış raporu', ikon: 'sevk', hazir: true, ozet: (d) => NT.satis.ozet(d), dikkat: (d) => NT.satis.dikkat(d) },
-    { id: 'klips', ad: 'Klips Takip', aciklama: 'Ambalajlara takılan gümrük klipsleri: numara, ambalaj, sevkiyat ve stok', ikon: 'etiket', hazir: true, ozet: (d) => NT.klips.ozet(d), dikkat: (d) => NT.klips.dikkat(d) },
+    { id: 'satis', ad: 'Satış Takip', aciklama: 'Sevkiyatlar, müşteriler, partiler, gümrük klipsleri ve satış raporu', ikon: 'sevk', hazir: true, ozet: (d) => NT.satis.ozet(d), dikkat: (d) => NT.satis.dikkat(d) },
     { id: 'su', ad: 'İçme Suyu', aciklama: 'Damacana ve bardak su siparişi, teslimat, fatura kontrolü', ikon: 'damacana', hazir: true, ozet: (d) => NT.su.ozet(d), dikkat: (d) => NT.su.dikkat(d) },
     { id: 'yemek', ad: 'Yemek', aciklama: 'Günlük öğün sayısı, Desbaş menüsü ve ay sonu fatura kontrolü', ikon: 'yemek', hazir: true, ozet: (d) => NT.yemek.ozet(d), dikkat: (d) => NT.yemek.dikkat(d) },
     { id: 'yoklama', ad: 'Yoklama', aciklama: 'Raporlu, izinli günler ve fazla mesai; İK için aylık çizelge', ikon: 'takvim', hazir: true, ozet: (d) => NT.yoklama.ozet(d), dikkat: (d) => NT.yoklama.dikkat(d) },

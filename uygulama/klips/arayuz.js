@@ -1,4 +1,6 @@
-/* Klips Takip — arayüz: genel bakış, kayıtlar, sevkiyata göre liste, stok, ayarlar (pencereler `formlar.js`te). Satış kayıtları yalnızca okunur. */
+/* Klipsler — Satış Takip içindeki sayfa (2026-11-09, sekreter kararı: ayrı Klips Takip modülü kaldırıldı).
+   Alt bölümler: genel bakış, kayıtlar, stok, ayarlar (pencereler `formlar.js`te). Kayıtlar Satış'ın klips bağlantısıyla
+   `olaylar_klips` tablosuna yazılır; klipsi herkes girer. Eski Klips Takip adresi Satış › Klipsler'e yönlenir. */
 (function () {
   'use strict';
   const NT = window.NT;
@@ -8,11 +10,17 @@
   const S = NT.klips;
   const { bugun, uid, tarihYaz, ara } = NT.c;
   const b = NT.baglanti;
-  const depo = () => b.depo;
+  // Eski Klips Takip adresi (yer imi, kısayol) açılırsa Satış › Klipsler'e git.
+  if (b.modul && b.modul.id === 'klips') { location.replace(NT.c.adres('satis') + '#/klipsler'); return; }
+  const depo = () => NT.klipsUI.depo();
   const sayiYaz = (n) => K.sayiYaz(n);
   const tarihVeya = (t) => (t ? tarihYaz(t) : 'Tarih yok');
 
-  const { TakanSec, useSevkler, KlipsCip, KartIzgara, sevkKalemleri, klipsTak, klipsTakSevk, ambalajAc } = NT.klipsUI;
+  const { TakanSec, useSevkler, KlipsCip, KartIzgara, sevkKalemleri, klipsTak, klipsTakSevk, ambalajAc, FormAlt, sil } = NT.klipsUI;
+
+  /* Alt bölüm seçimi (sayfa içi; Satış'ın adres çubuğu #/klipsler kalır). */
+  const alt = { deger: 'genel', dinle: new Set() };
+  const git = (x) => (e) => { if (e) e.preventDefault(); alt.deger = x; alt.dinle.forEach((f) => f()); };
 
   /* ---------------- Genel Bakış ---------------- */
   function GenelBakis() {
@@ -25,16 +33,14 @@
     const sinir = S.ayar(d).uyariSiniri;
     const bagliSevk = new Set(d.kayitlar('ambalaj').flatMap((a) => [a.sevk, a.sevkNo]).filter(Boolean));
     const klipssiz = sevkler.filter((x) => x.durum === 'Yolda' && !bagliSevk.has(x.id) && !bagliSevk.has(x.no));
-    const saat = new Date().getHours();
-    const adK = (b.kullanici || '').split(' ')[0];
     const kullanilan = s.toplam ? Math.round(((s.toplam - s.bosta.length) / s.toplam) * 100) : 0;
     return html`
-      <${K.Selam} bant baslik=${`${saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar'}${adK ? ', ' + adK : ''}.`}
+      <${K.Selam} baslik="Klipsler"
         sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => klipsTak()}><${Ikon} ad="etiket" />Klips tak</button>`}>
         ${s.sirada ? html`Sıradaki klips <b class="v">${s.sirada}</b>. ` : ''}<b>${sayiYaz(s.takili)}</b> klips takılı, <b>${sayiYaz(s.bosta.length)}</b> klips boşta.
       <//>
-      ${!s.toplam && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>Klips numaraları tanımlı değil. <a href="#/stok">Stok sayfasından ekleyin →</a></span></div>`}
-      ${s.cakisan.length > 0 && html`<div class="uyari-kutu yok" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${s.cakisan.join(', ')} numarası iki kez girilmiş. <a href="#/kayitlar">Kayıtlara bak →</a></span></div>`}
+      ${!s.toplam && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>Klips numaraları tanımlı değil. <a href="#" onClick=${git('stok')}>Stok bölümünden ekleyin →</a></span></div>`}
+      ${s.cakisan.length > 0 && html`<div class="uyari-kutu yok" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${s.cakisan.join(', ')} numarası iki kez girilmiş. <a href="#" onClick=${git('kayitlar')}>Kayıtlara bak →</a></span></div>`}
       ${s.toplam > 0 && sinir > 0 && s.bosta.length <= sinir && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>Boşta ${sayiYaz(s.bosta.length)} klips kaldı.</span></div>`}
       <div class="kpi-sira">
         <${K.Kpi} vurgu ikon="etiket" ad="Takılı" deger=${sayiYaz(s.takili)} alt=${`${d.kayitlar('ambalaj').length} ambalajda`} />
@@ -44,12 +50,12 @@
       </div>
       <div class="tz-izgara">
         <div class="tz-sutun">
-          <${K.Kart} baslik="Son takılanlar" sag=${html`<a href="#/kayitlar" style="color:var(--ana)">Tümü →</a>`}>
+          <${K.Kart} baslik="Son takılanlar" sag=${html`<a href="#" style="color:var(--ana)" onClick=${git('kayitlar')}>Tümü →</a>`}>
             ${son.length ? html`<${KartIzgara} liste=${son} />` : html`<p class="soluk" style="margin:0">Tarihli kayıt yok. “Klips tak” ile başlayın.</p>`}
           <//>
         </div>
         <div class="tz-sutun">
-          ${s.toplam > 0 && html`<${K.Kart} baslik="Klips stoğu" sag=${html`<a href="#/stok" style="color:var(--ana)">Stok →</a>`}>
+          ${s.toplam > 0 && html`<${K.Kart} baslik="Klips stoğu" sag=${html`<a href="#" style="color:var(--ana)" onClick=${git('stok')}>Stok →</a>`}>
             <div class="km-doluluk" role="img" aria-label=${`Yüzde ${kullanilan} kullanıldı`}><span style=${{ width: `${kullanilan}%` }} /></div>
             <p class="soluk kucuk" style="margin:8px 0 0">${sayiYaz(s.toplam)} numaranın ${sayiYaz(s.toplam - s.bosta.length)} tanesi kullanıldı.</p>
           <//>`}
@@ -59,7 +65,7 @@
           <//>`}
           ${(eksikli.length > 0 || cakisan.length > 0) && html`<${K.Kart} baslik="Tamamlanacak kayıtlar">
             <p class="soluk" style="margin:0 0 8px">${eksikli.length} ambalajda tarih, sevkiyat veya ürün gibi bilgiler eksik.</p>
-            <a href="#/kayitlar" style="color:var(--ana)" onClick=${() => { kayitSuzgec.deger = 'eksik'; }}>Eksikleri göster →</a>
+            <a href="#" style="color:var(--ana)" onClick=${(e) => { kayitSuzgec.deger = 'eksik'; git('kayitlar')(e); }}>Eksikleri göster →</a>
           <//>`}
         </div>
       </div>`;
@@ -81,28 +87,6 @@
         <input class="girdi km-ara" placeholder="Klips, ambalaj, parti, müşteri…" value=${q} onInput=${(e) => setQ(e.target.value)} />
       <//>
       ${g[f].length ? html`<${KartIzgara} liste=${g[f]} />` : html`<div class="tz-kart"><p class="soluk" style="margin:0">Bu süzgeçte kayıt yok.</p></div>`}`;
-  }
-
-  /* ---------------- Sevkiyata göre ---------------- */
-  function Sevkiyatlar() {
-    const d = depo();
-    const [q, setQ] = useState('');
-    const c = new Set(S.stok(d).cakisan);
-    const gruplar = S.sevkGruplari(d).filter((g) => !q.trim() || g.ambalajlar.some((a) => ara(ambalajMetni(d, a), q)));
-    return html`<${K.Selam} baslik="Sevkiyata göre">Her sevkiyatın ambalajları ve klipsleri; listeyi Excel olarak alabilirsiniz.<//>
-      <div class="tz-cipler"><input class="girdi km-ara" style="margin-left:0" placeholder="Sevkiyat, müşteri, klips…" value=${q} onInput=${(e) => setQ(e.target.value)} /></div>
-      ${gruplar.length ? gruplar.map((g) => {
-        const klipsSay = g.ambalajlar.reduce((t, a) => t + S.ambalajKlipsleri(d, a.id).filter((k) => k.durum === 'takili').length, 0);
-        return html`<${K.Kart} key=${g.anahtar || 'yok'} baslik=${g.anahtar ? [g.sevkNo, g.firma].filter(Boolean).join(' · ') : 'Sevkiyatı girilmemiş'}
-          sag=${html`<span class="soluk kucuk">${g.ambalajlar.length} ambalaj · ${klipsSay} klips</span>
-            <button class="d kucuk-d" onClick=${() => excelSevk(d, g)}><${Ikon} ad="indir" boyut=${14} />Excel</button>`}>
-          <div class="tablo-kap"><table class="tablo"><thead><tr><th>Ambalaj</th><th>Klipsler</th><th>Ürün</th><th>Parti</th><th>Tarih</th></tr></thead><tbody>
-            ${g.ambalajlar.map((a) => html`<tr class="tik" key=${a.id} onClick=${() => ambalajAc(a)}><td><b>${a.numara || 'Numarasız'}</b></td>
-              <td><div class="km-cipler">${S.ambalajKlipsleri(d, a.id).map((k) => html`<${KlipsCip} key=${k.id} k=${k} cakisan=${c.has(k.numara)} />`)}</div></td>
-              <td>${a.urun || '—'}</td><td>${a.parti || '—'}</td><td>${a.tarih ? tarihYaz(a.tarih) : '—'}</td></tr>`)}
-          </tbody></table></div>
-        <//>`;
-      }) : html`<div class="tz-kart"><p class="soluk" style="margin:0">Kayıt yok.</p></div>`}`;
   }
 
   /* ---------------- Stok ---------------- */
@@ -130,7 +114,7 @@
       return undefined;
     }
     return html`<${Modal} dar baslik=${kayit ? 'Klips aralığı' : 'Yeni klips aralığı'} kapat=${kapat}
-      alt=${html`<${K.FormAlt} kayit=${kayit} sil=${async () => (await K.sil('aralik', kayit, `${kayit.bas}–${kayit.bit} aralığı`)) && kapat()} kapat=${kapat} kaydet=${kaydet} />`}>
+      alt=${html`<${FormAlt} kayit=${kayit} sil=${async () => (await sil('aralik', kayit, `${kayit.bas}–${kayit.bit} aralığı`)) && kapat()} kapat=${kapat} kaydet=${kaydet} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket="İlk numara" sinif="s6"><input class="girdi mono" inputmode="numeric" value=${f.bas} onInput=${s('bas')} /><//>
         <${Alan} etiket="Son numara" sinif="s6" ipucu=${adet ? `${sayiYaz(adet)} klips` : ''}><input class="girdi mono" inputmode="numeric" value=${f.bit} onInput=${s('bit')} autofocus=${!kayit} /><//>
@@ -163,7 +147,7 @@
       kapat();
       return undefined;
     }
-    return html`<${Modal} dar baslik=${ver ? 'Başka firmaya ver' : 'Fire işle'} kapat=${kapat} alt=${html`<${K.FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${ver ? 'Verildi olarak kaydet' : 'Fire olarak kaydet'} />`}>
+    return html`<${Modal} dar baslik=${ver ? 'Başka firmaya ver' : 'Fire işle'} kapat=${kapat} alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${ver ? 'Verildi olarak kaydet' : 'Fire olarak kaydet'} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket="Klips numaraları" ipucu="Örn: 1-7, 9" hata=${hata}><input class="girdi mono" value=${f.metin} onInput=${s('metin')} autofocus /><//>
         <${Alan} etiket=${ver ? 'Kime gönderildi' : 'Neden'} sinif="s8"><input class="girdi" value=${f.neden} onInput=${s('neden')} placeholder=${ver ? 'Örn: Kor Kimya’ya gönderildi' : 'Örn: Takarken kırıldı'} /><//>
@@ -205,7 +189,7 @@
     const fireler = d.kayitlar('klips').filter((k) => k.durum === 'fire').sort((a, c) => +a.numara - +c.numara);
     const verilen = S.verilenler(d);
     async function verilenGeriAl(g) {
-      if (!(await NT.ui.onayla(`${g.araliklar.join(', ')} (${g.adet} klips) yeniden boşa düşsün mü? Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: 'Geri al', evet: 'Geri al' }))) return;
+      if (!(await NT.ui.onayla(`${g.araliklar.join(', ')} (${g.adet} klips) yeniden boşa düşsün mü? Klipsler › Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: 'Geri al', evet: 'Geri al' }))) return;
       await d.kaydet(g.kayitlar.map((k) => ({ op: 'del', c: 'klips', k: k.id })));
       bildir(`${g.adet} klips yeniden boşta.`);
     }
@@ -238,7 +222,7 @@
           <${K.Kart} baslik="Fire" sag=${html`<span class="soluk kucuk">${fireler.length} klips</span>`}>
             ${fireler.length ? html`<div class="km-fire-liste">${fireler.map((k) => html`<div key=${k.id} class="km-klips-satir">
               <${KlipsCip} k=${k} /><span class="km-klips-bilgi">${k.neden || 'Neden yazılmamış'}<small>${tarihVeya(k.tarih)}</small></span>
-              <button type="button" class="d hayalet ikon-d" title="Yanlış girildiyse çıkar; numara boşa düşer" onClick=${() => K.sil('klips', k, `${k.numara} fire kaydı`)}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">Fire yok.</p>`}
+              <button type="button" class="d hayalet ikon-d" title="Yanlış girildiyse çıkar; numara boşa düşer" onClick=${() => sil('klips', k, `${k.numara} fire kaydı`)}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">Fire yok.</p>`}
           <//>
         </div>
       </div>`;
@@ -257,11 +241,12 @@
     <//>`;
   }
   function Ayarlar() {
-    return html`<${K.AyarlarSayfasi} cop=${{
-      ambalaj: { ad: 'Ambalaj', ozet: (r) => `${r.numara || 'Numarasız'}${r.parti ? ' · ' + r.parti : ''}` },
-      klips: { ad: 'Klips', ozet: (r) => `${r.numara} · ${S.DURUMLAR[r.durum] || ''}` },
-      aralik: { ad: 'Aralık', ozet: (r) => `${r.bas}–${r.bit}` },
-    }}><${KlipsAyarlari} /><//>`;
+    return html`<${KlipsAyarlari} />
+      <${K.CopKutusu} depo=${depo()} turler=${{
+        ambalaj: { ad: 'Ambalaj', ozet: (r) => `${r.numara || 'Numarasız'}${r.parti ? ' · ' + r.parti : ''}` },
+        klips: { ad: 'Klips', ozet: (r) => `${r.numara} · ${S.DURUMLAR[r.durum] || ''}` },
+        aralik: { ad: 'Aralık', ozet: (r) => `${r.bas}–${r.bit}` },
+      }} />`;
   }
 
   /* ---------------- Excel: her klips bir satır ---------------- */
@@ -279,39 +264,23 @@
     const satirlar = [...ambalajSatirlari(d, liste), ...fire].sort((x, y) => (x.hucreler[0].v < y.hucreler[0].v ? -1 : 1));
     K.excel(`klipsler-${bugun()}.xlsx`, { sayfa: 'Klipsler', sutunlar: GENISLIK, baslik: BASLIK, satirlar });
   }
-  function excelSevk(d, g) {
-    K.excel(`klipsler-${(g.sevkNo || g.firma || 'sevkiyatsiz').replace(/[^\p{L}\p{N}-]+/gu, '-')}.xlsx`, { sayfa: 'Klipsler', sutunlar: GENISLIK, baslik: BASLIK, satirlar: ambalajSatirlari(d, g.ambalajlar) });
-  }
 
-  /* ---------------- Arama ---------------- */
-  function arama(d, q) {
-    const l = [];
-    for (const k of d.kayitlar('klips')) {
-      if (ara(k.numara, q)) {
-        const a = k.ambalaj ? d.kayit('ambalaj', k.ambalaj) : null;
-        l.push({ tur: 'Klips', ad: k.numara, ek: `${S.DURUMLAR[k.durum] || ''}${a ? ' · ' + (a.numara || 'Numarasız') : ''}`, fn: () => (a ? ambalajAc(a) : (location.hash = '#/stok')) });
-      }
-    }
-    for (const a of S.ambalajlar(d)) {
-      if (ara(`${a.numara} ${a.urun} ${a.parti} ${a.firma} ${a.sevkNo}`, q)) l.push({ tur: 'Ambalaj', ad: a.numara || 'Numarasız', ek: [a.parti, a.firma].filter(Boolean).join(' · '), fn: () => ambalajAc(a) });
-    }
-    return l;
+  /* ---------------- Satış › Klipsler sayfası ---------------- */
+  const BOLUMLER = [['genel', 'Genel bakış'], ['kayitlar', 'Kayıtlar'], ['stok', 'Stok'], ['ayarlar', 'Ayarlar']];
+  const SAYFA = { genel: GenelBakis, kayitlar: Kayitlar, stok: Stok, ayarlar: Ayarlar };
+  function KlipslerSayfasi() {
+    const [, y] = useState(0);
+    useEffect(() => { const f = () => y((x) => x + 1); alt.dinle.add(f); NT.klipsUI.bagBaslat(); return () => alt.dinle.delete(f); }, []);
+    const bag = NT.klipsUI.bag;
+    if (bag.durum === 'hata') return html`<div class="uyari-kutu yok"><${Ikon} ad="uyari" /><span>${bag.hata}</span></div>`;
+    if (!bag.d) return html`<p class="soluk">Klips kayıtları yükleniyor…</p>`;
+    const d = depo();
+    const uyari = S.cakisanAmbalajlar(d).length + S.eksikliAmbalajlar(d).length;
+    const B = SAYFA[alt.deger] || GenelBakis;
+    return html`<${K.Cipler} secenekler=${BOLUMLER.map(([id, ad]) => [id, ad, id === 'kayitlar' && uyari ? uyari : null])} deger=${alt.deger} degis=${(x) => git(x)()} />
+      <${B} />`;
   }
-
-  K.calistir({
-    sekmeler: [
-      { id: 'genel', ad: 'Genel Bakış', ikon: 'ozet' },
-      { id: 'kayitlar', ad: 'Kayıtlar', ikon: 'etiket', sayac: (d) => S.cakisanAmbalajlar(d).length + S.eksikliAmbalajlar(d).length },
-      { id: 'sevkiyatlar', ad: 'Sevkiyata göre', ikon: 'sevk' },
-      { id: 'stok', ad: 'Stok', ikon: 'stok' },
-      { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
-    ],
-    sayfalar: { genel: GenelBakis, kayitlar: Kayitlar, sevkiyatlar: Sevkiyatlar, stok: Stok, ayarlar: Ayarlar },
-    eylemler: [
-      { ad: 'Klips tak', alt: 'Sevkiyatın ambalajlarına klips gir', ikon: 'etiket', tus: 'K', fn: () => klipsTak() },
-      { ad: 'Fire işle', alt: 'Kullanılamayan klipsi düş', ikon: 'cop', tus: 'F', fn: () => K.ac(FirePenceresi, {}) },
-    ],
-    arama,
-    uzakKoleksiyonlar: ['ambalaj', 'klips', 'aralik'],
-  });
+  /* Satış menüsündeki sayaç: çakışan + eksik bilgili ambalaj (klips bağlantısı hazırsa). */
+  const sayac = () => (NT.klipsUI.bag.d ? S.cakisanAmbalajlar(NT.klipsUI.bag.d).length + S.eksikliAmbalajlar(NT.klipsUI.bag.d).length : 0);
+  NT.klipsSayfa = { KlipslerSayfasi, sayac, klipsTak, fireIsle: () => K.ac(FirePenceresi, {}) };
 })();

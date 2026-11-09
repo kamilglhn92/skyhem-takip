@@ -30,7 +30,8 @@
     return html`<div class="segment" role="tablist">${secenekler.map(([id, ad, n]) => html`<button role="tab" aria-selected=${deger === id} class=${deger === id ? 'secili' : ''} onClick=${() => degis(id)}>${ad}${n != null && html`<span class="n">${n}</span>`}</button>`)}</div>`;
   }
   /* ---------------- Defter: bir kalemin hareketleri, yürüyen bakiyeyle (tablo değil, zaman çizgisi) ---------------- */
-  const TUR = { alim: 'Şişe girişi', dolum: 'Dolum', sevk: 'Gönderi', sayim: 'Sayım' };
+  const TUR = { alim: 'Şişe girişi', dolum: 'Dolum', sevk: 'Gönderi', sayim: 'Sayım', acik: 'Açık kap' };
+  const IKON = { acik: 'kutu' };
   function DefterPenceresi({ hedef, kapat }) {
     const d = depo();
     const bosMu = !!hedef.bos;
@@ -41,7 +42,9 @@
     const baslik = bosMu ? `${H.ambalajAdi(d, hedef.ambalaj)} boş şişe` : `${hedef.urun} ${hedef.parti ? '· ' + hedef.parti + ' ' : ''}· ${H.ambalajAdi(d, hedef.ambalaj)}`;
     const ozet = bosMu
       ? [['Rafta', mevcut], ['Toplam gelen', kalem?.alinan ?? 0], ['Dolumda kullanılan', kalem?.kullanilan ?? 0]]
-      : [['Rafta', mevcut], ['Doldurulan', kalem?.doldurulan ?? 0], ['Gönderilen', kalem?.gonderilen ?? 0], ['Ayrılmış (bekleyen gönderi)', kalem?.rezerve ?? 0]];
+      : [['Rafta (tam kap)', mevcut], ...(kalem?.acikL > 0 || kalem?.acilan ? [['Açık kap', H.litreYazi(kalem.acikL || 0)]] : []),
+        ['Doldurulan', kalem?.doldurulan ?? 0], ['Gönderilen', kalem?.gonderilen ?? 0], ['Ayrılmış (bekleyen gönderi)', kalem?.rezerve ?? 0]];
+    const acikVar = !bosMu && kalem?.acikL > 0;
     return html`<${Modal} genis baslik=${baslik} kapat=${kapat}
       sag=${bosMu ? kalem && html`<${StokRozeti} durum=${kalem.durum} />` : (() => {
         const t = st.urunAmbalaj.get(`${hedef.urun}|${hedef.ambalaj}`);
@@ -53,11 +56,20 @@
         <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />Dolum yaptım</button>`}>
       <div class="modal-ic">
         <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${ad}</span><b>${n}</b></div>`)}</div>
+        ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
+            <b>Açık kap: içinde ${H.litreYazi(kalem.acikL)}</b> (${H.ambalajAdi(d, hedef.ambalaj)} kap${kalem.acikTarih ? `, ${tarihYaz(kalem.acikTarih)} tarihinden beri açık` : ''}).
+            Açık kap gönderilemez; üstü tamamlanır ya da daha küçük kaplara alınır.
+            ${kalem.acikAciklama && html`<br /><i>${kalem.acikAciklama}</i>`}
+            <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'tamamla')}><${Ikon} ad="dolum" boyut=${14} />Üstünü tamamla</button>
+              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'not')}><${Ikon} ad="kalem" boyut=${14} />Açıklama</button>
+              <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />Atığa ayır</button>
+            </span></span></div>`}
         ${satirlar.length ? html`<ul class="tz-akis defter-akis">${satirlar.map((x) => {
           const acilir = ['dolum', 'sevk', 'alim'].includes(x.c);
           const tur = x.adet > 0 ? 'arti' : x.adet < 0 ? 'eksi' : 'notr';
           return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(x.c, x.r)}>
-            <span class=${'ik ' + x.c}><${Ikon} ad=${x.c} /></span>
+            <span class=${'ik ' + x.c}><${Ikon} ad=${IKON[x.c] || x.c} /></span>
             <span class="ne">${x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ayrıldı</span>` : ''}
               <small>${tarihYaz(x.tarih)} · ${TUR[x.c]}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
             <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>bakiye ${x.bakiye}</small></span>
@@ -95,12 +107,13 @@
   const disaAktar = {
     stok() {
       const d = depo();
-      const l = [...H.stok(d).dolu.values()].filter((x) => x.mevcut !== 0 || x.rezerve).sort((a, b) => trSirala(a.urun, b.urun) || H.partiNo(b.parti) - H.partiNo(a.parti));
+      const l = [...H.stok(d).dolu.values()].filter((x) => x.mevcut !== 0 || x.rezerve || x.acikL > 0).sort((a, b) => trSirala(a.urun, b.urun) || H.partiNo(b.parti) - H.partiNo(a.parti));
       const bos = H.ambalajlar(d).map((a) => ({ urun: 'BOŞ ŞİŞE', parti: '', ambalaj: a.id, doldurulan: '', gonderilen: '', duzeltme: H.stok(d).bos.get(a.id)?.duzeltme ?? 0, mevcut: H.stok(d).bos.get(a.id)?.mevcut ?? 0, rezerve: '', sonDolum: '' }));
       tabloIndir('raf-stok', 'Raf', [...bos, ...l], [
         { baslik: 'Ürün', deger: (x) => x.urun, genislik: 18 }, { baslik: 'Parti', deger: (x) => x.parti }, { baslik: 'Ambalaj', deger: (x) => H.ambalajAdi(d, x.ambalaj), genislik: 10 },
         { baslik: 'Doldurulan', deger: (x) => x.doldurulan, tur: 'sayi', genislik: 11 }, { baslik: 'Gönderilen', deger: (x) => x.gonderilen, tur: 'sayi', genislik: 11 },
-        { baslik: 'Sayım düzeltmesi', deger: (x) => x.duzeltme, tur: 'sayi', genislik: 11 }, { baslik: 'Rafta', deger: (x) => x.mevcut, tur: 'sayi', genislik: 9 },
+        { baslik: 'Sayım düzeltmesi', deger: (x) => x.duzeltme, tur: 'sayi', genislik: 11 }, { baslik: 'Rafta (tam)', deger: (x) => x.mevcut, tur: 'sayi', genislik: 9 },
+        { baslik: 'Açık kap (L)', deger: (x) => (x.acikL > 0 ? x.acikL : ''), tur: 'ondalik', genislik: 10 }, { baslik: 'Açık kap açıklaması', deger: (x) => (x.acikL > 0 ? x.acikAciklama : ''), genislik: 24, hiza: 'sol' },
         { baslik: 'Ayrılmış', deger: (x) => x.rezerve, tur: 'sayi', genislik: 9 }, { baslik: 'Son dolum', deger: (x) => x.sonDolum || '', tur: 'tarih', genislik: 12 }]);
     },
     dolum() {

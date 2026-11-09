@@ -28,6 +28,7 @@
     { id: 'Varil', ad: 'Varil', no: 'Varil no / açıklama' },
     { id: 'İsotank', ad: 'İsotank', no: 'İsotank no' },
     { id: 'Numune', ad: 'Büyük numuneden', no: 'Hangi numune? (örn. 5 L, GN-2026-0012)' },
+    // Açık kabın üstünü tamamlamada da bu liste kullanılır (Numune hariç).
     { id: 'Diğer', ad: 'Diğer', no: 'Nereden? (örn. reaktör, tank)' },
   ];
   const dolumKaynagi = (r) => {
@@ -140,7 +141,7 @@
     const sik = [...say.keys()].filter((u) => u !== 'Türkiye').sort((a, b) => say.get(b) - say.get(a) || trSirala(a, b));
     return { sik: ['Türkiye', ...sik], hepsi: tumUlkeler().filter((u) => u !== 'Türkiye' && !sik.includes(u)) };
   }
-  const ONEK = { alim: 'SA', dolum: 'NH', sevk: 'GN', sayim: 'SY' };
+  const ONEK = { alim: 'SA', dolum: 'NH', sevk: 'GN', sayim: 'SY', acik: 'AK' };
 
   function kisaAd(ad) {
     return String(ad).toLocaleLowerCase('tr-TR')
@@ -181,6 +182,90 @@
     return 'iyi';
   }
 
+  /* ---------------- Açık kap (2026-11-09, sekreter kararları) ----------------
+     Büyük bir numune kabından küçük kaplara dolum yapılınca ("Büyük numuneden"), dolum kaydında kaynakKap
+     {urun, parti, ambalaj} ve alinanLitre tutulur. Kaynak kap "açık kap" olur: tam kap sayısından 1 düşer, içinde
+     kalan litre izlenir. Her ürün × parti × ambalaj için tek açık kap vardır (ambalaja göre ayrılır); bittiğinde
+     atıktır ve gerekirse tam kaplardan yenisi açılır. Açık kap gönderilemez: üstü tamamlanır ('acik' kaydı,
+     tur 'tamamla' → tam kap +1) ya da atığa ayrılır (tur 'atik'). tur 'not' açıklamayı değiştirir.
+     Sayımda tur 'acik' kaydı açık kaptaki litreyi doğrudan ayarlar; tam kap sayısını değiştirmez. */
+  const yuvarla = (x) => Math.round(x * 1000) / 1000;
+  const litreYazi = (x) => `${yuvarla(x).toLocaleString('tr-TR')} L`;
+  function acikKaplariIsle(depo, amb, doluAl) {
+    const kapLitre = new Map(amb.map((a) => [a.id, sayi(a.litre)]));
+    const ambAd = (id) => amb.find((a) => a.id === id)?.ad || id;
+    const olaylar = [];
+    for (const r of depo.kayitlar('dolum')) {
+      if (r.gecmis || !r.kaynakKap?.ambalaj) continue;
+      olaylar.push({ tarih: r.tarih, t: r._olusturma, tur: 'al', r, kap: r.kaynakKap, litre: sayi(r.alinanLitre) || sayi(r.adet) * (kapLitre.get(r.ambalaj) || 0) });
+    }
+    for (const r of depo.kayitlar('acik')) olaylar.push({ tarih: r.tarih, t: r._olusturma, tur: r.tur, r, kap: r });
+    for (const r of depo.kayitlar('sayim')) if (r.tur === 'acik') olaylar.push({ tarih: r.tarih, t: r._olusturma, tur: 'sayim', r, kap: r });
+    olaylar.sort((a, x) => (a.tarih < x.tarih ? -1 : a.tarih > x.tarih ? 1 : a.t - x.t));
+    for (const o of olaylar) {
+      const d = doluAl(o.kap.urun, o.kap.parti, o.kap.ambalaj);
+      const kap = kapLitre.get(o.kap.ambalaj) || 0;
+      const log = { tarih: o.tarih, t: o.t, r: o.r, c: o.tur === 'al' ? 'dolum' : o.tur === 'sayim' ? 'sayim' : 'acik', adet: 0 };
+      if (o.tur === 'al') {
+        let kalan = o.litre, acilan = 0, biten = 0;
+        while (kalan > 1e-9 && kap > 0) {
+          if (d.acikL <= 1e-9) { acilan += 1; d.acilan += 1; d.acikL = kap; d.acikAciklama = ''; d.acikTarih = o.tarih; }
+          const al = Math.min(kalan, d.acikL);
+          d.acikL = yuvarla(d.acikL - al);
+          kalan = yuvarla(kalan - al);
+          if (d.acikL <= 1e-9) { d.acikL = 0; d.atik += 1; biten += 1; }
+        }
+        if (o.r.acikAciklama && d.acikL > 0) d.acikAciklama = o.r.acikAciklama;
+        log.adet = acilan ? -acilan : 0;
+        log.aciklama = [`${litreYazi(o.litre)} alındı → ${o.r.no || 'dolum'} (${sayi(o.r.adet)} × ${ambAd(o.r.ambalaj)})`,
+          acilan ? `${acilan} kap açıldı` : '', biten ? `${biten} kap bitti (atık)` : '', `açık kapta ${litreYazi(d.acikL)} kaldı`].filter(Boolean).join(' · ');
+      } else if (o.tur === 'tamamla') {
+        if (d.acikL <= 1e-9) continue;
+        log.adet = 1;
+        log.aciklama = `Açık kabın üstü tamamlandı (${litreYazi(d.acikL)} → ${litreYazi(kap)})${o.r.kaynakTur ? ' · ' + dolumKaynagi(o.r) : ''}`;
+        d.tamamlanan += 1; d.acikL = 0; d.acikAciklama = '';
+      } else if (o.tur === 'atik') {
+        if (d.acikL <= 1e-9) continue;
+        log.aciklama = `Açık kap atığa ayrıldı (${litreYazi(d.acikL)})${o.r.aciklama ? ' · ' + o.r.aciklama : ''}`;
+        d.atik += 1; d.atikLitre = yuvarla(d.atikLitre + d.acikL); d.acikL = 0; d.acikAciklama = '';
+      } else if (o.tur === 'not') {
+        d.acikAciklama = o.r.aciklama || '';
+        continue;
+      } else if (o.tur === 'sayim') {
+        const once = d.acikL;
+        d.acikL = Math.max(0, yuvarla(sayi(o.r.litre)));
+        if (d.acikL > 0 && once <= 1e-9) d.acikTarih = o.tarih;
+        if (d.acikL <= 1e-9) d.acikAciklama = '';
+        if (o.r.aciklama) d.acikAciklama = o.r.aciklama;
+        log.aciklama = `Sayım: açık kap ${litreYazi(once)} → ${litreYazi(d.acikL)}`;
+      } else continue;
+      log.acikSonra = d.acikL;
+      d.acikLog.push(log);
+    }
+  }
+  /* Bir kaynaktan litre alınırsa ne olur? (sihirbaz önizlemesi) */
+  function acikOnizleme(depo, kap, litre) {
+    const d = stok(depo).dolu.get(anahtar(kap.urun, kap.parti, kap.ambalaj));
+    const kapL = sayi(ambalajlar(depo, { hepsi: true }).find((a) => a.id === kap.ambalaj)?.litre);
+    let acik = d?.acikL || 0, kalan = sayi(litre), acilan = 0, biten = 0;
+    while (kalan > 1e-9 && kapL > 0) {
+      if (acik <= 1e-9) { acilan += 1; acik = kapL; }
+      const al = Math.min(kalan, acik);
+      acik = yuvarla(acik - al); kalan = yuvarla(kalan - al);
+      if (acik <= 1e-9) { acik = 0; biten += 1; }
+    }
+    return { oncekiAcik: d?.acikL || 0, sonrakiAcik: acik, acilan, biten, tam: d?.mevcut ?? 0, tamSonra: (d?.mevcut ?? 0) - acilan };
+  }
+  /* Dolum kaynağı olabilecek kaplar: aynı ürün (ve partili üründe aynı parti), hedef ambalajdan büyük, tam ya da açık kabı olan. */
+  function kaynakKaplar(depo, { urun, parti, ambalaj }) {
+    const amb = ambalajlar(depo, { hepsi: true });
+    const lt = (id) => sayi(amb.find((a) => a.id === id)?.litre);
+    const hedef = lt(ambalaj);
+    return [...stok(depo).dolu.values()]
+      .filter((x) => x.urun === urun && (x.parti || '') === (parti || '') && lt(x.ambalaj) > hedef && (x.mevcut > 0 || x.acikL > 0))
+      .sort((a, x) => lt(x.ambalaj) - lt(a.ambalaj));
+  }
+
   /* Tüm stok durumunu hareketlerden hesaplar. Stok hiçbir yerde "saklanmaz"; her zaman türetilir. */
   function stok(depo) {
     const onbellek = depo._stokOnbellek;
@@ -195,7 +280,8 @@
     const dolu = new Map();
     const doluAl = (urun, parti, ambalaj) => {
       const k = anahtar(urun, parti, ambalaj);
-      if (!dolu.has(k)) dolu.set(k, { anahtar: k, urun, parti: parti || '', ambalaj, doldurulan: 0, gonderilen: 0, duzeltme: 0, rezerve: 0, sonDolum: null });
+      if (!dolu.has(k)) dolu.set(k, { anahtar: k, urun, parti: parti || '', ambalaj, doldurulan: 0, gonderilen: 0, duzeltme: 0, rezerve: 0, sonDolum: null,
+        acilan: 0, tamamlanan: 0, atik: 0, atikLitre: 0, acikL: 0, acikAciklama: '', acikTarih: null, acikLog: [] });
       return dolu.get(k);
     };
 
@@ -218,8 +304,9 @@
     }
     for (const r of depo.kayitlar('sayim')) {
       if (r.tur === 'bos') bosAl(r.ambalaj).duzeltme += sayi(r.fark);
-      else doluAl(r.urun, r.parti, r.ambalaj).duzeltme += sayi(r.fark);
+      else if (r.tur !== 'acik') doluAl(r.urun, r.parti, r.ambalaj).duzeltme += sayi(r.fark);
     }
+    acikKaplariIsle(depo, amb, doluAl);
 
     for (const b of bos.values()) {
       b.mevcut = b.alinan - b.kullanilan + b.duzeltme;
@@ -231,7 +318,7 @@
     const urunMap = new Map(depo.kayitlar('urun').map((u) => [u.ad, u]));
     const urunAmbalaj = new Map();
     for (const d of dolu.values()) {
-      d.mevcut = d.doldurulan - d.gonderilen + d.duzeltme;
+      d.mevcut = d.doldurulan - d.gonderilen + d.duzeltme - d.acilan + d.tamamlanan; // mevcut = TAM kap; açık kap ayrı (acikL)
       d.kullanilabilir = d.mevcut - d.rezerve;
       d.durum = d.mevcut < 0 ? 'eksi' : 'iyi';
       const k = `${d.urun}|${d.ambalaj}`;
@@ -329,7 +416,9 @@
         const adet = (s.kalemler || []).filter(ayni).reduce((t, k) => t + sayi(k.adet), 0);
         if (adet) h.push({ tarih: s.tarih, t: s._olusturma, c: 'sevk', r: s, adet: s.durum === 'Gönderildi' ? -adet : 0, rezerve: s.durum !== 'Gönderildi' ? adet : 0, aciklama: `${s.firma} · ${s.durum}` });
       }
-      for (const r of kayit('sayim')) if (r.tur !== 'bos' && ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama: r.neden || 'Sayım düzeltmesi' });
+      for (const r of kayit('sayim')) if (r.tur !== 'bos' && r.tur !== 'acik' && ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama: r.neden || 'Sayım düzeltmesi' });
+      // Açık kap hareketleri (bu kaptan alınanlar, tamamlama, atık, açık kap sayımı)
+      for (const x of stok(depo).dolu.get(anahtar(urun, parti, ambalaj))?.acikLog || []) h.push({ ...x });
     }
     h.sort((a, b) => (a.tarih < b.tarih ? -1 : a.tarih > b.tarih ? 1 : a.t - b.t));
     let bakiye = 0;
@@ -348,7 +437,7 @@
       const b = st.bos.get(a.id);
       t += `• ${ad(a.id)}: ${b ? b.mevcut : 0} adet${b && b.durum === 'kritik' ? ' ⚠️' : b && b.durum !== 'iyi' ? ' ⛔' : ''}\n`;
     }
-    const doluListe = [...st.dolu.values()].filter((d) => d.mevcut > 0);
+    const doluListe = [...st.dolu.values()].filter((d) => d.mevcut > 0 || d.acikL > 0);
     const urunSira = urunler(depo, { hepsi: true });
     const bolum = (baslik, liste, grupla) => {
       if (!liste.length) return '';
@@ -362,7 +451,7 @@
       for (const [g, l] of gruplar) {
         s += `• *${g}:*\n`;
         l.sort((a, b) => (sira.get(a.ambalaj) ?? 99) - (sira.get(b.ambalaj) ?? 99));
-        for (const d of l) s += `   ${ad(d.ambalaj)} ➔ ${d.mevcut} adet\n`;
+        for (const d of l) s += `   ${ad(d.ambalaj)} ➔ ${d.mevcut} adet${d.acikL > 0 ? ` + açık kap ${litreYazi(d.acikL)}` : ''}\n`;
       }
       return s;
     };
@@ -473,6 +562,7 @@
     AMBALAJLAR, URUNLER, SEVK_DURUMLARI, GONDERI_SEKILLERI, DOLUM_KAYNAKLARI, dolumKaynagi, DOLUM_KISILERI, dolumKisileri, dolduranYaz, ONEK,
     kisaAd, anahtar, ambalajlar, ambalajAdi, urunler, urunBul, varsayilanlariYaz, stok, bosMevcut, doluMevcut,
     sevkKontrol, yeniNo, partiler, sonrakiParti, partiNo, defter, whatsappMetni, eskiVeriyiAktar, yedek, yedektenYukle,
+    acikOnizleme, kaynakKaplar, litreYazi,
     siseSlotlari, siseTemizle, siseBul, sevkEtkili, sevkLitre, firmaBilgisi, ulkeler, ulkeIngilizce, ulkeTelefonlari, telefonCoz, telefonBirlestir, ulkeIso,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

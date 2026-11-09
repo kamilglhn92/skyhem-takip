@@ -140,6 +140,11 @@
       if (!gecerli) return;
       if (yetersiz && !(await onayla(`${H.ambalajAdi(d, f.ambalaj)} boş şişe stokunda ${bos} adet görünüyor, ${f.adet} adet dolum girdiniz. Kaydederseniz boş şişe stoku eksiye düşer — sayım farkı olabilir.`, { baslik: 'Boş şişe yetersiz', evet: 'Yine de kaydet' }))) return;
       const v = { tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), dolduranlar: f.dolduranlar, kaynakTur: f.kaynakTur, kaynakNo: f.kaynakTur ? f.kaynakNo.trim() : '', notlar: f.notlar.trim(), ekler: f.ekler };
+      // Açık kap: kaynak kap korunur, alınan litre yeni adet/ambalaja göre; kaynak türü değişirse bağ kalkar.
+      if (kayit?.kaynakKap) {
+        if (f.kaynakTur === 'Numune') v.alinanLitre = sayi(f.adet) * sayi(amb.find((a) => a.id === f.ambalaj)?.litre ?? H.ambalajlar(d, { hepsi: true }).find((a) => a.id === f.ambalaj)?.litre);
+        else v.kaynakKap = null;
+      }
       if (kayit) {
         const fark = farklar(kayit, v);
         if (Object.keys(fark).length) await d.kaydet([{ c: 'dolum', k: kayit.id, v: fark }]);
@@ -189,6 +194,7 @@
           <input class="girdi mono" list="kaynakno-dl" value=${f.kaynakNo} onInput=${(e) => s('kaynakNo')(e.target.value)} />
           <${Oneri} id="kaynakno-dl" liste=${benzersiz(d.kayitlar('dolum').filter((r) => r.kaynakTur === f.kaynakTur).map((r) => r.kaynakNo))} />
         <//>`}
+        ${kayit?.kaynakKap && f.kaynakTur === 'Numune' && html`<div class="s12 uyari-kutu bilgi"><${Ikon} ad="bilgi" /><span>Kaynak kap: <b>${kayit.kaynakKap.urun} ${kayit.kaynakKap.parti || ''} · ${H.ambalajAdi(d, kayit.kaynakKap.ambalaj)}</b>. Adedi değiştirirseniz açık kaptan alınan miktar da değişir.</span></div>`}
         <${Alan} etiket="Not"><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder="Örn: Müşteri talebine istinaden hazırlandı, sevkiyat rafına alındı." /><//>
         <${Alan} etiket="Ekler" ipucu="Analiz sertifikası vb. Buluta kaydedilir (en fazla 8 MB). Şişe etiketleri gönderi kaydına yüklenir."><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         <${GecmisBolumu} kayit=${kayit} />
@@ -491,26 +497,78 @@
     const [kisi, setKisi] = useState('');
     const [tarih, setTarih] = useState(bugun());
     const [denendi, setDenendi] = useState(false);
-    const fark = sayi(sayilan) - sistem;
+    const fark = sayilan === '' ? 0 : sayi(sayilan) - sistem;
+    // Açık kap (yalnız dolu kalemde): kaptaki litre ayrıca sayılır; tam kap sayısından bağımsızdır.
+    const acikSistem = bosMu ? 0 : H.stok(d).dolu.get(H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj))?.acikL || 0;
+    const [acikSayilan, setAcikSayilan] = useState(acikSistem);
+    const acikFark = bosMu || acikSayilan === '' ? 0 : Math.round((sayi(acikSayilan) - acikSistem) * 1000) / 1000;
+    const kapLitre = sayi(H.ambalajlar(d, { hepsi: true }).find((a) => a.id === hedef.ambalaj)?.litre);
+    const acikHata = !bosMu && sayi(acikSayilan) > kapLitre && `Kap ${H.litreYazi(kapLitre)}; daha fazlası olamaz`;
     const ad = bosMu ? `${H.ambalajAdi(d, hedef.ambalaj)} boş şişe` : `${hedef.urun}${hedef.parti ? ' · ' + hedef.parti : ''} · ${H.ambalajAdi(d, hedef.ambalaj)}`;
     async function kaydet() {
-      if (sayilan === '' || fark === 0) return kapat();
+      if (fark === 0 && acikFark === 0) return kapat();
       setDenendi(true);
-      if (!tarih || !kisi.trim()) return undefined;
-      const no = H.yeniNo(d, 'sayim', tarih);
-      await d.kaydet([{ c: 'sayim', k: uid(), v: { no, tarih, kisi: kisi.trim(), tur: bosMu ? 'bos' : 'dolu', urun: hedef.urun || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj, onceki: sistem, sayilan: sayi(sayilan), fark, neden: neden.trim() || 'Fiziksel sayım' } }]);
-      bildir(`${ad}: ${sistem} → ${sayilan} olarak düzeltildi.`);
+      if (!tarih || !kisi.trim() || acikHata) return undefined;
+      const [on, yil, n] = H.yeniNo(d, 'sayim', tarih).split('-');
+      const no = (i) => `${on}-${yil}-${String(+n + i).padStart(4, '0')}`;
+      const ortak = { tarih, kisi: kisi.trim(), urun: hedef.urun || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj, neden: neden.trim() || 'Fiziksel sayım' };
+      const ops = [];
+      if (fark !== 0) ops.push({ c: 'sayim', k: uid(), v: { no: no(ops.length), ...ortak, tur: bosMu ? 'bos' : 'dolu', onceki: sistem, sayilan: sayi(sayilan), fark } });
+      if (acikFark !== 0) ops.push({ c: 'sayim', k: uid(), v: { no: no(ops.length), ...ortak, tur: 'acik', onceki: acikSistem, sayilan: sayi(acikSayilan), litre: sayi(acikSayilan), fark: acikFark } });
+      await d.kaydet(ops);
+      bildir(`${ad}: ${[fark !== 0 && `tam ${sistem} → ${sayilan}`, acikFark !== 0 && `açık kap ${H.litreYazi(acikSistem)} → ${H.litreYazi(sayi(acikSayilan))}`].filter(Boolean).join(', ')} olarak düzeltildi.`);
       kapat();
     }
-    return html`<${Modal} dar baslik="Sayım düzeltmesi" kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class="d ana-d" disabled=${fark === 0} onClick=${kaydet}><${Ikon} ad="tik" />Düzeltmeyi kaydet</button>`}>
+    return html`<${Modal} dar baslik="Sayım düzeltmesi" kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class="d ana-d" disabled=${fark === 0 && acikFark === 0} onClick=${kaydet}><${Ikon} ad="tik" />Düzeltmeyi kaydet</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">Rafta fiilen saydığınız adedi girin. Sistem aradaki farkı bir düzeltme hareketi olarak kaydeder; geçmiş kayıtlar değişmez.</div></div>
         <${Alan} etiket="Sayan kişi" sinif="s6" hata=${denendi && !kisi.trim() && 'Kişiyi seçin'}><${NT.ui.KisiSec} etiket="Sayan kişi" deger=${kisi} degis=${setKisi} liste=${NT.ui.kisiListesi(d.kayitlar('sayim').map((r) => r.kisi))} /><//>
         <${Alan} etiket="Tarih" sinif="s6" hata=${denendi && !tarih && 'Tarih girin'}><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /><//>
-        <${Alan} etiket="Sistemdeki" sinif="s4"><div class="girdi sayi" style="background:var(--yuzey3);font-weight:700">${sistem}</div><//>
-        <${Alan} etiket="Sayılan" sinif="s4"><${AdetGirdi} deger=${sayilan} degis=${setSayilan} otomatikOdak /><//>
+        <${Alan} etiket=${bosMu ? 'Sistemdeki' : 'Sistemdeki tam kap'} sinif="s4"><div class="girdi sayi" style="background:var(--yuzey3);font-weight:700">${sistem}</div><//>
+        <${Alan} etiket=${bosMu ? 'Sayılan' : 'Sayılan tam kap'} sinif="s4"><${AdetGirdi} deger=${sayilan} degis=${setSayilan} otomatikOdak /><//>
         <${Alan} etiket="Fark" sinif="s4"><div class="girdi sayi" style=${{ background: 'var(--yuzey3)', fontWeight: 700, color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : '' }}>${fark > 0 ? '+' : ''}${fark}</div><//>
+        ${!bosMu && html`
+          <${Alan} etiket="Sistemde açık kap" sinif="s4"><div class="girdi sayi" style="background:var(--yuzey3);font-weight:700">${H.litreYazi(acikSistem)}</div><//>
+          <${Alan} etiket="Açık kapta kalan (L)" sinif="s8" hata=${acikHata} ipucu="Yarım kullanılmış kap varsa içindeki litreyi yazın; yoksa 0. Açık kap tam kap sayısına dahil değildir.">
+            <input class="girdi sayi" type="number" min="0" step="0.05" value=${acikSayilan} onFocus=${(e) => e.target.select()} onInput=${(e) => setAcikSayilan(e.target.value === '' ? '' : Number(e.target.value))} /><//>`}
         <${Alan} etiket="Neden"><input class="girdi" value=${neden} onInput=${(e) => setNeden(e.target.value)} placeholder="Örn: Ay sonu sayımı, kırık şişe, kayıt dışı gönderim" /><//>
+      </form>
+    <//>`;
+  }
+
+  /* Açık kap işlemleri (2026-11-09): açıklama, üstünü tamamla (tam kap +1), atığa ayır. Kayıt koleksiyonu 'acik'. */
+  const ACIK_ISLEM = {
+    not: { baslik: 'Açık kap açıklaması', dugme: 'Kaydet', metin: 'Açık kapla ilgili not (yeri, durumu…).' },
+    tamamla: { baslik: 'Açık kabın üstünü tamamla', dugme: 'Tamamlandı', metin: 'Kap aynı partiden tam doluma tamamlandı; rafta yeniden tam kap sayılır.' },
+    atik: { baslik: 'Açık kabı atığa ayır', dugme: 'Atığa ayır', metin: 'Kaptaki kalan numune atığa gider; açık kap kapanır.' },
+  };
+  function AcikKapFormu({ hedef, islem, kapat }) {
+    const d = depo();
+    const x = H.stok(d).dolu.get(H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj));
+    const t = ACIK_ISLEM[islem];
+    const [f, setF] = useState({ tarih: bugun(), kisi: '', aciklama: islem === 'not' ? x?.acikAciklama || '' : '', kaynakTur: '', kaynakNo: '' });
+    const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
+    const [denendi, setDenendi] = useState(false);
+    const hatalar = { tarih: !f.tarih && 'Tarih girin', kisi: !f.kisi.trim() && 'Kişiyi seçin', kaynakTur: islem === 'tamamla' && !f.kaynakTur && 'Nereden tamamlandığını seçin' };
+    const ad = `${hedef.urun}${hedef.parti ? ' · ' + hedef.parti : ''} · ${H.ambalajAdi(d, hedef.ambalaj)}`;
+    async function kaydet() {
+      setDenendi(true);
+      if (Object.values(hatalar).some(Boolean)) return;
+      const no = H.yeniNo(d, 'acik', f.tarih);
+      await d.kaydet([{ c: 'acik', k: uid(), v: { no, tarih: f.tarih, kisi: f.kisi.trim(), tur: islem, urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj,
+        litre: x?.acikL || 0, aciklama: f.aciklama.trim(), ...(islem === 'tamamla' ? { kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim() } : {}) } }]);
+      bildir(`${no} · ${ad}: ${islem === 'not' ? 'açıklama kaydedildi' : islem === 'tamamla' ? 'üstü tamamlandı, rafa tam kap olarak döndü' : 'atığa ayrıldı'}.`);
+      kapat();
+    }
+    return html`<${Modal} dar baslik=${t.baslik} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class=${'d ' + (islem === 'atik' ? 'tehlike' : 'ana-d')} onClick=${kaydet}><${Ikon} ad="tik" />${t.dugme}</button>`}>
+      <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
+        <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">Açık kapta ${H.litreYazi(x?.acikL || 0)} var. ${t.metin}</div></div>
+        <${Alan} etiket="Kişi" sinif="s6" hata=${denendi && hatalar.kisi}><${NT.ui.KisiSec} etiket="Kişi" deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('acik').map((r) => r.kisi))} /><//>
+        <${Alan} etiket="Tarih" sinif="s6" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        ${islem === 'tamamla' && html`<${Alan} etiket="Nereden tamamlandı?" hata=${denendi && hatalar.kaynakTur}>
+          <${Secenekler} liste=${H.DOLUM_KAYNAKLARI.filter((k) => k.id !== 'Numune')} deger=${f.kaynakTur} degis=${s('kaynakTur')} /><//>
+          ${f.kaynakTur && html`<${Alan} etiket=${H.DOLUM_KAYNAKLARI.find((k) => k.id === f.kaynakTur)?.no + ' (isteğe bağlı)'}><input class="girdi mono" value=${f.kaynakNo} onInput=${(e) => s('kaynakNo')(e.target.value)} /><//>`}`}
+        <${Alan} etiket=${islem === 'not' ? 'Açıklama' : 'Not (isteğe bağlı)'}><textarea class="girdi" rows="2" value=${f.aciklama} onInput=${(e) => s('aciklama')(e.target.value)} /><//>
       </form>
     <//>`;
   }
@@ -535,5 +593,6 @@
     yeniAlim: (on) => ac(AlimFormu, { on }),
     kayitAc: (c, kayit) => ac({ dolum: DolumFormu, sevk: SevkFormu, alim: AlimFormu }[c], { kayit, key: kayit.id }),
     sayim: (hedef) => ac(SayimFormu, { hedef }),
+    acikIslem: (hedef, islem) => ac(AcikKapFormu, { hedef, islem }),
   };
 })();
