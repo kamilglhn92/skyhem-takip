@@ -52,7 +52,8 @@
       const f = (e) => {
         if (document.querySelector('.perde')) return; // üstte onay penceresi açık
         if (e.key === 'Escape') { e.preventDefault(); kapat(); }
-        else if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && !e.target.closest('.tz-secimler')) { e.preventDefault(); ileri(); }
+        // Sayımdaki "kalem ekle" kutularında Enter (telefonda Git/İleri) sayfa atlatmaz; kalemi ekler (2026-11-09 hatası).
+        else if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && !e.target.closest('.tz-secimler') && !e.target.closest('.tz-sayim-ekle')) { e.preventDefault(); ileri(); }
       };
       window.addEventListener('keydown', f);
       return () => window.removeEventListener('keydown', f);
@@ -384,19 +385,25 @@
       const anahtar = H.anahtar(bolum, parti, yeni.ambalaj);
       setEkKalemler((l) => (l.some((x) => x.anahtar === anahtar) ? l : [...l, { anahtar, urun: bolum, parti, ambalaj: yeni.ambalaj }]));
       setYeni({ parti: '', ambalaj: '' });
+      // Eklenen kalemin "Tam kap" kutusuna geç (telefonda klavye açık kalır).
+      setTimeout(() => { const el = document.querySelector(`.tz-sayim-tablo tr[data-k="${CSS.escape(anahtar)}"] td.tam input`); if (el) { el.focus(); el.select(); } }, 60);
     };
+    const yeniEnter = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); yeniEkle(); } };
+    // İlerlemeyi durduran durumlar: kalem ekleme kutuları doldurulmuş ama "Kalem ekle"ye basılmamış; eklenen kalemde adet girilmemiş.
+    const eklenmemis = bolum !== 'bos' && (!!yeni.ambalaj || !!yeni.parti.trim());
+    const adetsizYeni = satirlar.filter((r) => r.yeni && sayi(sayilan[r.k] ?? 0) === 0 && sayi(acikSayilan[r.k] ?? 0) === 0);
     const adimlar = [
       { soru: 'Hangi rafı sayıyorsunuz?', gecerli: () => !!bolum,
         icerik: ({ ileri }) => html`<div class="tz-secimler">${bolumler.map((x) => html`<${Secim} secili=${bolum === x.id} baslik=${x.ad} alt=${x.alt} onClick=${() => { setBolum(x.id); setSayilan({}); setAcikSayilan({}); ileri(); }} />`)}</div>` },
       { soru: 'Rafta ne sayıyorsunuz?', ipucu: bolum === 'bos' ? 'Sadece farklı olanları değiştirin. Sistem aradaki farkı düzeltme olarak kaydeder, eski kayıtlar değişmez.'
-          : 'Tam kapları sayın; yarım kullanılmış (açık) kap varsa içindeki litreyi yazın. Rafta olup listede olmayan kalemi alttan ekleyin.', gecerli: () => !acikHatali.length,
+          : 'Tam kapları sayın; yarım kullanılmış (açık) kap varsa içindeki litreyi yazın. Rafta olup listede olmayan kalemi alttan ekleyin.', gecerli: () => !acikHatali.length && !eklenmemis && !adetsizYeni.length,
         icerik: () => html`${satirlar.length ? html`<table class="tz-sayim-tablo"><tbody>
           ${bolum !== 'bos' && html`<tr class="soluk kucuk sayim-baslik"><td></td><td></td><td>Tam kap</td><td></td><td>Açık kap (L)</td></tr>`}
           ${satirlar.map((r) => {
           const v = sayilan[r.k] ?? r.sistem;
           const fark = v === '' ? 0 : sayi(v) - r.sistem;
           const a = acikSayilan[r.k] ?? r.acik;
-          return html`<tr class=${bolum !== 'bos' ? 'acikli' : ''}><td class="ad"><b>${r.ad}</b>${r.yeni && html` <span class="rozet bilgi">yeni</span>`}</td><td class="soluk sayi sistem">sistem ${r.sistem}${r.acik > 0 ? ` + ${H.litreYazi(r.acik)}` : ''}</td>
+          return html`<tr class=${bolum !== 'bos' ? 'acikli' : ''} data-k=${r.k}><td class="ad"><b>${r.ad}</b>${r.yeni && html` <span class="rozet bilgi">yeni</span>`}</td><td class="soluk sayi sistem">sistem ${r.sistem}${r.acik > 0 ? ` + ${H.litreYazi(r.acik)}` : ''}</td>
             <td class="tam"><input class="girdi sayi" type="number" min="0" value=${v} onFocus=${(e) => e.target.select()} onInput=${(e) => setSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>
             <td class="fark" style=${{ color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : 'var(--soluk)' }}>${fark > 0 ? '+' : ''}${fark || '—'}</td>
             ${bolum !== 'bos' && html`<td class="acik"><input class="girdi sayi" type="number" min="0" step="0.05" max=${kapLitre(r.hedef.ambalaj)} title=${`Açık kapta kalan litre (kap ${H.litreYazi(kapLitre(r.hedef.ambalaj))})`}
@@ -404,11 +411,13 @@
               onInput=${(e) => setAcikSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>`}</tr>`;
         })}</tbody></table>` : html`<p class="soluk">Bu rafta kayıtlı numune yok.</p>`}
           ${acikHatali.length > 0 && html`<div class="uyari-kutu kritik" style="margin-top:12px"><${Ikon} ad="uyari" /><span>Açık kaptaki litre kabın hacminden büyük olamaz.</span></div>`}
+          ${adetsizYeni.length > 0 && html`<div class="uyari-kutu kritik" style="margin-top:12px"><${Ikon} ad="uyari" /><span>Eklediğiniz ${adetsizYeni.map((r) => r.ad).join(', ')} için rafta saydığınız adedi (ya da açık kaptaki litreyi) yazın.</span></div>`}
+          ${eklenmemis && html`<div class="uyari-kutu kritik" style="margin-top:12px"><${Ikon} ad="uyari" /><span>Kalem henüz eklenmedi: “Kalem ekle”ye dokunun ya da kutuları boşaltın.</span></div>`}
           ${bolum !== 'bos' && html`<div class="tz-sayim-ekle" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:16px">
             <span class="kucuk soluk" style="width:100%">Rafta olup listede olmayan kalem:</span>
-            ${bolumUrun?.partili && html`<div style="flex:1;min-width:150px"><input class="girdi" list="tz-sayim-parti" placeholder="Parti (örn. Batch #8)" value=${yeni.parti} onInput=${(e) => setYeni((p) => ({ ...p, parti: e.target.value }))} />
+            ${bolumUrun?.partili && html`<div style="flex:1;min-width:150px"><input class="girdi" list="tz-sayim-parti" placeholder="Parti (örn. Batch #8)" value=${yeni.parti} onInput=${(e) => setYeni((p) => ({ ...p, parti: e.target.value }))} onKeyDown=${yeniEnter} enterkeyhint="done" />
               <datalist id="tz-sayim-parti">${H.partiler(d, bolum).map((p) => html`<option value=${p} />`)}</datalist></div>`}
-            <select class="girdi" style="width:auto" value=${yeni.ambalaj} onChange=${(e) => setYeni((p) => ({ ...p, ambalaj: e.target.value }))}>
+            <select class="girdi" style="width:auto" value=${yeni.ambalaj} onKeyDown=${yeniEnter} onChange=${(e) => setYeni((p) => ({ ...p, ambalaj: e.target.value }))}>
               <option value="">Ambalaj…</option>${H.ambalajlar(d, { hepsi: true }).map((a) => html`<option value=${a.id}>${a.ad}</option>`)}</select>
             <button type="button" class="d kucuk-d" disabled=${!yeni.ambalaj || (bolumUrun?.partili && !yeni.parti.trim())} onClick=${yeniEkle}><${Ikon} ad="arti" boyut=${14} />Kalem ekle</button>
           </div>`}` },
