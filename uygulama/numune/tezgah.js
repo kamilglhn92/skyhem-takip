@@ -391,15 +391,15 @@
       { soru: 'Rafta ne sayıyorsunuz?', ipucu: bolum === 'bos' ? 'Sadece farklı olanları değiştirin. Sistem aradaki farkı düzeltme olarak kaydeder, eski kayıtlar değişmez.'
           : 'Tam kapları sayın; yarım kullanılmış (açık) kap varsa içindeki litreyi yazın. Rafta olup listede olmayan kalemi alttan ekleyin.', gecerli: () => !acikHatali.length,
         icerik: () => html`${satirlar.length ? html`<table class="tz-sayim-tablo"><tbody>
-          ${bolum !== 'bos' && html`<tr class="soluk kucuk"><td></td><td></td><td>Tam kap</td><td></td><td>Açık kap (L)</td></tr>`}
+          ${bolum !== 'bos' && html`<tr class="soluk kucuk sayim-baslik"><td></td><td></td><td>Tam kap</td><td></td><td>Açık kap (L)</td></tr>`}
           ${satirlar.map((r) => {
           const v = sayilan[r.k] ?? r.sistem;
           const fark = v === '' ? 0 : sayi(v) - r.sistem;
           const a = acikSayilan[r.k] ?? r.acik;
-          return html`<tr><td><b>${r.ad}</b>${r.yeni && html` <span class="rozet bilgi">yeni</span>`}</td><td class="soluk sayi">sistem ${r.sistem}${r.acik > 0 ? ` + ${H.litreYazi(r.acik)}` : ''}</td>
-            <td><input class="girdi sayi" type="number" min="0" value=${v} onFocus=${(e) => e.target.select()} onInput=${(e) => setSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>
+          return html`<tr class=${bolum !== 'bos' ? 'acikli' : ''}><td class="ad"><b>${r.ad}</b>${r.yeni && html` <span class="rozet bilgi">yeni</span>`}</td><td class="soluk sayi sistem">sistem ${r.sistem}${r.acik > 0 ? ` + ${H.litreYazi(r.acik)}` : ''}</td>
+            <td class="tam"><input class="girdi sayi" type="number" min="0" value=${v} onFocus=${(e) => e.target.select()} onInput=${(e) => setSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>
             <td class="fark" style=${{ color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : 'var(--soluk)' }}>${fark > 0 ? '+' : ''}${fark || '—'}</td>
-            ${bolum !== 'bos' && html`<td><input class="girdi sayi" type="number" min="0" step="0.05" max=${kapLitre(r.hedef.ambalaj)} title=${`Açık kapta kalan litre (kap ${H.litreYazi(kapLitre(r.hedef.ambalaj))})`}
+            ${bolum !== 'bos' && html`<td class="acik"><input class="girdi sayi" type="number" min="0" step="0.05" max=${kapLitre(r.hedef.ambalaj)} title=${`Açık kapta kalan litre (kap ${H.litreYazi(kapLitre(r.hedef.ambalaj))})`}
               style=${acikHatali.some((x) => x.k === r.k) ? 'border-color:var(--yok)' : ''} value=${a} onFocus=${(e) => e.target.select()}
               onInput=${(e) => setAcikSayilan((p) => ({ ...p, [r.k]: e.target.value === '' ? '' : Number(e.target.value) }))} /></td>`}</tr>`;
         })}</tbody></table>` : html`<p class="soluk">Bu rafta kayıtlı numune yok.</p>`}
