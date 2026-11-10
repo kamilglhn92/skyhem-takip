@@ -66,6 +66,7 @@
 .pt-su { background: var(--bilgi-z); color: var(--bilgi); }
 .pt-yemek { background: var(--kritik-z); color: var(--kritik); }
 .pt-yoklama { background: var(--mor-z); color: var(--mor); }
+.pt-enerji { background: var(--iyi-z); color: var(--iyi); }
 .pt-baslik { display: flex; align-items: center; gap: 10px; font: 700 22px var(--baslik); letter-spacing: -.01em; }
 .pt-aciklama { color: var(--ikincil); font-size: 14px; line-height: 1.45; }
 .pt-ozet { display: flex; flex-direction: column; gap: 2px; margin-top: auto; padding-top: 10px; font-size: 14px; font-weight: 600; }

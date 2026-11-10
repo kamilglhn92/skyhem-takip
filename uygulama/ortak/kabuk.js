@@ -19,12 +19,15 @@
   /* ---------------- Yazma kısıtı (Satış, Yemek): yalnız Kamil ve Farukcan yazar, diğerleri görür ----------------
      Giriş ad + ortak erişim kodu olduğundan kısıt ada bakar; gerçek kimlik doğrulaması değildir: kodu bilen biri adını değiştirirse aşılır. */
   const YAZICILAR = ['kamil', 'farukcan'];
-  const kisit = { var: false, ek: '' };
+  const kisit = { var: false, ek: '', gizli: false };
   const yetkili = () => YAZICILAR.includes(NT.c.kucuk(String(b.kullanici || '').trim().split(/\s+/)[0]));
   const yazabilir = () => !kisit.var || yetkili();
-  function yazmaKisitla({ ek = '' } = {}) {
+  /* gizli: sistem yetkili olmayanlara hiç gösterilmez (Enerji); karşılama ekranı da kartı gizler (portal.js › ozel). */
+  const gorebilir = () => !kisit.gizli || yetkili();
+  function yazmaKisitla({ ek = '', gizli = false } = {}) {
     kisit.var = true;
     kisit.ek = ek;
+    kisit.gizli = gizli;
     const asil = NT.Depo.prototype.kaydet;
     NT.Depo.prototype.kaydet = function (ops) {
       /* Sunum modunun örnek verisi hazırlanırken (durum henüz 'hazir' değilken) engellenmez. Başka modülün deposu (Satış'taki klips) etkilenmez. */
@@ -270,6 +273,9 @@
     const cevrimici = (d.kisiler || []).filter((k) => Date.now() - k.t < 90000);
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
     const Sayfa = sayfalar[sekme] || sayfalar[sekmeler[0].id];
+    if (!gorebilir()) return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}><div class="tz-ana"><main class="tz-icerik" style="max-width:560px;margin:12vh auto 0">
+      <${BosDurum} ikon="yasak" baslik=${`${b.modul.ad} size açık değil`} aciklama="Bu sistemi yalnız Kamil ve Farukcan görebilir." />
+      <div style="display:flex;justify-content:center;margin-top:16px"><${AnaEkranLinki} /></div></main></div></div>`;
     return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}>
       <aside class="tz-yan">
         <a class="tz-marka" href=${'#/' + sekmeler[0].id}><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><span>${b.modul.ad}</span></a>
@@ -401,7 +407,7 @@
   }
 
   NT.kabuk = {
-    yazmaKisitla, yazabilir, saltAlt, calistir, ac, sil, yeniNo, excel, sayiYaz, demoTanimla, temaUygula, temaAl,
+    yazmaKisitla, yazabilir, yetkili, gorebilir, saltAlt, calistir, ac, sil, yeniNo, excel, sayiYaz, demoTanimla, temaUygula, temaAl,
     Selam, Kart, Cipler, Kpi, Cubuklar, FormAlt, OneriGirdi, AyarKarti, AyarlarSayfasi, CopKutusu, Kurulum, TemaDugmesi, Katman,
   };
 })();

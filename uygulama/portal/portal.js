@@ -32,7 +32,11 @@
     { id: 'su', ad: 'İçme Suyu', aciklama: 'Damacana ve bardak su siparişi, teslimat, fatura kontrolü', ikon: 'damacana', hazir: true, ozet: (d) => NT.su.ozet(d), dikkat: (d) => NT.su.dikkat(d) },
     { id: 'yemek', ad: 'Yemek', aciklama: 'Günlük öğün sayısı, Desbaş menüsü ve ay sonu fatura kontrolü', ikon: 'yemek', hazir: true, ozet: (d) => NT.yemek.ozet(d), dikkat: (d) => NT.yemek.dikkat(d) },
     { id: 'yoklama', ad: 'Yoklama', aciklama: 'Raporlu, izinli günler ve fazla mesai; İK için aylık çizelge', ikon: 'takvim', hazir: true, ozet: (d) => NT.yoklama.ozet(d), dikkat: (d) => NT.yoklama.dikkat(d) },
+    { id: 'enerji', ad: 'Enerji', aciklama: 'Elektrik ve doğalgaz: tüketim, maliyet ve birim fiyat karşılaştırması', ikon: 'simsek', hazir: true, ozel: true, ozet: (d) => NT.enerji.ozet(d), dikkat: (d) => NT.enerji.dikkat(d) },
   ];
+
+  /* ozel: yalnız yetkililerin (Kamil, Farukcan) gördüğü sistem; diğerlerinde kartı, özeti ve uyarıları hiç yüklenmez. */
+  const gorunen = () => MODULLER.filter((m) => !m.ozel || K.yetkili());
 
   /* Sunum modunda şerit nasıl göründüğü anlaşılsın diye örnek uyarılar (gerçek veri değildir). */
   function demoDikkat() {
@@ -72,7 +76,7 @@
       if (demo || !b.kod) return undefined;
       let bitti = false;
       const yaz = (id, v) => !bitti && setOzet((o) => ({ ...o, [id]: v }));
-      for (const m of MODULLER.filter((x) => x.hazir && x.ozet)) {
+      for (const m of gorunen().filter((x) => x.hazir && x.ozet)) {
         (async () => {
           const d = b.depoOlustur(m.id, b.kod, b.kullanici);
           try {
@@ -111,9 +115,10 @@
 
   /* Bandın altındaki şerit: bütün sistemlerde dikkat bekleyen işler; tıklanınca ilgili sistemin ilgili sayfası açılır. */
   function DikkatSeridi({ ozet }) {
-    const listeler = demo ? demoDikkat() : Object.fromEntries(MODULLER.map((m) => [m.id, (ozet[m.id] && ozet[m.id].dikkat) || []]));
-    const isler = MODULLER.flatMap((m) => (listeler[m.id] || []).map((x) => ({ ...x, m })));
-    const hepsiGeldi = demo || MODULLER.every((m) => ozet[m.id] && !ozet[m.id].hata);
+    const acik = gorunen();
+    const listeler = demo ? demoDikkat() : Object.fromEntries(acik.map((m) => [m.id, (ozet[m.id] && ozet[m.id].dikkat) || []]));
+    const isler = acik.flatMap((m) => (listeler[m.id] || []).map((x) => ({ ...x, m })));
+    const hepsiGeldi = demo || acik.every((m) => ozet[m.id] && !ozet[m.id].hata);
     if (!isler.length && !hepsiGeldi) return null;
     return html`<div class="pt-dikkat" role="status">
       ${isler.length ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />Dikkat bekleyen ${isler.length} iş</span>
@@ -156,7 +161,7 @@
         </div>
       </header>
       <main class="pt-icerik">
-        <div class="pt-kartlar">${MODULLER.map((m, i) => {
+        <div class="pt-kartlar">${gorunen().map((m, i) => {
           const o = ozet[m.id];
           return html`<button class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} style=${{ '--i': i }} onClick=${() => git(m)} disabled=${!m.hazir}>
             <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>

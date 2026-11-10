@@ -1,12 +1,12 @@
 window.NT_SURUM = {
-  "surum": 7,
+  "surum": 8,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
       "modul": { "id": "portal", "ad": "SKYHEM Takip", "depoYok": true },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/portal/portal.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/klips/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/portal/portal.js"]
+        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/klips/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/enerji/hesap.js", "uygulama/portal/portal.js"]
     },
     "numune": {
       "baslik": "Numune Takip · SKYHEM",
@@ -49,6 +49,13 @@ window.NT_SURUM = {
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/yoklama/yoklama.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
         "uygulama/ortak/tatiller.js", "uygulama/yoklama/hesap.js", "uygulama/yoklama/demo.js", "uygulama/yoklama/arayuz.js"]
+    },
+    "enerji": {
+      "baslik": "Enerji · SKYHEM",
+      "modul": { "id": "enerji" },
+      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/enerji/enerji.css"],
+      "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
+        "uygulama/enerji/hesap.js", "uygulama/enerji/demo.js", "uygulama/enerji/arayuz.js"]
     }
   }
 };

@@ -1,0 +1,53 @@
+/* Enerji'ye özel görünüm (iskelet, kartlar ve tablolar ortak stil.css / tezgah.css'tedir). Elektrik --gr-1, doğalgaz --gr-2 (grafik paleti). */
+.en-tip { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 13px; white-space: nowrap; }
+.en-tip.elektrik, .en-ik.elektrik { color: var(--gr-1); }
+.en-tip.dogalgaz, .en-ik.dogalgaz { color: var(--gr-2); }
+.en-tablo td { white-space: nowrap; }
+.en-tablo td.kucuk { white-space: normal; min-width: 120px; color: var(--ikincil); }
+
+/* Kayıt penceresi */
+.en-tipler { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.en-tip-sec { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1.5px solid var(--cizgi2); border-radius: 16px; background: var(--yuzey2); color: var(--ikincil); cursor: pointer; text-align: left; }
+.en-tip-sec b { display: block; font: 700 15px var(--baslik); color: var(--murekkep); }
+.en-tip-sec small { display: block; font-size: 12px; color: var(--soluk); }
+.en-tip-sec.elektrik.secili { border-color: var(--gr-1); background: color-mix(in srgb, var(--gr-1) 10%, var(--yuzey)); color: var(--gr-1); }
+.en-tip-sec.dogalgaz.secili { border-color: var(--gr-2); background: color-mix(in srgb, var(--gr-2) 10%, var(--yuzey)); color: var(--gr-2); }
+.en-miktar { display: flex; align-items: center; gap: 8px; }
+.en-miktar .girdi { min-width: 0; }
+.en-miktar .segment { flex: none; align-self: center; }
+.en-birim { flex: none; font-weight: 600; color: var(--soluk); padding: 0 6px; }
+.en-serit { display: flex; gap: 10px; flex-wrap: wrap; }
+.en-serit > div { flex: 1 1 140px; background: var(--yuzey2); border: 1px solid var(--cizgi); border-radius: 12px; padding: 10px 14px; }
+.en-serit small, .en-serit span { display: block; font-size: 12px; color: var(--soluk); min-height: 16px; }
+.en-serit b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* İki serili sütun grafik */
+.en-sutunlar { position: relative; display: flex; align-items: stretch; gap: 3px; padding-left: 40px; }
+.en-izgara { position: absolute; inset: 0; pointer-events: none; }
+.en-izgara div { position: absolute; left: 40px; right: 0; border-top: 1px dashed var(--cizgi); }
+.en-izgara div:last-child { border-top-style: solid; border-color: var(--cizgi2); }
+.en-izgara span { position: absolute; right: calc(100% + 6px); top: -8px; font-size: 10.5px; color: var(--soluk); font-variant-numeric: tabular-nums; }
+.en-sutunlar .gr-bos { inset: 0 0 22px 40px; }
+.en-sutun { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border-radius: 6px; }
+.en-sutun:hover { background: var(--yuzey3); }
+.en-cubuklar { display: flex; align-items: flex-end; justify-content: center; gap: 1px; width: 100%; height: calc(100% - 22px); }
+.en-cubuklar i { display: block; width: min(13px, 44%); border-radius: 3px 3px 0 0; }
+.en-cubuklar i.a { background: var(--gr-1); }
+.en-cubuklar i.b { background: var(--gr-2); }
+.en-sutunlar.yigin .en-cubuklar { flex-direction: column-reverse; align-items: center; justify-content: flex-start; gap: 0; }
+.en-sutunlar.yigin .en-cubuklar i { width: min(28px, 62%); border-radius: 0; }
+.en-sutunlar.yigin .en-cubuklar i.b { border-radius: 3px 3px 0 0; }
+.en-sutun .gr-ad { white-space: nowrap; }
+
+/* Durum kartı */
+.en-durum { display: grid; gap: 10px; }
+.en-durum > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--ikincil); }
+.en-durum .rozet { flex: none; }
+
+/* Yıl × ay tabloları */
+.en-matris th, .en-matris td { padding: 8px 9px; white-space: nowrap; }
+.en-matris td { border-radius: 0; }
+
+@media (max-width: 640px) {
+  .en-tipler { grid-template-columns: 1fr; }
+}
