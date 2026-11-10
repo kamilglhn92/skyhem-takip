@@ -62,20 +62,14 @@
     return html`<svg class=${'ikon ' + sinif} width=${boyut} height=${boyut} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=${YOLLAR[ad] || ''} /></svg>`;
   }
 
-  /* Hacme göre ölçeklenen şişe/bidon silueti — raf görünümü için */
+  /* Hacme göre ölçeklenen gerçekçi kaplar. 10/20 L: kullanıcının kırmızı kapaklı bidonları. */
   function Sise({ litre = 1, boyut = 1 }) {
-    const l = Math.max(0.25, Number(litre) || 1);
+    const gercek = Number(litre) || 1;
+    const l = Math.max(0.25, gercek);
     const h = Math.round((16 + Math.sqrt(l) * 9) * boyut);
     const w = Math.round((9 + Math.sqrt(l) * 6.2) * boyut);
-    const bidon = l >= 5;
-    const boyun = Math.max(4, Math.round(w * 0.36));
-    const govdeY = Math.round(h * (bidon ? 0.16 : 0.3));
-    return html`<svg width=${w + 4} height=${h + 2} viewBox=${`-2 -1 ${w + 4} ${h + 2}`} aria-hidden="true">
-      <rect x=${(w - boyun) / 2} y="0" width=${boyun} height=${govdeY + 2} rx="1.5" fill="var(--ana-koyu)" />
-      <rect x="0" y=${govdeY} width=${w} height=${h - govdeY} rx=${bidon ? 3 : w * 0.28} fill="var(--ana-cizgi)" stroke="var(--ana)" stroke-width="1.4" />
-      ${bidon && html`<rect x=${w * 0.62} y=${govdeY - 3} width=${w * 0.24} height="5" rx="2" fill="none" stroke="var(--ana)" stroke-width="1.4" />`}
-      <rect x=${w * 0.18} y=${govdeY + (h - govdeY) * 0.38} width=${w * 0.64} height=${(h - govdeY) * 0.3} rx="1.5" fill="var(--yuzey)" opacity=".85" />
-    </svg>`;
+    const tip = gercek <= .1 ? 0 : gercek <= .25 ? 1 : gercek <= .5 ? 2 : gercek < 5 ? 3 : gercek < 10 ? 4 : gercek < 20 ? 5 : 6;
+    return html`<span class="nt-sise" data-litre=${gercek} aria-hidden="true" style=${{ width: w + 4, height: h + 2 }}><span class=${'nt-sise-resim nt-sise-' + tip}></span></span>`;
   }
 
   const DURUM_BILGI = {

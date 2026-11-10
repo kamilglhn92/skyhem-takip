@@ -36,7 +36,8 @@
   ];
 
   /* ozel: yalnız yetkililerin (Kamil, Farukcan) gördüğü sistem; diğerlerinde kartı, özeti ve uyarıları hiç yüklenmez. */
-  const gorunen = () => MODULLER.filter((m) => !m.ozel || K.yetkili());
+  // Sunum modunda yalnız örnek içerik vardır; yeni modülün görseli de incelenebilir.
+  const gorunen = () => MODULLER.filter((m) => !m.ozel || K.yetkili() || demo);
 
   /* Sunum modunda şerit nasıl göründüğü anlaşılsın diye örnek uyarılar (gerçek veri değildir). */
   function demoDikkat() {
@@ -163,7 +164,7 @@
       <main class="pt-icerik">
         <div class="pt-kartlar">${gorunen().map((m, i) => {
           const o = ozet[m.id];
-          return html`<button class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} style=${{ '--i': i }} onClick=${() => git(m)} disabled=${!m.hazir}>
+          return html`<button class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} data-modul=${m.id} style=${{ '--i': i }} onClick=${() => git(m)} disabled=${!m.hazir}>
             <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>
             <span class="pt-baslik">${m.ad}${!m.hazir && html`<span class="rozet">Hazırlanıyor</span>`}</span>
             <span class="pt-aciklama">${m.aciklama}</span>

@@ -31,35 +31,10 @@
   /* ---------------- Ambalaj çizimleri (numunedeki şişeler gibi) ---------------- */
   const R = { f: 'var(--ana-cizgi)', s: 'var(--ana)', k: 'var(--ana-koyu)', z: 'var(--yuzey)' };
   function AmbalajCizimi({ tur, boyut = 1 }) {
-    const g = (w, h, ic) => html`<svg width=${w * boyut} height=${h * boyut} viewBox=${`0 0 ${w} ${h}`} aria-hidden="true" class="amb-cizim">${ic}</svg>`;
-    if (tur === 'IBC') return g(40, 42, html`
-      <rect x="5" y="36" width="30" height="4" rx="1" fill=${R.k} />
-      <rect x="8" y="7" width="24" height="28" rx="4" fill=${R.z} stroke=${R.s} stroke-width="1.2" />
-      <rect x="9.5" y="15" width="21" height="18.5" rx="2.5" fill=${R.f} />
-      <rect x="4" y="5" width="32" height="31" rx="2" fill="none" stroke=${R.s} stroke-width="1.6" />
-      <path d=${'M4 15.5h32M4 25.5h32M12 5v31M20 5v31M28 5v31'} stroke=${R.s} stroke-width=".9" opacity=".75" />
-      <rect x="16.5" y="1.5" width="7" height="4" rx="1" fill=${R.k} />
-      <rect x="17.5" y="32" width="5" height="3.5" rx="1" fill=${R.k} />`);
-    if (tur === 'Varil') return g(30, 42, html`
-      <path d="M4 7 Q4 4 15 4 Q26 4 26 7 L26 36 Q26 39 15 39 Q4 39 4 36 Z" fill=${R.f} stroke=${R.s} stroke-width="1.6" />
-      <ellipse cx="15" cy="7" rx="11" ry="3" fill=${R.z} stroke=${R.s} stroke-width="1.4" />
-      <path d="M4 16 Q15 19 26 16M4 27 Q15 30 26 27" fill="none" stroke=${R.k} stroke-width="1.6" />
-      <circle cx="10" cy="6.6" r="1.2" fill=${R.k} />`);
-    if (tur === 'İsotank') return g(58, 34, html`
-      <rect x="2" y="3" width="54" height="27" rx="1.5" fill="none" stroke=${R.s} stroke-width="1.6" />
-      <rect x="6" y="6.5" width="46" height="20" rx="10" fill=${R.f} stroke=${R.s} stroke-width="1.3" />
-      <path d="M2 3l6 4M56 3l-6 4M2 30l6-4M56 30l-6-4" stroke=${R.s} stroke-width="1.2" />
-      <rect x="25" y="2" width="8" height="3" rx="1" fill=${R.k} />
-      <rect x="1" y="29" width="56" height="3" rx="1" fill=${R.k} />`);
-    if (tur === 'Dökme') return g(62, 34, html`
-      <rect x="2" y="7" width="40" height="17" rx="8.5" fill=${R.f} stroke=${R.s} stroke-width="1.5" />
-      <path d="M44 11h9l6 7v8H44z" fill=${R.z} stroke=${R.s} stroke-width="1.5" stroke-linejoin="round" />
-      <path d="M48 13h4.5l3.5 4.5H48z" fill=${R.f} />
-      <rect x="2" y="24" width="57" height="3" rx="1" fill=${R.k} />
-      <circle cx="11" cy="28.5" r="3.6" fill=${R.z} stroke=${R.k} stroke-width="2" /><circle cx="21" cy="28.5" r="3.6" fill=${R.z} stroke=${R.k} stroke-width="2" />
-      <circle cx="51" cy="28.5" r="3.6" fill=${R.z} stroke=${R.k} stroke-width="2" />
-      <rect x="18" y="4" width="6" height="3" rx="1" fill=${R.k} />`);
-    return g(30, 42, html`<rect x="5" y="8" width="20" height="30" rx="3" fill=${R.f} stroke=${R.s} stroke-width="1.5" /><rect x="11" y="3" width="8" height="5" rx="1" fill=${R.k} />`);
+    const tip = { IBC: 'IBC', Varil: 'Varil', 'İsotank': 'isotank', 'Dökme': 'dokme' }[tur];
+    if (!tip) return html`<${NT.ui.Sise} litre=${5} boyut=${boyut} />`;
+    const genis = tip === 'isotank' || tip === 'dokme';
+    return html`<span class=${'amb-cizim nt-amb-resim nt-amb-' + tip} aria-hidden="true" style=${{ width: (genis ? 62 : 42) * boyut, height: 42 * boyut }}></span>`;
   }
 
   /* ---------------- Durum ---------------- */

@@ -83,3 +83,55 @@
   .pt-kart { min-height: 0; }
   .pt-git { position: static; margin-top: 6px; }
 }
+
+/* YEREL GORSEL TEMA BASLANGIC */
+/* Ana ekran: aynı kartlar ve aynı eylemler; gerçekçi malzeme görselleri. */
+.pt-sayfa {background:var(--zemin)}
+.pt-bant {background:linear-gradient(110deg,#1b5e20,#2e7d32 70%,#397c25);padding-bottom:26px;isolation:isolate}
+.pt-bant::before {content:'';position:absolute;top:-80px;left:40%;width:50%;height:340px;background:var(--skyhem-yaprak) center/contain no-repeat;opacity:.8;z-index:-1;pointer-events:none}
+.pt-bant-sus {display:none}
+.pt-bant-ic,.pt-icerik {max-width:1680px;padding-left:30px;padding-right:30px}
+.pt-ust {border-bottom:0;padding:20px 0}
+.pt-selam {padding:20px 0 8px}
+.pt-selam h1 {font-size:36px;letter-spacing:-.025em;text-shadow:0 1px 15px #123827}
+.pt-selam p {font-size:15px}
+.pt-ozel-gun {float:right;margin:0;border:0;background:#ffffff12;font-weight:400;text-shadow:0 1px 6px #1b5e20}
+.pt-dikkat {border:1px solid #ffffff45;border-radius:13px;background:#ffffff0c;padding:10px 14px;gap:10px}
+.pt-dikkat-cip {background:#ffffff20;border-color:#ffffff22}
+.pt-dikkat-ikon {background:#d9e7c8;color:#244d30}
+.pt-dikkat-ikon.pt-satis,.pt-dikkat-ikon.pt-su,.pt-dikkat-ikon.pt-yemek,.pt-dikkat-ikon.pt-yoklama {background:#d9e7c8;color:#244d30}
+.pt-icerik {margin:0 auto;padding-top:28px}
+.pt-kartlar {grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.pt-kart {isolation:isolate;overflow:hidden;border-radius:17px;min-height:264px;padding:28px;gap:10px;border-color:var(--cizgi2);box-shadow:var(--golge)}
+.pt-kart::after {content:'';position:absolute;pointer-events:none;right:8px;top:18px;width:46%;aspect-ratio:1;background-image:var(--skyhem-moduller);background-repeat:no-repeat;background-size:300% 200%;z-index:-1}
+.pt-kart[data-modul="numune"]::after{background-position:0 0}
+.pt-kart[data-modul="satis"]::after{background-position:50% 0}
+.pt-kart[data-modul="su"]::after{background-position:100% 0}
+.pt-kart[data-modul="yemek"]::after{background-position:0 100%}
+.pt-kart[data-modul="yoklama"]::after{background-position:50% 100%}
+.pt-kart[data-modul="enerji"]::after{background-position:100% 100%}
+.pt-kart>.pt-ikon {display:none}
+.pt-baslik {font-size:clamp(22px,2vw,31px);letter-spacing:-.025em;max-width:65%;line-height:1.15}
+.pt-aciklama {max-width:55%;font-size:14px;min-height:64px}
+.pt-ozet {max-width:77%;font-size:14px;margin-top:auto;padding-left:12px;border-left:4px solid #b5d96d}
+.pt-ozet>span {background:color-mix(in srgb,var(--yuzey) 92%,transparent);border-radius:4px}
+.pt-git {bottom:20px;right:24px;font-size:14px}
+.pt-not {margin-top:20px}
+@media(prefers-reduced-motion:no-preference){.pt-kart::after{transition:transform .22s ease-out}.pt-kart{transition:transform .18s ease-out,box-shadow .18s ease-out,border-color .18s ease-out}}
+@media(hover:hover) and (pointer:fine){.pt-kart:hover::after{transform:translateY(-4px)}.pt-kart:hover{box-shadow:0 9px 26px #173b2412}}
+@media(prefers-reduced-motion:reduce){.pt-kart,.pt-kart::after{transition:none!important;transform:none!important}}
+@media(min-width:1500px){.pt-kart{min-height:280px}.pt-kart::after{top:6px}}
+@media(max-width:1100px){.pt-kartlar{grid-template-columns:repeat(2,minmax(0,1fr))}.pt-baslik{font-size:26px}}
+@media(max-width:700px){
+ .pt-bant-ic,.pt-icerik{padding-left:16px;padding-right:16px}
+ .pt-kartlar{grid-template-columns:1fr;gap:14px}.pt-kart{min-height:225px;padding:22px}
+ .pt-kart::after{width:43%;max-width:210px;top:12px;right:5px}.pt-baslik{font-size:26px}
+ .pt-aciklama{min-height:50px;max-width:56%}.pt-ozet{font-size:13px;max-width:80%}
+ .pt-git{position:absolute;margin:0;right:20px;bottom:16px}
+ .pt-selam h1{font-size:29px}.pt-selam p{font-size:14px}
+ .pt-ozel-gun{float:none;margin-bottom:10px;font-size:12px;padding-left:0}
+ .pt-bant::before{left:35%;width:70%;opacity:.3}
+ .pt-dikkat{padding:10px;gap:8px}.pt-dikkat-bas{width:100%}
+}
+
+/* YEREL GORSEL TEMA BITIS */

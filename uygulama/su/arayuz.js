@@ -28,29 +28,8 @@
   /* ---------------- Çizimler: damacana ve bardak su kolisi ---------------- */
   const R = { s: 'var(--bilgi)', f: 'color-mix(in srgb, var(--bilgi) 30%, var(--yuzey))', z: 'var(--yuzey)', k: 'color-mix(in srgb, var(--bilgi) 75%, var(--murekkep))' };
   function Cizim({ tur, boyut = 1 }) {
-    const g = (w, h, ic) => html`<svg width=${w * boyut} height=${h * boyut} viewBox=${`0 0 ${w} ${h}`} aria-hidden="true" class="su-cizim">${ic}</svg>`;
-    if (tur === 'damacana') return g(30, 42, html`
-      <rect x="11" y="1" width="8" height="4.5" rx="1.2" fill=${R.k} />
-      <path d="M11.5 5.5h7v2.6Q26 10 26 16.5V36q0 4-4 4H8q-4 0-4-4V16.5Q4 10 11.5 8.1z" fill=${R.z} stroke=${R.s} stroke-width="1.5" stroke-linejoin="round" />
-      <path d="M5.2 19q4.9-1.6 9.8 0t9.8 0V36q0 2.8-2.8 2.8H8q-2.8 0-2.8-2.8z" fill=${R.f} />
-      <path d="M4 25.5h22M4 32h22" stroke=${R.s} stroke-width=".9" opacity=".7" />
-      <path d="M8.5 13.5q-1.6 3-1.6 6" stroke=${R.z} stroke-width="1.4" stroke-linecap="round" fill="none" opacity=".9" />`);
-    /* Kapağı folyolu, konik plastik su bardağı */
-    if (tur === 'bardak') return g(32, 42, html`
-      <path d="M5 9.5h22l-3.4 29.2q-.2 1.8-2 1.8H10.4q-1.8 0-2-1.8z" fill=${R.z} stroke=${R.s} stroke-width="1.5" stroke-linejoin="round" />
-      <path d="M6.4 17h19.2l-2.6 21.4q-.1 1-1.1 1H10.1q-1 0-1.1-1z" fill=${R.f} />
-      <path d="M7.6 27.5h16.8M8.4 33.5h15.2" stroke=${R.s} stroke-width=".8" opacity=".55" />
-      <rect x="3" y="5.5" width="26" height="4.5" rx="1.6" fill=${R.k} />
-      <path d="M27.5 6.2l3.4-3.3q.6-.6 1 .2l-1.6 4.2z" fill=${R.k} />
-      <path d="M16 20.5s2.4 2.6 2.4 4.1a2.4 2.4 0 01-4.8 0c0-1.5 2.4-4.1 2.4-4.1z" fill=${R.s} opacity=".85" />`);
-    /* Limonata şişesi: sarı içecek, limon dilimi */
-    if (tur === 'limonata') return g(26, 42, html`
-      <rect x="9.5" y="1" width="7" height="4" rx="1" fill="#6f9e10" />
-      <path d="M10 5h6v5q5 2.5 5 8v18q0 4-4 4H9q-4 0-4-4V18q0-5.5 5-8z" fill=${R.z} stroke="#b08900" stroke-width="1.5" stroke-linejoin="round" />
-      <path d="M6.2 20q3.4-1.4 6.8 0t6.8 0v16q0 2.8-2.8 2.8H9q-2.8 0-2.8-2.8z" fill="#f4d35e" />
-      <circle cx="13" cy="28.5" r="5" fill="#fff6c2" stroke="#b08900" stroke-width="1.1" />
-      <path d="M13 23.5v10M8 28.5h10M9.5 25l7 7M16.5 25l-7 7" stroke="#b08900" stroke-width=".7" />`);
-    return null;
+    if (!['damacana', 'bardak', 'limonata'].includes(tur)) return null;
+    return html`<span class=${'su-cizim nt-su-resim nt-su-' + tur} aria-hidden="true" style=${{ width: 34 * boyut, height: 42 * boyut }}></span>`;
   }
 
   /* ---------------- Durum ---------------- */
