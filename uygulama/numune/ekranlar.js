@@ -51,9 +51,9 @@
         return html`${kalem?.durum === 'eksi' && html`<${StokRozeti} durum="eksi" />`}${t && t.alarm && html`<span class="kucuk soluk">Tüm partiler: ${t.mevcut}</span> <${StokRozeti} durum=${t.durum} />`}`;
       })()}
       alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />Sayım düzelt</button></div>
-        ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />Şişe geldi</button>`
-          : html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ anahtar: H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj), urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />Numune gönder</button>`}
-        <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />Dolum yaptım</button>`}>
+        ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${t("Şişe geldi")}</button>`
+          : html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ anahtar: H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj), urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${t("Numune gönder")}</button>`}
+        <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${t("Dolum yaptım")}</button>`}>
       <div class="modal-ic">
         <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${ad}</span><b>${n}</b></div>`)}</div>
         ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
@@ -62,7 +62,7 @@
             ${kalem.acikAciklama && html`<br /><i>${kalem.acikAciklama}</i>`}
             <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'tamamla')}><${Ikon} ad="dolum" boyut=${14} />Üstünü tamamla</button>
-              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'not')}><${Ikon} ad="kalem" boyut=${14} />Açıklama</button>
+              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'not')}><${Ikon} ad="kalem" boyut=${14} />${t("Açıklama")}</button>
               <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />Atığa ayır</button>
             </span></span></div>`}
         ${satirlar.length ? html`<ul class="tz-akis defter-akis">${satirlar.map((x) => {

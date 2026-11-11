@@ -9,6 +9,7 @@
   const { Ikon, Avatar, GlobalKatman } = NT.ui;
   const K = NT.kabuk;
   const b = NT.baglanti;
+  const { t: cevir, DilSecimi, useDil } = NT.dil;
   const { bugun } = NT.c;
   const demo = new URLSearchParams(location.search).has('demo');
 
@@ -42,9 +43,9 @@
   /* Sunum modunda şerit nasıl göründüğü anlaşılsın diye örnek uyarılar (gerçek veri değildir). */
   function demoDikkat() {
     const gecen = new Date(); gecen.setDate(1); gecen.setMonth(gecen.getMonth() - 1);
-    const ay = gecen.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }).replace(/^./, (h) => h.toLocaleUpperCase('tr'));
+    const ay = gecen.toLocaleDateString(NT.dil.yerel(), { month: 'long', year: 'numeric' }).replace(/^./, (h) => h.toLocaleUpperCase('tr'));
     return { satis: [{ metin: '1 sevkiyatta eksik belge', sekme: 'sevkiyatlar' }], su: [{ metin: '2 ayın su faturası girilmedi', sekme: 'faturalar' }],
-      yemek: [{ metin: `${ay} yemek faturası girilmedi`, sekme: 'faturalar' }] };
+      yemek: [{ metin: cevir(`${ay} yemek faturası girilmedi`, `Meal invoice missing for ${ay}`), sekme: 'faturalar' }] };
   }
 
   /* Bayramlarda ve millî günlerde selam değişir (tatil listesi ortak/tatiller.js'ten). */
@@ -122,10 +123,10 @@
     const hepsiGeldi = demo || acik.every((m) => ozet[m.id] && !ozet[m.id].hata);
     if (!isler.length && !hepsiGeldi) return null;
     return html`<div class="pt-dikkat" role="status">
-      ${isler.length ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />Dikkat bekleyen ${isler.length} iş</span>
-        ${isler.map((x, i) => html`<a class="pt-dikkat-cip" style=${{ '--i': i }} href=${NT.c.adres(x.m.id) + '#/' + x.sekme} title=${x.m.ad + ' › ' + x.metin}>
-          <span class=${'pt-dikkat-ikon pt-' + x.m.id}><${Ikon} ad=${x.m.ikon} boyut=${14} /></span>${x.metin}<${Ikon} ad="ok" boyut=${14} /></a>`)}`
-      : html`<span class="pt-dikkat-bas tamam"><${Ikon} ad="tik" boyut=${15} />Her şey yolunda · dikkat bekleyen bir iş yok</span>`}
+      ${isler.length ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />${cevir("Dikkat bekleyen")} ${isler.length}</span>
+        ${isler.map((x, i) => html`<a class="pt-dikkat-cip" style=${{ '--i': i }} href=${NT.c.adres(x.m.id) + '#/' + x.sekme} title=${cevir(x.m.ad) + ' › ' + cevir(x.metin)}>
+          <span class=${'pt-dikkat-ikon pt-' + x.m.id}><${Ikon} ad=${x.m.ikon} boyut=${14} /></span>${cevir(x.metin)}<${Ikon} ad="ok" boyut=${14} /></a>`)}`
+      : html`<span class="pt-dikkat-bas tamam"><${Ikon} ad="tik" boyut=${15} />${cevir("Her şey yolunda · dikkat bekleyen bir iş yok")}</span>`}
     </div>`;
   }
 
@@ -136,27 +137,27 @@
     const ad = (b.kullanici || '').split(' ')[0];
     const ozel = ozelGun(bugun());
     const git = (m) => { if (m.hazir) location.href = NT.c.adres(m.id); };
-    const tarih = simdi.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const saatYazi = simdi.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const tarih = simdi.toLocaleDateString(NT.dil.yerel(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const saatYazi = simdi.toLocaleTimeString(NT.dil.yerel(), { hour: '2-digit', minute: '2-digit' });
     return html`<div class="pt-sayfa">
-      ${demo && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>SUNUM MODU</b> · Sistemler örnek verilerle açılır; hiçbir şey kaydedilmez.</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>Gerçek verilerle aç →</a></div>`}
+      ${demo && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${cevir("· Sistemler örnek verilerle açılır; hiçbir şey kaydedilmez.")}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
       <header class="pt-bant">
         ${BANT_SUS}
         <div class="pt-bant-ic">
           <div class="pt-ust">
             <span class="pt-marka">
               <span class="pt-logo-kutu"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" class="pt-logo" /></span>
-              <span class="pt-marka-yazi"><b>SKYHEM Takip</b><small>Kimya · İş takip sistemleri</small></span>
+              <span class="pt-marka-yazi"><b>${cevir("SKYHEM Takip")}</b><small>${cevir("Kimya · İş takip sistemleri")}</small></span>
             </span>
             <span style="flex:1" />
             <span class="pt-saat" title=${tarih}><${Ikon} ad="saat" boyut=${15} />${saatYazi}</span>
-            <${K.TemaDugmesi} />
+            <${DilSecimi} /><${K.TemaDugmesi} />
             ${!demo && html`<span class="pt-kisi"><${Avatar} ad=${b.kullanici || '?'} kucuk />${b.kullanici}</span>`}
           </div>
           <div class="pt-selam">
-            ${ozel && html`<span class="pt-ozel-gun"><${Ikon} ad="takvim" boyut=${14} />${ozel.not}</span>`}
-            <h1>${(ozel && ozel.selam) || (saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')}${ad && !demo ? ', ' + ad : ''}.</h1>
-            <p>${tarih} · Hangi sisteme gireceksiniz?</p>
+            ${ozel && html`<span class="pt-ozel-gun"><${Ikon} ad="takvim" boyut=${14} />${cevir(ozel.not)}</span>`}
+            <h1>${cevir((ozel && ozel.selam) || (saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar'))}${ad && !demo ? ', ' + ad : ''}.</h1>
+            <p>${tarih} ${cevir("· Hangi sisteme gireceksiniz?")}</p>
           </div>
           <${DikkatSeridi} ozet=${ozet} />
         </div>
@@ -166,25 +167,26 @@
           const o = ozet[m.id];
           return html`<button class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} data-modul=${m.id} style=${{ '--i': i }} onClick=${() => git(m)} disabled=${!m.hazir}>
             <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>
-            <span class="pt-baslik">${m.ad}${!m.hazir && html`<span class="rozet">Hazırlanıyor</span>`}</span>
-            <span class="pt-aciklama">${m.aciklama}</span>
-            <span class="pt-ozet">${!m.hazir ? '' : demo ? html`<span class="soluk">Örnek verilerle açılır</span>`
-              : !o ? html`<span class="soluk">Yükleniyor…</span>` : o.hata ? html`<span class="pt-hata">${o.hata}</span>`
-              : o.satirlar.map((s, i) => html`<span class=${i ? 'soluk' : ''}>${s}</span>`)}</span>
-            ${m.hazir && html`<span class="pt-git">Aç <${Ikon} ad="ok" boyut=${16} /></span>`}
+            <span class="pt-baslik">${cevir(m.ad)}${!m.hazir && html`<span class="rozet">${cevir("Hazırlanıyor")}</span>`}</span>
+            <span class="pt-aciklama">${cevir(m.aciklama)}</span>
+            <span class="pt-ozet">${!m.hazir ? '' : demo ? html`<span class="soluk">${cevir("Örnek verilerle açılır")}</span>`
+              : !o ? html`<span class="soluk">${cevir("Yükleniyor…")}</span>` : o.hata ? html`<span class="pt-hata">${o.hata}</span>`
+              : o.satirlar.map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}</span>
+            ${m.hazir && html`<span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span>`}
           </button>`;
         })}</div>
-        <p class="pt-not">Sistemler birbirinden bağımsızdır; her birinin kayıtları ayrı tutulur. Ad ve erişim kodu hepsinde ortaktır.${window.NT_SURUM_AKTIF ? ` · Program sürümü ${window.NT_SURUM_AKTIF.surum}` : ''}</p>
+        <p class="pt-not">${cevir('Sistemler birbirinden bağımsızdır; her birinin kayıtları ayrı tutulur. Ad ve erişim kodu hepsinde ortaktır.', 'Each tracker has its own records. Your name and access code are shared across trackers.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${window.NT_SURUM_AKTIF.surum}` : ''}</p>
       </main>
     </div>`;
   }
 
   function Kok() {
+    useDil();
     const [, y] = useState(0);
     // Abone olduktan sonra bir kez yenile: baslat() bu effect'ten önce bitmiş olabilir (kodu kayıtlı bilgisayarda hemen "hazır" olur).
     useEffect(() => { const birak = b.abone(() => y((x) => x + 1)); y((x) => x + 1); return birak; }, []);
     const ic = demo || b.durum === 'hazir' ? html`<${Portal} />`
-      : b.durum === 'basliyor' ? html`<div style="display:grid;place-items:center;height:100vh;color:var(--soluk)">Yükleniyor…</div>` : html`<${K.Kurulum} />`;
+      : b.durum === 'basliyor' ? html`<div style="display:grid;place-items:center;height:100vh;color:var(--soluk)">${cevir("Yükleniyor…")}</div>` : html`<${K.Kurulum} />`;
     return html`${ic}<${GlobalKatman} />`;
   }
 

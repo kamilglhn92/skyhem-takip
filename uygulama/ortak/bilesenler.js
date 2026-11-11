@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const NT = window.NT;
+  const { t: cevir } = NT.dil;
   const { html, useState, useEffect, useRef } = window.htmPreact;
   const { basHarfler } = NT.c;
 
@@ -37,6 +38,7 @@
     etiket: 'M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8zM7.5 7.5h.01',
     senkron: 'M21 12a9 9 0 01-15.5 6.3L3 16M3 12a9 9 0 0115.5-6.3L21 8M21 3v5h-5M3 21v-5h5',
     ok: 'M9 18l6-6-6-6',
+    dunya: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM2 12h20M12 2a16 16 0 0 1 0 20 16 16 0 0 1 0-20z',
     asagi: 'M6 9l6 6 6-6',
     whatsapp: 'M20.5 3.5A11 11 0 003.4 17.3L2 22l4.8-1.3A11 11 0 1020.5 3.5zM8.5 7.5c.3-.6.6-.6.9-.6h.7c.2 0 .5 0 .7.6l1 2.2c.1.3 0 .5-.1.7l-.6.7c-.2.2-.2.4 0 .7a7 7 0 003.3 2.9c.3.1.5.1.7-.1l.8-1c.2-.2.4-.3.7-.2l2.1 1c.3.2.5.3.5.5 0 .9-.6 2-1.8 2.2-1 .2-2.3.1-4.6-1.1a11 11 0 01-4.4-4.5c-.6-1.2-.7-2.3-.3-3.3z',
     bilgi: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 16v-4M12 8h.01',
@@ -80,7 +82,7 @@
   };
   function StokRozeti({ durum }) {
     const b = DURUM_BILGI[durum] || DURUM_BILGI.iyi;
-    return html`<span class=${'rozet ' + durum}><${Ikon} ad=${b.ikon} />${b.yazi}</span>`;
+    return html`<span class=${'rozet ' + durum}><${Ikon} ad=${b.ikon} />${cevir(b.yazi)}</span>`;
   }
   const SEVK_ROZET = {
     'Karar Aşaması': { s: 'mor', ikon: 'saat' },
@@ -90,10 +92,10 @@
   };
   function SevkRozeti({ durum }) {
     const b = SEVK_ROZET[durum] || { s: '', ikon: 'bilgi' };
-    return html`<span class=${'rozet ' + b.s}><${Ikon} ad=${b.ikon} />${durum}</span>`;
+    return html`<span class=${'rozet ' + b.s}><${Ikon} ad=${b.ikon} />${cevir(durum)}</span>`;
   }
   function Parti({ parti }) {
-    return parti ? html`<span class="parti">${parti}</span>` : html`<span class="parti yok-parti">Partisiz</span>`;
+    return parti ? html`<span class="parti">${parti}</span>` : html`<span class="parti yok-parti">${cevir("Partisiz")}</span>`;
   }
 
   const RENKLER = ['#2e7d32', '#2f5f8a', '#8a4b0f', '#6a3fa0', '#0f766e', '#9f1239', '#4d7c0f', '#1e40af'];
@@ -118,7 +120,7 @@
     }, [kapat]);
     return html`<div class="perde" ref=${perde} onMouseDown=${(e) => e.target === e.currentTarget && kapat()}>
       <div class=${`modal ${genis ? 'genis' : ''} ${dar ? 'dar' : ''} ${sinif}`} role="dialog" aria-modal="true" aria-label=${baslik}>
-        ${baslik && html`<div class="modal-bas"><h2>${baslik}</h2><div class="sag">${sag}<button class="d hayalet ikon-d" onClick=${kapat} aria-label="Kapat"><${Ikon} ad="kapat" /></button></div></div>`}
+        ${baslik && html`<div class="modal-bas"><h2>${baslik}</h2><div class="sag">${sag}<button class="d hayalet ikon-d" onClick=${kapat} aria-label=${cevir("Kapat")}><${Ikon} ad="kapat" /></button></div></div>`}
         ${children}
         ${alt && html`<div class="modal-alt">${alt}</div>`}
       </div>
@@ -233,7 +235,7 @@
     return html`<div class="s12 gecmis-bolum">
       <button type="button" class="gecmis-serit" aria-expanded=${acik} onClick=${() => setAcik(!acik)}>
         <${Ikon} ad=${acik ? 'asagi' : 'ok'} boyut=${16} />
-        <b>Kayıt geçmişi</b><span class="soluk">${kayit._gecmis.length} işlem</span>
+        <b>${cevir("Kayıt geçmişi")}</b><span class="soluk">${kayit._gecmis.length} işlem</span>
         ${son && html`<span class="soluk kucuk sag">Son: ${son.u} · ${NT.c.zamanYaz(son.t)}</span>`}
       </button>
       ${acik && html`<div class="gecmis-ic"><${Gecmis} kayit=${kayit} /></div>`}
@@ -350,7 +352,7 @@
 
   /* Her modülün sol menüsünde: karşılama ekranına (tüm sistemler) dönüş. Sunum modunda sunum modunda kalır. */
   function AnaEkranLinki() {
-    return html`<a class="tz-anaekran" href=${NT.c.adres('portal')} title="Karşılama ekranına dön"><${Ikon} ad="geri" boyut=${15} />Tüm sistemler</a>`;
+    return html`<a class="tz-anaekran" href=${NT.c.adres('portal')} title=${cevir("Karşılama ekranına dön")}><${Ikon} ad="geri" boyut=${15} />${cevir("Tüm sistemler")}</a>`;
   }
 
   /* Adım adım kurulum hatası: başlık + ne yapmalı + teknik ayrıntı (bize iletmek için) */
@@ -358,8 +360,8 @@
     if (!hata) return null;
     const e = typeof hata === 'string' ? { message: hata } : hata;
     return html`<div class="uyari-kutu yok" role="alert"><${Ikon} ad="uyari" /><span>
-      <b>${e.message}</b>${e.ipucu && html`<br />${e.ipucu}`}
-      ${e.detay && html`<br /><span class="mono" style="font-size:11.5px;opacity:.8">Teknik ayrıntı: ${e.detay}</span>`}
+      <b>${cevir(e.message)}</b>${e.ipucu && html`<br />${cevir(e.ipucu)}`}
+      ${e.detay && html`<br /><span class="mono" style="font-size:11.5px;opacity:.8">${cevir("Teknik ayrıntı:")} ${e.detay}</span>`}
     </span></div>`;
   }
 
@@ -380,11 +382,11 @@
     const tum = deger && !liste.some((a) => k(a) === k(deger)) ? [...liste, deger] : liste;
     const secili = tum.find((a) => k(a) === k(deger)) || '';
     return html`<select class="girdi" aria-label=${etiket} value=${diger ? '__diger' : secili} onChange=${(e) => { const v = e.target.value; if (v === '__diger') { setDiger(true); degis(''); } else { setDiger(false); degis(v); } }}>
-        <option value="">Seçin…</option>
+        <option value="">${cevir("Seçin…")}</option>
         ${tum.map((a) => html`<option value=${a}>${a}</option>`)}
-        <option value="__diger">Başka kişi…</option>
+        <option value="__diger">${cevir("Başka kişi…")}</option>
       </select>
-      ${diger && html`<input class="girdi" style="margin-top:6px" value=${deger} placeholder="Ad Soyad" autofocus onInput=${(e) => degis(e.target.value)} />`}`;
+      ${diger && html`<input class="girdi" style="margin-top:6px" value=${deger} placeholder=${cevir("Ad Soyad")} autofocus onInput=${(e) => degis(e.target.value)} />`}`;
   }
 
   NT.ui = { HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };

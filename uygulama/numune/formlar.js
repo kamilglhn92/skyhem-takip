@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const NT = window.NT;
+  const cevir = NT.dil.t;
   const { html, useState, useMemo } = window.htmPreact;
   const { Ikon, Modal, Alan, AdetGirdi, Oneri, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, SevkRozeti, EkOnizleme, ekAc, bildir, onayla } = NT.ui;
   const H = NT.hesap;
@@ -102,7 +103,7 @@
     const ekle = () => { const a = yeni.trim().replace(/\s+/g, ' '); if (a && !secili.includes(a)) degis([...secili, a]); setYeni(''); };
     return html`<div class="secenekler">${liste.map((a) => html`<button type="button" class=${'secenek' + (secili.includes(a) ? ' secili' : '')} aria-pressed=${secili.includes(a)} onClick=${() => sec(a)}>${secili.includes(a) && html`<${Ikon} ad="tik" boyut=${12} /> `}${a}</button>`)}</div>
       <div style="display:flex;gap:6px;margin-top:8px;max-width:360px">
-        <input class="girdi" placeholder="Başka kişi…" value=${yeni} onInput=${(e) => setYeni(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); ekle(); } }} />
+        <input class="girdi" placeholder=${cevir("Başka kişi…")} value=${yeni} onInput=${(e) => setYeni(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); ekle(); } }} />
         <button type="button" class="d kucuk-d" disabled=${!yeni.trim()} onClick=${ekle}><${Ikon} ad="arti" boyut=${14} />Ekle</button>
       </div>`;
   }
@@ -159,14 +160,14 @@
 
     return html`<${Modal} baslik=${kayit ? `Dolum ${kayit.no}` : 'Yeni numune dolumu'} kapat=${kapat}
       alt=${html`
-        ${kayit && html`<div class="sol"><button class="d tehlike" onClick=${async () => (await sil('dolum', kayit)) && kapat()}><${Ikon} ad="cop" />Sil</button></div>`}
-        <button class="d hayalet" onClick=${kapat}>Vazgeç</button>
+        ${kayit && html`<div class="sol"><button class="d tehlike" onClick=${async () => (await sil('dolum', kayit)) && kapat()}><${Ikon} ad="cop" />${cevir("Sil")}</button></div>`}
+        <button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button>
         <button class="d ana-d" onClick=${kaydet}><${Ikon} ad="tik" />${kayit ? 'Kaydet' : 'Dolumu kaydet'}</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
-        <${Alan} etiket="Ürün" hata=${denendi && hatalar.urun}>
+        <${Alan} etiket=${cevir("Ürün")} hata=${denendi && hatalar.urun}>
           <${Secenekler} liste=${urunler.map((u) => u.ad)} deger=${f.urun} degis=${(v) => setF((p) => ({ ...p, urun: v, parti: '' }))} />
         <//>
-        ${partili && html`<${Alan} etiket="Parti (Batch) no" hata=${denendi && hatalar.parti} ipucu="Son partiler üstte. Yeni bir parti ise yazın veya önerilene tıklayın. Karışımsa “Batch #3 + Batch #20” biçiminde yazın.">
+        ${partili && html`<${Alan} etiket=${cevir("Parti (Batch) no")} hata=${denendi && hatalar.parti} ipucu="Son partiler üstte. Yeni bir parti ise yazın veya önerilene tıklayın. Karışımsa “Batch #3 + Batch #20” biçiminde yazın.">
           <div class="secenekler">
             <button type="button" class=${'secenek' + (f.parti === sonraki ? ' secili' : '')} onClick=${() => s('parti')(sonraki)}><${Ikon} ad="arti" boyut=${12} /> ${sonraki}<span class="ek">yeni</span></button>
             ${partiler.slice(0, 6).map((p) => html`<button type="button" class=${'secenek' + (f.parti === p ? ' secili' : '')} onClick=${() => s('parti')(p)}>${p}</button>`)}
@@ -174,20 +175,20 @@
           <input class="girdi" list="partiler-dl" placeholder="Örn: Batch #23" value=${f.parti} onInput=${(e) => s('parti')(e.target.value)} />
           <${Oneri} id="partiler-dl" liste=${partiler} />
         <//>`}
-        <${Alan} etiket="Ambalaj" ipucu="Yanındaki sayı: raftaki boş şişe">
+        <${Alan} etiket=${cevir("Ambalaj")} ipucu="Yanındaki sayı: raftaki boş şişe">
           <${Secenekler} liste=${amb} deger=${f.ambalaj} degis=${s('ambalaj')} ek=${(id) => H.bosMevcut(d, id)} />
         <//>
-        <${Alan} etiket="Doldurulan adet" sinif="s4" hata=${denendi && hatalar.adet}><${AdetGirdi} deger=${f.adet} degis=${s('adet')} min=${1} /><//>
-        <${Alan} etiket="Dolum tarihi" sinif="s4" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
-        <${Alan} etiket="Hazırlayan" sinif="s4">
+        <${Alan} etiket=${cevir("Doldurulan adet")} sinif="s4" hata=${denendi && hatalar.adet}><${AdetGirdi} deger=${f.adet} degis=${s('adet')} min=${1} /><//>
+        <${Alan} etiket=${cevir("Dolum tarihi")} sinif="s4" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Hazırlayan")} sinif="s4">
           <input class="girdi" list="hazirlayan-dl" value=${f.hazirlayan} onInput=${(e) => s('hazirlayan')(e.target.value)} />
           <${Oneri} id="hazirlayan-dl" liste=${benzersiz(d.kayitlar('dolum').map((r) => r.hazirlayan))} />
         <//>
-        <${Alan} etiket="Dolumu yapanlar" hata=${denendi && hatalar.dolduranlar} ipucu="Birden fazla kişi seçilebilir. Hazırlayan: kaydı giren kişi.">
+        <${Alan} etiket=${cevir("Dolumu yapanlar")} hata=${denendi && hatalar.dolduranlar} ipucu="Birden fazla kişi seçilebilir. Hazırlayan: kaydı giren kişi.">
           <${DolduranSecimi} secili=${f.dolduranlar} degis=${s('dolduranlar')} />
         <//>
         ${yetersiz && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${H.ambalajAdi(d, f.ambalaj)} boş şişe stoku ${bos} adet. Bu dolum stoku eksiye düşürür.</span></div>`}
-        <${Alan} etiket="Nereden dolduruldu?" sinif=${f.kaynakTur ? 's8' : 's12'}>
+        <${Alan} etiket=${cevir("Nereden dolduruldu?")} sinif=${f.kaynakTur ? 's8' : 's12'}>
           <${Secenekler} liste=${H.DOLUM_KAYNAKLARI} deger=${f.kaynakTur} degis=${(v) => s('kaynakTur')(f.kaynakTur === v ? '' : v)} />
         <//>
         ${f.kaynakTur && html`<${Alan} etiket=${H.DOLUM_KAYNAKLARI.find((x) => x.id === f.kaynakTur)?.no} sinif="s4">
@@ -195,8 +196,8 @@
           <${Oneri} id="kaynakno-dl" liste=${benzersiz(d.kayitlar('dolum').filter((r) => r.kaynakTur === f.kaynakTur).map((r) => r.kaynakNo))} />
         <//>`}
         ${kayit?.kaynakKap && f.kaynakTur === 'Numune' && html`<div class="s12 uyari-kutu bilgi"><${Ikon} ad="bilgi" /><span>Kaynak kap: <b>${kayit.kaynakKap.urun} ${kayit.kaynakKap.parti || ''} · ${H.ambalajAdi(d, kayit.kaynakKap.ambalaj)}</b>. Adedi değiştirirseniz açık kaptan alınan miktar da değişir.</span></div>`}
-        <${Alan} etiket="Not"><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder="Örn: Müşteri talebine istinaden hazırlandı, sevkiyat rafına alındı." /><//>
-        <${Alan} etiket="Ekler" ipucu="Analiz sertifikası vb. Buluta kaydedilir (en fazla 8 MB). Şişe etiketleri gönderi kaydına yüklenir."><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder="Örn: Müşteri talebine istinaden hazırlandı, sevkiyat rafına alındı." /><//>
+        <${Alan} etiket=${cevir("Ekler")} ipucu="Analiz sertifikası vb. Buluta kaydedilir (en fazla 8 MB). Şişe etiketleri gönderi kaydına yüklenir."><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
       </form>
@@ -223,27 +224,27 @@
     const m = mevcut(k.parti, k.ambalaj);
     const s = (a) => (v) => degis({ ...k, [a]: v });
     return html`<div class="kalem-satir">
-      <div class="alan"><label>Ürün</label>
+      <div class="alan"><label>${cevir("Ürün")}</label>
         <select class="girdi" value=${k.urun} onChange=${(e) => degis({ ...k, urun: e.target.value, parti: '' })}>
           ${urunler.map((x) => html`<option value=${x.ad}>${x.ad}</option>`)}
           ${k.urun && !u && html`<option value=${k.urun}>${k.urun}</option>`}
         </select></div>
-      <div class="alan"><label>Parti</label>
+      <div class="alan"><label>${cevir("Parti")}</label>
         ${u?.partili
           ? html`<select class="girdi" value=${k.parti} onChange=${(e) => s('parti')(e.target.value)}>
-              <option value="">Seçin…</option>
+              <option value="">${cevir("Seçin…")}</option>
               ${partiSirali.map((p) => html`<option value=${p}>${p} (${partiToplam(p)} dolu)</option>`)}
               ${k.parti && !partiler.includes(k.parti) && html`<option value=${k.parti}>${k.parti}</option>`}
             </select>`
-          : html`<div class="girdi soluk" style="background:var(--yuzey3)">Partisiz</div>`}
+          : html`<div class="girdi soluk" style="background:var(--yuzey3)">${cevir("Partisiz")}</div>`}
       </div>
-      <div class="alan"><label>Ambalaj</label>
+      <div class="alan"><label>${cevir("Ambalaj")}</label>
         <select class="girdi" value=${k.ambalaj} onChange=${(e) => s('ambalaj')(e.target.value)}>
           ${H.ambalajlar(d).map((a) => html`<option value=${a.id}>${a.ad} · ${mevcut(k.parti, a.id)} dolu</option>`)}
         </select></div>
-      <div class="alan"><label>Adet</label><${AdetGirdi} deger=${k.adet} degis=${s('adet')} min=${1} />
+      <div class="alan"><label>${cevir("Adet")}</label><${AdetGirdi} deger=${k.adet} degis=${s('adet')} min=${1} />
         <span class=${'mevcut ' + (sayi(k.adet) > m ? 'hata-yazi' : 'soluk')}>Rafta ${m} adet</span></div>
-      <div class="alan"><label> </label><button type="button" class="d hayalet ikon-d" disabled=${tekMi} onClick=${kaldir} title="Kalemi kaldır"><${Ikon} ad="cop" /></button></div>
+      <div class="alan"><label> </label><button type="button" class="d hayalet ikon-d" disabled=${tekMi} onClick=${kaldir} title=${cevir("Kalemi kaldır")}><${Ikon} ad="cop" /></button></div>
       <${KalemBelgeleri} k=${k} degis=${degis} />
     </div>`;
   }
@@ -303,7 +304,7 @@
             ${x.ek ? html`<${EkOnizleme} ek=${x.ek} />` : html`<span class="ek-simge"><${Ikon} ad="yukle" boyut=${20} /><small>Etiket yükle</small></span>`}
           </button>
           <div class="sise-alt">
-            <input class="girdi mono" aria-label="Şişe no" value=${x.no} placeholder="Sample no" onInput=${(e) => yaz(i, j, { no: e.target.value })} />
+            <input class="girdi mono" aria-label=${cevir("Şişe no")} value=${x.no} placeholder="Sample no" onInput=${(e) => yaz(i, j, { no: e.target.value })} />
             ${x.ek && html`<button type="button" class="d hayalet ikon-d" title="Etiketi kaldır" onClick=${() => yaz(i, j, { ek: null })}><${Ikon} ad="kapat" boyut=${14} /></button>`}
           </div>
         </div>`)}</div>
@@ -365,38 +366,38 @@
 
     const kalemDegis = (i) => (k) => setF((p) => ({ ...p, kalemler: p.kalemler.map((x, j) => (j === i ? k : x)) }));
     return html`<${Modal} genis baslik=${kayit ? `Sevkiyat ${kayit.no}` : 'Yeni numune sevkiyatı'} kapat=${kapat}
-      sag=${kayit && (kayit.iptal ? html`<span class="rozet yok"><${Ikon} ad="kapat" />İptal edildi</span>` : html`<${SevkRozeti} durum=${kayit.durum} />`)}
+      sag=${kayit && (kayit.iptal ? html`<span class="rozet yok"><${Ikon} ad="kapat" />${cevir("İptal edildi")}</span>` : html`<${SevkRozeti} durum=${kayit.durum} />`)}
       alt=${html`
-        ${kayit && html`<div class="sol"><button class="d tehlike" title="Yanlış girilmiş kayıt: çöp kutusuna gider" onClick=${async () => (await sil('sevk', kayit)) && kapat()}><${Ikon} ad="cop" />Sil</button>
-          ${kayit.iptal ? html`<button class="d" onClick=${() => iptalGeriAl(kayit)}><${Ikon} ad="geri" />İptali geri al</button>`
-            : html`<button class="d" title="Vazgeçilen gönderi: kayıt kalır, stoktan düşmez" onClick=${async () => (await iptalEt(kayit)) && kapat()}><${Ikon} ad="kapat" />İptal et</button>`}
-          <button class="d" onClick=${() => NT.etiket.ac({ tur: 'sevk', kayit: { ...kayit, ...f, kalemler, siseler: H.siseTemizle(kalemler, f.siseler) } })}><${Ikon} ad="yazici" />Gönderi etiketi</button></div>`}
-        <button class="d hayalet" onClick=${kapat}>Vazgeç</button>
+        ${kayit && html`<div class="sol"><button class="d tehlike" title="Yanlış girilmiş kayıt: çöp kutusuna gider" onClick=${async () => (await sil('sevk', kayit)) && kapat()}><${Ikon} ad="cop" />${cevir("Sil")}</button>
+          ${kayit.iptal ? html`<button class="d" onClick=${() => iptalGeriAl(kayit)}><${Ikon} ad="geri" />${cevir("İptali geri al")}</button>`
+            : html`<button class="d" title="Vazgeçilen gönderi: kayıt kalır, stoktan düşmez" onClick=${async () => (await iptalEt(kayit)) && kapat()}><${Ikon} ad="kapat" />${cevir("İptal et")}</button>`}
+          <button class="d" onClick=${() => NT.etiket.ac({ tur: 'sevk', kayit: { ...kayit, ...f, kalemler, siseler: H.siseTemizle(kalemler, f.siseler) } })}><${Ikon} ad="yazici" />${cevir("Gönderi etiketi")}</button></div>`}
+        <button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button>
         <button class="d ana-d" onClick=${kaydet}><${Ikon} ad="tik" />${kayit ? 'Kaydet' : 'Sevkiyatı kaydet'}</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         ${kayit?.iptal && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="kapat" /><span><b>Bu gönderi iptal edildi</b>${kayit.iptalTarihi ? ` (${tarihYaz(kayit.iptalTarihi)})` : ''}${kayit.iptalNeden ? `: ${kayit.iptalNeden}` : ''}. Stoku etkilemez.</span></div>`}
         <div class="form-bolum">Alıcı</div>
-        <${Alan} etiket="Firma" sinif="s6" hata=${denendi && hatalar.firma} ipucu="Daha önce gönderilen firmada yetkili ve adres otomatik gelir.">
-          <input class="girdi" list="firma-dl" value=${f.firma} onInput=${(e) => s('firma')(e.target.value)} onChange=${(e) => firmaSec(e.target.value)} placeholder="Firma adı" autofocus=${!kayit} />
+        <${Alan} etiket=${cevir("Firma")} sinif="s6" hata=${denendi && hatalar.firma} ipucu="Daha önce gönderilen firmada yetkili ve adres otomatik gelir.">
+          <input class="girdi" list="firma-dl" value=${f.firma} onInput=${(e) => s('firma')(e.target.value)} onChange=${(e) => firmaSec(e.target.value)} placeholder=${cevir("Firma adı")} autofocus=${!kayit} />
           <${Oneri} id="firma-dl" liste=${firmalar} />
         <//>
-        <${Alan} etiket="İrtibat yetkilisi" sinif="s6">
-          <input class="girdi" list="yetkili-dl" value=${f.yetkili} onInput=${(e) => s('yetkili')(e.target.value)} placeholder="Ad Soyad (Unvan)" />
+        <${Alan} etiket=${cevir("İrtibat yetkilisi")} sinif="s6">
+          <input class="girdi" list="yetkili-dl" value=${f.yetkili} onInput=${(e) => s('yetkili')(e.target.value)} placeholder=${cevir("Ad Soyad (Unvan)")} />
           <${Oneri} id="yetkili-dl" liste=${benzersiz(onceki.filter((r) => r.firma === f.firma).map((r) => r.yetkili))} />
         <//>
-        <${Alan} etiket="Telefon" sinif="s6"><${TelefonGirdisi} deger=${f.telefon} degis=${s('telefon')} ulke=${f.ulke} /><//>
-        <${Alan} etiket="Talep sebebi" sinif="s6">
+        <${Alan} etiket=${cevir("Telefon")} sinif="s6"><${TelefonGirdisi} deger=${f.telefon} degis=${s('telefon')} ulke=${f.ulke} /><//>
+        <${Alan} etiket=${cevir("Talep sebebi")} sinif="s6">
           <input class="girdi" list="sebep-dl" value=${f.sebep} onInput=${(e) => s('sebep')(e.target.value)} placeholder="Örn: Saha asfalt modifikasyonu denemesi" />
           <${Oneri} id="sebep-dl" liste=${benzersiz(onceki.map((r) => r.sebep))} />
         <//>
-        <${Alan} etiket="Diğer iletişim bilgileri" sinif="s12" ipucu="Unvan, e-posta, ek telefon… Excel’de irtibat kişisinin altına yazılır.">
+        <${Alan} etiket=${cevir("Diğer iletişim bilgileri")} sinif="s12" ipucu="Unvan, e-posta, ek telefon… Excel’de irtibat kişisinin altına yazılır.">
           <textarea class="girdi" rows="2" value=${f.irtibatDetay} onInput=${(e) => s('irtibatDetay')(e.target.value)} placeholder="Örn: Product Manager · ad.soyad@firma.com" />
         <//>
-        <${Alan} etiket="Talep tarihi" sinif="s4"><input class="girdi" type="date" value=${f.talepTarihi} onInput=${(e) => s('talepTarihi')(e.target.value)} /><//>
-        <${Alan} etiket="Sorumlu" sinif="s4" hata=${denendi && hatalar.sorumlu}>
-          <${NT.ui.KisiSec} etiket="Sorumlu" deger=${f.sorumlu} degis=${s('sorumlu')} liste=${NT.ui.kisiListesi(onceki.map((r) => r.sorumlu))} />
+        <${Alan} etiket=${cevir("Talep tarihi")} sinif="s4"><input class="girdi" type="date" value=${f.talepTarihi} onInput=${(e) => s('talepTarihi')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Sorumlu")} sinif="s4" hata=${denendi && hatalar.sorumlu}>
+          <${NT.ui.KisiSec} etiket=${cevir("Sorumlu")} deger=${f.sorumlu} degis=${s('sorumlu')} liste=${NT.ui.kisiListesi(onceki.map((r) => r.sorumlu))} />
         <//>
-        <${Alan} etiket="Geri bildirim" sinif="s4">
+        <${Alan} etiket=${cevir("Geri bildirim")} sinif="s4">
           <input class="girdi" list="geribildirim-dl" value=${f.geriBildirim} onInput=${(e) => s('geriBildirim')(e.target.value)} placeholder="Örn: Yes, Positive" />
           <${Oneri} id="geribildirim-dl" liste=${benzersiz(['Yes, Positive', 'Yes, Negative', 'No', ...onceki.map((r) => r.geriBildirim)])} />
         <//>
@@ -405,11 +406,11 @@
         <div class="s12">
           ${f.kalemler.map((k, i) => html`<${KalemSatiri} key=${k.anahtar} k=${k} haricId=${kayit?.id} tekMi=${f.kalemler.length === 1} degis=${kalemDegis(i)} kaldir=${() => setF((p) => ({ ...p, kalemler: p.kalemler.filter((_, j) => j !== i) }))} />`)}
           <div class="dugmeler" style="margin-top:8px">
-            <button type="button" class="d kucuk-d" onClick=${() => setF((p) => ({ ...p, kalemler: [...p.kalemler, bosKalem(d)] }))}><${Ikon} ad="arti" boyut=${15} />Kalem ekle</button>
+            <button type="button" class="d kucuk-d" onClick=${() => setF((p) => ({ ...p, kalemler: [...p.kalemler, bosKalem(d)] }))}><${Ikon} ad="arti" boyut=${15} />${cevir("Kalem ekle")}</button>
             ${denendi && hatalar.kalem && html`<span class="hata-yazi kucuk">${hatalar.kalem}</span>`}
           </div>
         </div>
-        <${Alan} etiket="Numune noktası / parti açıklaması" sinif="s12" ipucu="İsteğe bağlı. Doluysa Excel’in “Batch / Point of sampling” sütununa parti yerine bu yazılır.">
+        <${Alan} etiket=${cevir("Numune noktası / parti açıklaması")} sinif="s12" ipucu="İsteğe bağlı. Doluysa Excel’in “Batch / Point of sampling” sütununa parti yerine bu yazılır.">
           <input class="girdi" value=${f.numuneYeri} onInput=${(e) => s('numuneYeri')(e.target.value)} placeholder="Örn: H-4 during of cooling of 3rd synthesis" />
         <//>
 
@@ -417,12 +418,12 @@
         <div class="s12"><${SiseEtiketleri} kalemler=${kalemler} siseler=${f.siseler} degis=${s('siseler')} haricId=${kayit?.id} /></div>
 
         <div class="form-bolum">Gönderi</div>
-        <${Alan} etiket="Durum" sinif="s8" ipucu="Sadece “Gönderildi” olunca dolu stoktan düşer; diğerleri rezerve görünür.">
+        <${Alan} etiket=${cevir("Durum")} sinif="s8" ipucu="Sadece “Gönderildi” olunca dolu stoktan düşer; diğerleri rezerve görünür.">
           <${Secenekler} liste=${H.SEVK_DURUMLARI} deger=${f.durum} degis=${s('durum')} />
         <//>
-        <${Alan} etiket="Tarih" sinif="s4" hata=${denendi && !f.tarih && 'Tarih girin'}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s4" hata=${denendi && !f.tarih && 'Tarih girin'}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
         ${f.durum === 'Gönderildi' && eksikler.length > 0 && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="uyari" /><span>Rafta yetersiz: ${eksikler.map((e) => `${e.urun} ${e.parti} ${H.ambalajAdi(d, e.ambalaj)} (rafta ${e.mevcut}, istenen ${e.istenen})`).join(' · ')}</span></div>`}
-        <${Alan} etiket="Gönderi şekli" sinif="s4"><${Secenekler} liste=${H.GONDERI_SEKILLERI} deger=${f.sekil} degis=${s('sekil')} /><//>
+        <${Alan} etiket=${cevir("Gönderi şekli")} sinif="s4"><${Secenekler} liste=${H.GONDERI_SEKILLERI} deger=${f.sekil} degis=${s('sekil')} /><//>
         ${f.sekil !== 'Elden' ? html`
           <${Alan} etiket=${f.sekil === 'Kurye' ? 'Kurye firması' : 'Kargo firması'} sinif="s8">
             <input class="girdi" list="kargo-dl" value=${f.kargoFirma} onInput=${(e) => s('kargoFirma')(e.target.value)} placeholder="Yurtiçi / Aras / MNG" />
@@ -431,10 +432,10 @@
           <div class="s12"><${BelgeKutusu} baslik=${(f.sekil === 'Kurye' ? 'Kurye' : 'Kargo') + ' gönderi belgesi'} ekler=${f.kargoBelge} degis=${s('kargoBelge')}
             ipucu="Kargo firmasından gelen belge (takip no içinde); gönderince de yüklenebilir" eski=${f.takipNo && `Eski kayıt: takip no ${f.takipNo}`} /></div>`
         : html`<div class="s8"></div>`}
-        <${Alan} etiket="Ülke" sinif="s4"><${UlkeSecimi} deger=${f.ulke} degis=${s('ulke')} /><//>
-        <${Alan} etiket="Teslim adresi" sinif="s8"><textarea class="girdi" rows="2" value=${f.adres} onInput=${(e) => s('adres')(e.target.value)} /><//>
-        <${Alan} etiket="Not" sinif="s12"><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder="Örn: MSDS ve analiz sertifikası pakete eklendi." /><//>
-        <${Alan} etiket="Ekler" ipucu="İrsaliye vb. (kargo belgesi ve şişe etiketleri yukarıda)"><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        <${Alan} etiket=${cevir("Ülke")} sinif="s4"><${UlkeSecimi} deger=${f.ulke} degis=${s('ulke')} /><//>
+        <${Alan} etiket=${cevir("Teslim adresi")} sinif="s8"><textarea class="girdi" rows="2" value=${f.adres} onInput=${(e) => s('adres')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Not")} sinif="s12"><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder="Örn: MSDS ve analiz sertifikası pakete eklendi." /><//>
+        <${Alan} etiket=${cevir("Ekler")} ipucu="İrsaliye vb. (kargo belgesi ve şişe etiketleri yukarıda)"><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
       </form>
@@ -469,18 +470,18 @@
     }
     const tedarikciler = benzersiz(d.kayitlar('alim').map((r) => r.tedarikci));
     return html`<${Modal} baslik=${kayit ? `Alım ${kayit.no}` : 'Boş ambalaj alımı'} kapat=${kapat}
-      alt=${html`${kayit && html`<div class="sol"><button class="d tehlike" onClick=${async () => (await sil('alim', kayit)) && kapat()}><${Ikon} ad="cop" />Sil</button></div>`}
-        <button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class="d ana-d" onClick=${kaydet}><${Ikon} ad="tik" />Kaydet</button>`}>
+      alt=${html`${kayit && html`<div class="sol"><button class="d tehlike" onClick=${async () => (await sil('alim', kayit)) && kapat()}><${Ikon} ad="cop" />${cevir("Sil")}</button></div>`}
+        <button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class="d ana-d" onClick=${kaydet}><${Ikon} ad="tik" />${cevir("Kaydet")}</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
-        <${Alan} etiket="Ambalaj" ipucu="Yanındaki sayı: raftaki mevcut boş şişe"><${Secenekler} liste=${amb} deger=${f.ambalaj} degis=${s('ambalaj')} ek=${(id) => H.bosMevcut(d, id)} /><//>
-        <${Alan} etiket="Alınan adet" sinif="s4" hata=${denendi && hata}><${AdetGirdi} deger=${f.adet} degis=${s('adet')} min=${1} /><//>
-        <${Alan} etiket="Tarih" sinif="s4" hata=${denendi && !f.tarih && 'Tarih girin'}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
-        <${Alan} etiket="Birim fiyat (₺)" sinif="s4"><input class="girdi" inputmode="decimal" value=${f.birimFiyat} onInput=${(e) => s('birimFiyat')(e.target.value)} placeholder="İsteğe bağlı" /><//>
-        <${Alan} etiket="Teslim alan" hata=${denendi && kisiHata}><${NT.ui.KisiSec} etiket="Teslim alan" deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('alim').map((r) => r.kisi))} /><//>
-        <${Alan} etiket="Tedarikçi" sinif="s6"><input class="girdi" list="ted-dl" value=${f.tedarikci} onInput=${(e) => s('tedarikci')(e.target.value)} /><${Oneri} id="ted-dl" liste=${tedarikciler} /><//>
-        <${Alan} etiket="Fatura / irsaliye no" sinif="s6"><input class="girdi mono" value=${f.faturaNo} onInput=${(e) => s('faturaNo')(e.target.value)} /><//>
-        <${Alan} etiket="Not"><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>
-        <${Alan} etiket="Ekler" ipucu="Fatura PDF’i vb."><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        <${Alan} etiket=${cevir("Ambalaj")} ipucu="Yanındaki sayı: raftaki mevcut boş şişe"><${Secenekler} liste=${amb} deger=${f.ambalaj} degis=${s('ambalaj')} ek=${(id) => H.bosMevcut(d, id)} /><//>
+        <${Alan} etiket=${cevir("Alınan adet")} sinif="s4" hata=${denendi && hata}><${AdetGirdi} deger=${f.adet} degis=${s('adet')} min=${1} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s4" hata=${denendi && !f.tarih && 'Tarih girin'}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Birim fiyat (₺)")} sinif="s4"><input class="girdi" inputmode="decimal" value=${f.birimFiyat} onInput=${(e) => s('birimFiyat')(e.target.value)} placeholder=${cevir("İsteğe bağlı")} /><//>
+        <${Alan} etiket=${cevir("Teslim alan")} hata=${denendi && kisiHata}><${NT.ui.KisiSec} etiket=${cevir("Teslim alan")} deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('alim').map((r) => r.kisi))} /><//>
+        <${Alan} etiket=${cevir("Tedarikçi")} sinif="s6"><input class="girdi" list="ted-dl" value=${f.tedarikci} onInput=${(e) => s('tedarikci')(e.target.value)} /><${Oneri} id="ted-dl" liste=${tedarikciler} /><//>
+        <${Alan} etiket=${cevir("Fatura / irsaliye no")} sinif="s6"><input class="girdi mono" value=${f.faturaNo} onInput=${(e) => s('faturaNo')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Ekler")} ipucu="Fatura PDF’i vb."><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
       </form>
@@ -519,19 +520,19 @@
       bildir(`${ad}: ${[fark !== 0 && `tam ${sistem} → ${sayilan}`, acikFark !== 0 && `açık kap ${H.litreYazi(acikSistem)} → ${H.litreYazi(sayi(acikSayilan))}`].filter(Boolean).join(', ')} olarak düzeltildi.`);
       kapat();
     }
-    return html`<${Modal} dar baslik="Sayım düzeltmesi" kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class="d ana-d" disabled=${fark === 0 && acikFark === 0} onClick=${kaydet}><${Ikon} ad="tik" />Düzeltmeyi kaydet</button>`}>
+    return html`<${Modal} dar baslik=${cevir("Sayım düzeltmesi")} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class="d ana-d" disabled=${fark === 0 && acikFark === 0} onClick=${kaydet}><${Ikon} ad="tik" />Düzeltmeyi kaydet</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">Rafta fiilen saydığınız adedi girin. Sistem aradaki farkı bir düzeltme hareketi olarak kaydeder; geçmiş kayıtlar değişmez.</div></div>
-        <${Alan} etiket="Sayan kişi" sinif="s6" hata=${denendi && !kisi.trim() && 'Kişiyi seçin'}><${NT.ui.KisiSec} etiket="Sayan kişi" deger=${kisi} degis=${setKisi} liste=${NT.ui.kisiListesi(d.kayitlar('sayim').map((r) => r.kisi))} /><//>
-        <${Alan} etiket="Tarih" sinif="s6" hata=${denendi && !tarih && 'Tarih girin'}><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Sayan kişi")} sinif="s6" hata=${denendi && !kisi.trim() && 'Kişiyi seçin'}><${NT.ui.KisiSec} etiket=${cevir("Sayan kişi")} deger=${kisi} degis=${setKisi} liste=${NT.ui.kisiListesi(d.kayitlar('sayim').map((r) => r.kisi))} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s6" hata=${denendi && !tarih && 'Tarih girin'}><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /><//>
         <${Alan} etiket=${bosMu ? 'Sistemdeki' : 'Sistemdeki tam kap'} sinif="s4"><div class="girdi sayi" style="background:var(--yuzey3);font-weight:700">${sistem}</div><//>
         <${Alan} etiket=${bosMu ? 'Sayılan' : 'Sayılan tam kap'} sinif="s4"><${AdetGirdi} deger=${sayilan} degis=${setSayilan} otomatikOdak /><//>
-        <${Alan} etiket="Fark" sinif="s4"><div class="girdi sayi" style=${{ background: 'var(--yuzey3)', fontWeight: 700, color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : '' }}>${fark > 0 ? '+' : ''}${fark}</div><//>
+        <${Alan} etiket=${cevir("Fark")} sinif="s4"><div class="girdi sayi" style=${{ background: 'var(--yuzey3)', fontWeight: 700, color: fark < 0 ? 'var(--yok)' : fark > 0 ? 'var(--iyi)' : '' }}>${fark > 0 ? '+' : ''}${fark}</div><//>
         ${!bosMu && html`
           <${Alan} etiket="Sistemde açık kap" sinif="s4"><div class="girdi sayi" style="background:var(--yuzey3);font-weight:700">${H.litreYazi(acikSistem)}</div><//>
           <${Alan} etiket="Açık kapta kalan (L)" sinif="s8" hata=${acikHata} ipucu="Yarım kullanılmış kap varsa içindeki litreyi yazın; yoksa 0. Açık kap tam kap sayısına dahil değildir.">
             <input class="girdi sayi" type="number" min="0" step="0.05" value=${acikSayilan} onFocus=${(e) => e.target.select()} onInput=${(e) => setAcikSayilan(e.target.value === '' ? '' : Number(e.target.value))} /><//>`}
-        <${Alan} etiket="Neden"><input class="girdi" value=${neden} onInput=${(e) => setNeden(e.target.value)} placeholder="Örn: Ay sonu sayımı, kırık şişe, kayıt dışı gönderim" /><//>
+        <${Alan} etiket=${cevir("Neden")}><input class="girdi" value=${neden} onInput=${(e) => setNeden(e.target.value)} placeholder="Örn: Ay sonu sayımı, kırık şişe, kayıt dışı gönderim" /><//>
       </form>
     <//>`;
   }
@@ -560,11 +561,11 @@
       bildir(`${no} · ${ad}: ${islem === 'not' ? 'açıklama kaydedildi' : islem === 'tamamla' ? 'üstü tamamlandı, rafa tam kap olarak döndü' : 'atığa ayrıldı'}.`);
       kapat();
     }
-    return html`<${Modal} dar baslik=${t.baslik} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Vazgeç</button><button class=${'d ' + (islem === 'atik' ? 'tehlike' : 'ana-d')} onClick=${kaydet}><${Ikon} ad="tik" />${t.dugme}</button>`}>
+    return html`<${Modal} dar baslik=${t.baslik} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class=${'d ' + (islem === 'atik' ? 'tehlike' : 'ana-d')} onClick=${kaydet}><${Ikon} ad="tik" />${t.dugme}</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">Açık kapta ${H.litreYazi(x?.acikL || 0)} var. ${t.metin}</div></div>
-        <${Alan} etiket="Kişi" sinif="s6" hata=${denendi && hatalar.kisi}><${NT.ui.KisiSec} etiket="Kişi" deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('acik').map((r) => r.kisi))} /><//>
-        <${Alan} etiket="Tarih" sinif="s6" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Kişi")} sinif="s6" hata=${denendi && hatalar.kisi}><${NT.ui.KisiSec} etiket=${cevir("Kişi")} deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('acik').map((r) => r.kisi))} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s6" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
         ${islem === 'tamamla' && html`<${Alan} etiket="Nereden tamamlandı?" hata=${denendi && hatalar.kaynakTur}>
           <${Secenekler} liste=${H.DOLUM_KAYNAKLARI.filter((k) => k.id !== 'Numune')} deger=${f.kaynakTur} degis=${s('kaynakTur')} /><//>
           ${f.kaynakTur && html`<${Alan} etiket=${H.DOLUM_KAYNAKLARI.find((k) => k.id === f.kaynakTur)?.no + ' (isteğe bağlı)'}><input class="girdi mono" value=${f.kaynakNo} onInput=${(e) => s('kaynakNo')(e.target.value)} /><//>`}`}

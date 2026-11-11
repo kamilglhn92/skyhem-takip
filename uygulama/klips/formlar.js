@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   const NT = window.NT;
+  const cevir = NT.dil.t;
   const { html, useState, useEffect } = window.htmPreact;
   const { Ikon, Modal, Alan, Oneri, Ekler, GecmisBolumu, bildir, onayla } = NT.ui;
   const K = NT.kabuk;
@@ -129,11 +130,11 @@
     };
     return html`
       <${Oneri} id="km-urunler" liste=${urunOnerileri(d, sevkler)} /><${Oneri} id="km-partiler" liste=${partiOnerileri(d, sevkler)} />
-      <${Alan} etiket="Sevkiyat" sinif="s6" ipucu=${!cfg.useSevkler && satis.durum === 'hata' ? 'Satış’taki sevkiyatlar okunamadı; elle yazabilirsiniz' : 'Satış’tan seçin ya da elle yazın; sonra da girilebilir'}>
+      <${Alan} etiket=${cevir("Sevkiyat")} sinif="s6" ipucu=${!cfg.useSevkler && satis.durum === 'hata' ? 'Satış’taki sevkiyatlar okunamadı; elle yazabilirsiniz' : 'Satış’tan seçin ya da elle yazın; sonra da girilebilir'}>
         <${K.OneriGirdi} deger=${f.sevkNo} oneriler=${oneriler} sec=${sec} placeholder="SV-2026-0014" degis=${(v) => setF((p) => ({ ...p, sevkNo: v, sevk: '' }))} /><//>
-      <${Alan} etiket="Müşteri" sinif="s6"><input class="girdi" value=${f.firma} onInput=${s('firma')} placeholder="Sevkiyat seçilince dolar" /><//>
-      <${Alan} etiket="Ürün" sinif="s6"><input class="girdi" list="km-urunler" value=${f.urun} onInput=${s('urun')} /><//>
-      <${Alan} etiket="Parti" sinif="s6"><input class="girdi" list="km-partiler" value=${f.parti} onInput=${s('parti')} placeholder="SKY.PR.0071" /><//>
+      <${Alan} etiket=${cevir("Müşteri")} sinif="s6"><input class="girdi" value=${f.firma} onInput=${s('firma')} placeholder="Sevkiyat seçilince dolar" /><//>
+      <${Alan} etiket=${cevir("Ürün")} sinif="s6"><input class="girdi" list="km-urunler" value=${f.urun} onInput=${s('urun')} /><//>
+      <${Alan} etiket=${cevir("Parti")} sinif="s6"><input class="girdi" list="km-partiler" value=${f.parti} onInput=${s('parti')} placeholder="SKY.PR.0071" /><//>
       <${Alan} etiket="Takıldığı tarih" sinif="s6" ipucu="Zorunlu"><input class="girdi" type="date" value=${f.tarih} onInput=${s('tarih')} /><//>
       <${Alan} etiket="Takan" sinif="s6"><${TakanSec} d=${d} deger=${f.takan} degis=${(v) => setF((p) => ({ ...p, takan: v }))} /><//>`;
   }
@@ -156,7 +157,7 @@
             <input class="girdi mono" inputmode="numeric" aria-label=${`Klips numarası ${j + 1}`} value=${x} placeholder="Klips no" onInput=${(e) => klipsDegis(j, e.target.value)} onBlur=${(e) => { const n = S.klipsNo(e.target.value); if (n) klipsDegis(j, n); }} />
             ${r.klipsler.length > 1 && html`<button type="button" class="km-x" title="Bu klipsi çıkar" onClick=${() => degis({ ...r, klipsler: r.klipsler.filter((_, n) => n !== j) })}><${Ikon} ad="kapat" boyut=${13} /></button>`}
           </span>`)}
-          <button type="button" class="d kucuk-d" onClick=${() => degis({ ...r, klipsler: [...r.klipsler, ''] })}><${Ikon} ad="arti" boyut=${14} />Klips</button>
+          <button type="button" class="d kucuk-d" onClick=${() => degis({ ...r, klipsler: [...r.klipsler, ''] })}><${Ikon} ad="arti" boyut=${14} />${cevir("Klips")}</button>
         </div>
         ${notlar.map((n) => html`<div class="km-not">${n}</div>`)}
       </div>
@@ -229,7 +230,7 @@
       const tur = k && turCevir(k.ambalaj);
       if (tur) setSatirlar((l) => (l.length === 1 && !String(l[0].no).trim() ? [{ ...l[0], tur }] : l));
     };
-    return html`<${Modal} genis baslik="Klips tak" kapat=${kapat}
+    return html`<${Modal} genis baslik=${cevir("Klips tak")} kapat=${kapat}
       alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} mesgul=${mesgul} kaydetYazi=${`Kaydet${dolu ? ` · ${dolu} klips` : ''}`} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${OrtakAlanlar} f=${f} setF=${setF} sevkler=${sevkler} sevkSecildi=${sevkSecildi} />
@@ -242,7 +243,7 @@
           <button type="button" class="d" disabled=${!bos} onClick=${siradanDoldur}><${Ikon} ad="sayim" boyut=${15} />Boşları sıradan doldur</button>
           <span class="soluk kucuk">${S.stok(d).sirada ? `Sıradaki boş klips: ${S.stok(d).sirada}` : 'Boşta klips görünmüyor'}</span>
         </div>
-        <${Alan} etiket="Not"><input class="girdi" value=${f.notlar} onInput=${(e) => { const v = e.target.value; setF((p) => ({ ...p, notlar: v })); }} /><//>
+        <${Alan} etiket=${cevir("Not")}><input class="girdi" value=${f.notlar} onInput=${(e) => { const v = e.target.value; setF((p) => ({ ...p, notlar: v })); }} /><//>
         <${Alan} etiket="Fotoğraf veya belge" ipucu="İsteğe bağlı; bütün ambalajlara eklenir (en fazla 8 MB)"><${Ekler} ekler=${f.ekler} degis=${(v) => setF((p) => ({ ...p, ekler: v }))} /><//>
         ${hata && html`<div class="s12 hata-yazi">${hata}</div>`}
         <button type="submit" class="gizli" />
@@ -271,9 +272,9 @@
     }
     return html`<${Modal} dar baslik=${`${a.numara || 'Ambalaj'} · klips ekle`} kapat=${kapat} alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi="Ekle" />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
-        <${Alan} etiket="Klips numaraları" ipucu="Birden fazlaysa virgülle: 23, 24 veya 23-24" hata=${hata}><input class="girdi mono" value=${metin} onInput=${(e) => setMetin(e.target.value)} autofocus /><//>
+        <${Alan} etiket=${cevir("Klips numaraları")} ipucu="Birden fazlaysa virgülle: 23, 24 veya 23-24" hata=${hata}><input class="girdi mono" value=${metin} onInput=${(e) => setMetin(e.target.value)} autofocus /><//>
         <${Alan} etiket="Takan" sinif="s6"><${TakanSec} d=${d} deger=${takan} degis=${setTakan} /><//>
-        <${Alan} etiket="Tarih" sinif="s6"><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s6"><input class="girdi" type="date" value=${tarih} onInput=${(e) => setTarih(e.target.value)} /><//>
         <button type="submit" class="gizli" />
       </form>
     <//>`;
@@ -299,9 +300,9 @@
     return html`<${Modal} dar baslik=${`${k.numara} klipsini değiştir`} kapat=${kapat} alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi="Değiştir" />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket="Yeni klips no" sinif="s6" hata=${hata}><input class="girdi mono" inputmode="numeric" value=${f.yeni} onInput=${s('yeni')} autofocus /><//>
-        <${Alan} etiket="Tarih" sinif="s6"><input class="girdi" type="date" value=${f.tarih} onInput=${s('tarih')} /><//>
+        <${Alan} etiket=${cevir("Tarih")} sinif="s6"><input class="girdi" type="date" value=${f.tarih} onInput=${s('tarih')} /><//>
         <${Alan} etiket="Takan"><${TakanSec} d=${d} deger=${f.takan} degis=${(v) => setF((p) => ({ ...p, takan: v }))} /><//>
-        <${Alan} etiket="Neden"><input class="girdi" value=${f.neden} onInput=${s('neden')} placeholder="Örn: Gümrük kontrolünde kesildi" /><//>
+        <${Alan} etiket=${cevir("Neden")}><input class="girdi" value=${f.neden} onInput=${s('neden')} placeholder="Örn: Gümrük kontrolünde kesildi" /><//>
         <button type="submit" class="gizli" />
       </form>
     <//>`;
@@ -343,7 +344,7 @@
         <${Alan} etiket="Ambalaj türü" sinif="s6"><select class="girdi" value=${f.tur} onChange=${(e) => { const v = e.target.value; setF((p) => ({ ...p, tur: v })); }}>${S.TURLER.map((t) => html`<option value=${t}>${t}</option>`)}</select><//>
         <${Alan} etiket="Ambalaj no" sinif="s6"><input class="girdi" value=${f.numara} placeholder="IBC 00186" onInput=${(e) => { const v = e.target.value; setF((p) => ({ ...p, numara: v })); }} onBlur=${(e) => { const v = S.ambalajNo(e.target.value, f.tur); setF((p) => ({ ...p, numara: v })); }} /><//>
         <${OrtakAlanlar} f=${f} setF=${setF} sevkler=${sevkler} />
-        <div class="s12 form-bolum">Klipsler</div>
+        <div class="s12 form-bolum">${cevir("Klipsler")}</div>
         <div class="s12">
           ${klipsler.length ? html`<div class="km-klips-liste">${klipsler.map((k) => html`<div key=${k.id} class="km-klips-satir">
             <${KlipsCip} k=${k} cakisan=${c.has(k.numara)} />
@@ -355,7 +356,7 @@
           </div>`)}</div>` : html`<p class="soluk" style="margin:0 0 8px">Bu ambalajda klips yok.</p>`}
           <button type="button" class="d kucuk-d" style="margin-top:8px" onClick=${() => K.ac(KlipsEklePenceresi, { a: guncel })}><${Ikon} ad="arti" boyut=${14} />Klips ekle</button>
         </div>
-        <${Alan} etiket="Not"><input class="girdi" value=${f.notlar} onInput=${(e) => { const v = e.target.value; setF((p) => ({ ...p, notlar: v })); }} /><//>
+        <${Alan} etiket=${cevir("Not")}><input class="girdi" value=${f.notlar} onInput=${(e) => { const v = e.target.value; setF((p) => ({ ...p, notlar: v })); }} /><//>
         <${Alan} etiket="Fotoğraf veya belge" ipucu="İsteğe bağlı (en fazla 8 MB)"><${Ekler} ekler=${f.ekler} degis=${(v) => setF((p) => ({ ...p, ekler: v }))} /><//>
         ${hata && html`<div class="s12 hata-yazi">${hata}</div>`}
         <${GecmisBolumu} kayit=${guncel} />
@@ -412,7 +413,7 @@
   function SevkKlipsListesi({ s }) {
     useEffect(() => { bagBaslat(); }, []);
     if (bag.durum === 'hata') return html`<div class="uyari-kutu yok"><${Ikon} ad="uyari" /><span>${bag.hata}</span></div>`;
-    if (!bag.d) return html`<p class="soluk" style="margin:0">Klips kayıtları yükleniyor…</p>`;
+    if (!bag.d) return html`<p class="soluk" style="margin:0">${cevir("Klips kayıtları yükleniyor…")}</p>`;
     const l = sevkinAmbalajlari(s);
     const c = new Set(S.stok(bag.d).cakisan);
     return html`<div class="km-sevk-klips">
@@ -428,7 +429,7 @@
     </div>`;
   }
   function SevkKlipsPenceresi({ s, kapat }) {
-    return html`<${Modal} baslik=${`Klipsler · ${s.no}`} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>Kapat</button>`}>
+    return html`<${Modal} baslik=${`Klipsler · ${s.no}`} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Kapat")}</button>`}>
       <div class="modal-ic"><p class="soluk" style="margin:0 0 10px">${[s.firma, sevkKalemleri(s)].filter(Boolean).join(' · ')}</p><${SevkKlipsListesi} s=${s} /></div>
     <//>`;
   }
@@ -436,7 +437,7 @@
   function KlipsDugmesi({ s }) {
     useEffect(() => { bagBaslat(); }, []);
     const n = bag.d ? takiliSayisi(sevkinAmbalajlari(s)) : 0;
-    return html`<button type="button" class="d hayalet kucuk-d" title="Gümrük klipsleri" onClick=${() => K.ac(SevkKlipsPenceresi, { s })}><${Ikon} ad="etiket" boyut=${15} />${n ? `${n} klips` : 'Klips'}</button>`;
+    return html`<button type="button" class="d hayalet kucuk-d" title=${cevir("Gümrük klipsleri")} onClick=${() => K.ac(SevkKlipsPenceresi, { s })}><${Ikon} ad="etiket" boyut=${15} />${n ? `${n} klips` : 'Klips'}</button>`;
   }
   /* Satış'ın üst aramasında klips numarasıyla sevkiyat bulmak için. */
   function klipsAra(q) {

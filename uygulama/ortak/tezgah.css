@@ -530,3 +530,30 @@
 @media print { .nt-sise-resim,.nt-amb-resim,.nt-su-resim {print-color-adjust:exact;transform:none!important} .tz-raf-satir::after,.nt-sise::after,.tz-selam-bant::after {display:none} }
 
 /* YEREL GORSEL TEMA BITIS */
+
+/* Dil seçici: karşılama, giriş ve modül üst çubukları. */
+.tz-dil { position: relative; flex: 0 0 auto; }
+.tz-dil-dugme {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px;
+  border: 1px solid var(--cizgi2); border-radius: 99px;
+  background: transparent; color: var(--ikincil); font: 600 13px var(--yazi);
+}
+.tz-dil-dugme:is(:hover, [aria-expanded="true"]) { color: var(--murekkep); border-color: var(--vurgu-sinir); }
+.pt-bant .tz-dil-dugme { color: #fff; border-color: rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .08); }
+.pt-bant .tz-dil-dugme:is(:hover, [aria-expanded="true"]) { color: #fff; border-color: #fff; background: rgba(255, 255, 255, .16); }
+.pt-ust:has(.tz-dil-menu) { position: relative; z-index: 2; }
+.tz-dil-dugme[aria-expanded="true"] > .ikon:last-child { transform: rotate(180deg); }
+.tz-dil-menu {
+  position: absolute; z-index: 50; inset: calc(100% + 6px) 0 auto auto;
+  width: 144px; padding: 5px; border: 1px solid var(--cizgi); border-radius: 12px;
+  background: var(--yuzey); color: var(--murekkep); box-shadow: var(--golge);
+}
+.tz-dil-menu button {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; min-height: 36px; padding: 6px 9px; border: 0; border-radius: 8px;
+  background: transparent; color: inherit; text-align: left; font: 600 13px var(--yazi);
+}
+.tz-dil-menu button:hover { background: var(--yuzey2); }
+.tz-dil-menu button[aria-pressed="true"] { background: var(--ana-acik); color: var(--ana-koyu); }
+.tz-dil :is(button:focus-visible) { outline: 2px solid var(--ana); outline-offset: 2px; }
+.tz-kurulum-dil { display: flex; justify-content: flex-end; }
