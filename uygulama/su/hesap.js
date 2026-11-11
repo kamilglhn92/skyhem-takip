@@ -174,7 +174,7 @@
     const faturaBekleyen = l.filter((x) => x.kontrol === 'bekliyor' && x.ay < bg).length;
     const fark = l.filter((x) => x.kontrol === 'fark').length;
     return [
-      (NT.dil?.m("Bu ay {0} L su geldi", Math.round(buAy ? buAy.litre : 0).toLocaleString('tr-TR')) ?? `Bu ay ${Math.round(buAy ? buAy.litre : 0).toLocaleString('tr-TR')} L su geldi`),
+      (NT.dil?.m("Bu ay {0} L su geldi", Math.round(buAy ? buAy.litre : 0).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')) ?? `Bu ay ${Math.round(buAy ? buAy.litre : 0).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')} L su geldi`),
       [acik ? (NT.dil?.m("{0} sipariş bekleniyor", acik) ?? `${acik} sipariş bekleniyor`) : (NT.dil?.t('Bekleyen sipariş yok') ?? 'Bekleyen sipariş yok'), faturaBekleyen && (NT.dil?.m("{0} ayın faturası girilmedi", faturaBekleyen) ?? `${faturaBekleyen} ayın faturası girilmedi`), fark && (NT.dil?.m("{0} ayda fatura farkı", fark) ?? `${fark} ayda fatura farkı`)].filter(Boolean).join(' · '),
     ];
   }

@@ -258,9 +258,9 @@
     if (v == null || v === '') return '—';
     if (DEGER_YAZ[a]) return DEGER_YAZ[a](v);
     if (a === 'kalemler') return (v || []).map((k) => `${k.adet}× ${k.urun}${k.parti ? ' ' + k.parti : ''} ${k.ambalaj}`).join(', ');
-    if (a === 'ekler' || (Array.isArray(v) && v.length && v.every((x) => x && x.dosya))) return `${v.length} dosya`;
+    if (a === 'ekler' || (Array.isArray(v) && v.length && v.every((x) => x && x.dosya))) return NT.dil.m('{0} dosya', v.length);
     if (Array.isArray(v) && !v.length) return '—';
-    if (typeof v === 'boolean') return v ? 'Evet' : 'Hayır';
+    if (typeof v === 'boolean') return v ? cevir('Evet') : cevir('Hayır');
     if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return NT.c.tarihYaz(v);
     return String(v);
   }
@@ -279,8 +279,8 @@
       return { e, ne, degisimler };
     });
     return html`<ul class="gecmis">${satirlar.reverse().map(({ e, ne, degisimler }) => html`<li key=${e.id}>
-      <div><b>${e.u}</b> ${ne} <span class="soluk kucuk">· ${NT.c.zamanYaz(e.t)}</span></div>
-      ${degisimler.map((d) => html`<div class="degisim">${ALAN_ADLARI[d.a] || d.a}: <s>${degerYaz(d.a, d.eski)}</s> → ${degerYaz(d.a, d.yeni)}</div>`)}
+      <div><b>${e.u}</b> ${cevir(ne)} <span class="soluk kucuk">· ${NT.c.zamanYaz(e.t)}</span></div>
+      ${degisimler.map((d) => html`<div class="degisim">${cevir(ALAN_ADLARI[d.a] || d.a)}: <s>${degerYaz(d.a, d.eski)}</s> → ${degerYaz(d.a, d.yeni)}</div>`)}
     </li>`)}</ul>`;
   }
 
@@ -335,7 +335,7 @@
         const yeni = [];
         for (const f of dosyalar) yeni.push(await depo.ekYaz(f));
         degis([...ekler, ...yeni]);
-      } catch (err) { bildir('Dosya yüklenemedi: ' + err.message, { tur: 'hata' }); }
+      } catch (err) { bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' }); }
       setYukleniyor(false);
     };
     return html`<div class="dugmeler">
@@ -379,7 +379,7 @@
         const yeni = [];
         for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f)));
         degis([...ekler, ...yeni]);
-      } catch (err) { bildir('Dosya yüklenemedi: ' + err.message, { tur: 'hata' }); }
+      } catch (err) { bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' }); }
       setYukleniyor(false);
     };
     const tamam = ekler.length > 0;
@@ -390,7 +390,7 @@
       ${eski && html`<div class="belge-eski">${eski}</div>`}
       ${children}
       ${tamam && html`<div class="belge-dosyalar">${ekler.map((ek) => html`<div class="belge-dosya" key=${ek.dosya}>
-        <button type="button" class="belge-onizle" title=${ek.ad + ' — açmak için tıklayın'} onClick=${() => ekAc(ek)}><${EkOnizleme} ek=${ek} /></button>
+        <button type="button" class="belge-onizle" title=${ek.ad + ' — ' + cevir('açmak için tıklayın', 'click to open')} onClick=${() => ekAc(ek)}><${EkOnizleme} ek=${ek} /></button>
         <button type="button" class="belge-kaldir" title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
       </div>`)}</div>`}
       <div class="belge-alt">

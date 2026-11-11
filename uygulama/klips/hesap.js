@@ -14,6 +14,9 @@
 (function (kok) {
   'use strict';
   const NT = (kok.NT = kok.NT || {});
+  /* Arayüz dili (Node testlerinde dil modülü yoktur; Türkçe kalır). */
+  const M_ = (k, ...a) => (NT.dil ? NT.dil.m(k, ...a) : k.replace(/\{(\d+)\}/g, (_, i) => String(a[i] ?? '')));
+  const T_ = (k) => (NT.dil ? NT.dil.t(k) : k);
   const { trSirala } = NT.c;
 
   const TURLER = ['IBC', 'Varil', 'İsotank', 'Konteyner', 'Tanker', 'Diğer'];
@@ -56,12 +59,12 @@
       if (m) {
         const a = klipsNo(m[1]);
         const c = klipsNo(m[2]);
-        if (!a || !c || +a > +c) return { liste: [], hata: `“${parca}” geçerli bir aralık değil.` };
-        if (+c - +a > ARALIK_SINIRI) return { liste: [], hata: `“${parca}” çok geniş.` };
+        if (!a || !c || +a > +c) return { liste: [], hata: M_('“{0}” geçerli bir aralık değil.', parca) };
+        if (+c - +a > ARALIK_SINIRI) return { liste: [], hata: M_('“{0}” çok geniş.', parca) };
         for (let i = +a; i <= +c; i++) liste.push(String(i).padStart(5, '0'));
       } else {
         const n = klipsNo(parca);
-        if (!n) return { liste: [], hata: `“${parca}” geçerli bir klips numarası değil.` };
+        if (!n) return { liste: [], hata: M_('“{0}” geçerli bir klips numarası değil.', parca) };
         liste.push(n);
       }
     }
@@ -169,10 +172,10 @@
 
   function ozet(d) {
     const s = stok(d);
-    if (!s.toplam && !s.harita.size) return ['Henüz kayıt yok', 'Klips numaralarını Stok sayfasından tanımlayın'];
+    if (!s.toplam && !s.harita.size) return [T_('Henüz kayıt yok'), T_('Klips numaralarını Stok sayfasından tanımlayın')];
     return [
-      `${s.takili.toLocaleString('tr-TR')} klips takılı · ${s.bosta.length.toLocaleString('tr-TR')} boşta`,
-      [s.sirada ? `Sıradaki: ${s.sirada}` : 'Boşta klips yok', s.fire && `${s.fire} fire`, s.verildi && `${s.verildi} verildi`, s.degisti && `${s.degisti} değiştirildi`].filter(Boolean).join(' · '),
+      M_('{0} klips takılı · {1} boşta', s.takili.toLocaleString(NT.dil?.yerel() ?? 'tr-TR'), s.bosta.length.toLocaleString(NT.dil?.yerel() ?? 'tr-TR')),
+      [s.sirada ? M_('Sıradaki: {0}', s.sirada) : T_('Boşta klips yok'), s.fire && M_('{0} fire', s.fire), s.verildi && M_('{0} verildi', s.verildi), s.degisti && M_('{0} değiştirildi', s.degisti)].filter(Boolean).join(' · '),
     ];
   }
   /* Karşılama ekranı şeridi; kurallar kenar menüsü sayaçlarıyla aynıdır. */
@@ -181,8 +184,8 @@
     const sinir = ayar(d).uyariSiniri;
     const eksik = eksikliAmbalajlar(d).length;
     return [
-      s.cakisan.length && { metin: `${s.cakisan.length} klips numarası iki kez girilmiş`, sekme: 'kayitlar' },
-      s.toplam > 0 && sinir > 0 && s.bosta.length <= sinir && { metin: `Boşta ${s.bosta.length} klips kaldı`, sekme: 'stok' },
+      s.cakisan.length && { metin: M_('{0} klips numarası iki kez girilmiş', s.cakisan.length), sekme: 'kayitlar' },
+      s.toplam > 0 && sinir > 0 && s.bosta.length <= sinir && { metin: M_('Boşta {0} klips kaldı', s.bosta.length), sekme: 'stok' },
       eksik && { metin: `${eksik} ambalajda eksik klips bilgisi`, sekme: 'kayitlar' },
     ].filter(Boolean);
   }

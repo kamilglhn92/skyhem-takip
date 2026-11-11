@@ -62,7 +62,7 @@
     if (dini) return { selam: 'İyi bayramlar', not: dini };
     if (t.slice(5) === '01-01') return { selam: 'Mutlu yıllar', not: 'Yeni yılınız kutlu olsun' };
     if (MILLI[t.slice(5)]) return { not: MILLI[t.slice(5)] };
-    if (arife) return { not: /Ramazan|Kurban/.test(arife) ? `${arife} · Şimdiden iyi bayramlar` : arife };
+    if (arife) return { not: /Ramazan|Kurban/.test(arife) ? `${cevir(arife)} · ${cevir('Şimdiden iyi bayramlar', 'Happy holidays in advance')}` : arife };
     return null;
   }
 

@@ -143,14 +143,14 @@
 
   function DosyaDugmesi({ yazi, ikon, kabul, fn }) {
     const g = useRef();
-    return html`<button class="d" onClick=${() => g.current.click()}><${Ikon} ad=${ikon} />${yazi}</button>
+    return html`<button class="d" onClick=${() => g.current.click()}><${Ikon} ad=${ikon} />${cevir(yazi)}</button>
       <input ref=${g} type="file" accept=${kabul} class="gizli" onChange=${async (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) await fn(f); }} />`;
   }
 
   function Yedek() {
     const d = depo();
     async function jsonOku(f) {
-      try { return JSON.parse(await f.text()); } catch { throw new Error('Dosya okunamadı (geçerli JSON değil).'); }
+      try { return JSON.parse(await f.text()); } catch { throw new Error(cevir('Dosya okunamadı (geçerli JSON değil).', 'The file could not be read (not valid JSON).')); }
     }
     return html`<${Kart} baslik=${cevir("Yedek ve aktarım")} aciklama=${cevir("Kayıtlar bulutta durur; yine de ay sonlarında tam yedek indirip saklamanızı öneririz.")}>
       <div class="dugmeler">
@@ -164,9 +164,9 @@
         <${DosyaDugmesi} yazi="Eski sistemden aktar (numune_data.json)" ikon="yukle" kabul=".json,application/json" fn=${async (f) => {
           try {
             const veri = await jsonOku(f);
-            if (!(await onayla(`Eski sistemden ${veri.purchases?.length ?? 0} alım, ${veri.fillings?.length ?? 0} dolum ve ${veri.shipments?.length ?? 0} sevkiyat GEÇMİŞ olarak aktarılacak: Gönderiler ve Geçmiş ekranlarında görünür, stoku değiştirmez (stok açılış sayımıyla başladı). Aynı dosyayı iki kez aktarmak kopya oluşturmaz.`, { baslik: cevir("Eski verileri aktar"), evet: cevir("Geçmiş olarak aktar") }))) return;
+            if (!(await onayla(NT.dil.m('Eski sistemden {0} alım, {1} dolum ve {2} sevkiyat GEÇMİŞ olarak aktarılacak: Gönderiler ve Geçmiş ekranlarında görünür, stoku değiştirmez (stok açılış sayımıyla başladı). Aynı dosyayı iki kez aktarmak kopya oluşturmaz.', veri.purchases?.length ?? 0, veri.fillings?.length ?? 0, veri.shipments?.length ?? 0), { baslik: cevir("Eski verileri aktar"), evet: cevir("Geçmiş olarak aktar") }))) return;
             const s = await H.eskiVeriyiAktar(d, veri, { gecmis: true });
-            bildir(`Aktarıldı: ${s.alim} alım, ${s.dolum} dolum, ${s.sevk} sevkiyat.`);
+            bildir(NT.dil.m('Aktarıldı: {0} alım, {1} dolum, {2} sevkiyat.', s.alim, s.dolum, s.sevk));
           } catch (e) { bildir(e.message, { tur: 'hata' }); }
         }} />
       </div>
@@ -181,7 +181,7 @@
     const AD = { dolum: 'Dolum', sevk: 'Sevkiyat', alim: 'Alım', sayim: 'Sayım' };
     return html`<${Kart} ic=${false} baslik=${cevir("Çöp kutusu")} aciklama=${cevir("Silinen kayıtlar kalıcı olarak kaybolmaz; buradan geri alınabilir.")}>
       ${silinen.length ? html`<div class="tablo-kap" style="max-height:340px"><table class="tablo"><thead><tr><th>${cevir("Kayıt")}</th><th>${cevir("Tür")}</th><th>${cevir("İçerik")}</th><th>${cevir("Silen")}</th><th></th></tr></thead><tbody>
-        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td><span class="etiket-kod">${r.no}</span></td><td>${AD[c]}</td>
+        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td><span class="etiket-kod">${r.no}</span></td><td>${cevir(AD[c])}</td>
           <td>${c === 'sevk' ? r.firma : c === 'alim' ? `${r.adet} × ${H.ambalajAdi(d, r.ambalaj)}` : `${r.adet ?? r.fark} × ${r.urun || ''} ${r.parti || ''} ${H.ambalajAdi(d, r.ambalaj)}`} <span class="soluk kucuk">· ${tarihYaz(r.tarih)}</span></td>
           <td>${r._degistiren} <span class="soluk kucuk">· ${onceYaz(r._degisim)}</span></td>
           <td class="sag"><button class="d kucuk-d" onClick=${async () => { await d.kaydet([{ op: 'undel', c, k: r.id }]); bildir(NT.dil.m("{0} geri alındı.", r.no)); }}><${Ikon} ad="geri" boyut=${15} />${cevir("Geri al")}</button></td></tr>`)}

@@ -75,6 +75,10 @@
     return { surum: yerel.surum, sayfalar: yerel.sayfalar, dosyalar: {}, notlar: '' };
   }
 
+  /* Kullanıcıya gösterilen sürüm: iç sayaç 12 = 1.0 (ilk genel dağıtım); sonrakiler 1.1, 1.2 … */
+  function gorunen(n) { return n >= 12 ? '1.' + (n - 12) : '0.' + n; }
+  function ingilizce() { try { return localStorage.getItem('nt.dil') === 'en'; } catch (e) { return false; } }
+
   /* --- sayfayı kur --- */
   function betik(yol, icerik) {
     return new Promise(function (ok, hata) {
@@ -114,14 +118,15 @@
     var e = document.createElement('div');
     e.setAttribute('role', 'status');
     e.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;display:flex;gap:14px;align-items:center;padding:12px 16px 12px 18px;border-radius:14px;background:#17201b;color:#fff;font:14px/1.4 "Segoe UI",system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100% - 32px)';
-    e.innerHTML = '<span><b>SKYHEM Takip güncellendi</b> (sürüm ' + paket.surum + ')' + (paket.notlar ? ' · ' + String(paket.notlar).replace(/</g, '&lt;') : '') + '</span>';
+    var en = ingilizce();
+    e.innerHTML = '<span><b>' + (en ? 'SKYHEM Tracker updated' : 'SKYHEM Takip güncellendi') + '</b> (' + (en ? 'version ' : 'sürüm ') + gorunen(paket.surum) + ')' + (paket.notlar && !en ? ' · ' + String(paket.notlar).replace(/</g, '&lt;') : '') + '</span>';
     var b = document.createElement('button');
-    b.textContent = 'Şimdi yenile';
+    b.textContent = en ? 'Reload now' : 'Şimdi yenile';
     b.style.cssText = 'border:0;border-radius:9px;padding:7px 14px;background:#98db04;color:#0d1310;font-weight:700;cursor:pointer;white-space:nowrap';
     b.onclick = function () { location.reload(); };
     var x = document.createElement('button');
     x.textContent = '×';
-    x.title = 'Sonra (bir sonraki açılışta kendiliğinden geçer)';
+    x.title = en ? 'Later (applies automatically at the next start)' : 'Sonra (bir sonraki açılışta kendiliğinden geçer)';
     x.style.cssText = 'border:0;background:transparent;color:#cfd5c8;font-size:20px;cursor:pointer;padding:0 2px';
     x.onclick = function () { e.remove(); };
     e.appendChild(b); e.appendChild(x);

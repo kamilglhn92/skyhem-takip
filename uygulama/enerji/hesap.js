@@ -12,6 +12,9 @@
 (function (kok) {
   'use strict';
   const NT = (kok.NT = kok.NT || {});
+  /* Arayüz dili (Node testlerinde dil modülü yoktur; Türkçe kalır). */
+  const M_ = (k, ...a) => (NT.dil ? NT.dil.m(k, ...a) : k.replace(/\{(\d+)\}/g, (_, i) => String(a[i] ?? '')));
+  const T_ = (k) => (NT.dil ? NT.dil.t(k) : k);
   const { sayi, bugun } = NT.c;
 
   const TIPLER = [
@@ -128,12 +131,12 @@
     const a = ayar(d);
     const diger = satirlar(d, a).filter((s) => s.k.id !== taslak.id && s.k.tip === taslak.tip);
     const ayni = diger.find((s) => s.ay === taslak.tarih.slice(0, 7));
-    if (ayni) u.push(`${ayAdi(ayni.ay)} için zaten bir ${tipBul(taslak.tip).ad.toLocaleLowerCase('tr')} kaydı var (${ayni.k.no || 'numarasız'}).`);
+    if (ayni) u.push(M_('{0} için zaten bir {1} kaydı var ({2}).', ayAdi(ayni.ay), T_(tipBul(taslak.tip).ad).toLocaleLowerCase(NT.dil?.yerel() ?? 'tr'), ayni.k.no || T_('numarasız')));
     const e = kwh(taslak, sayi(a.katsayi));
     const ort = bol(diger.reduce((t, s) => t + s.usd, 0), diger.reduce((t, s) => t + s.kwh, 0));
     if (e > 0 && sayi(taslak.tutar) > 0 && ort) {
       const f = sayi(taslak.tutar) / e;
-      if (f > ort * 1.5 || f < ort * 0.5) u.push(`Birim fiyat alışılmadık: ${f.toLocaleString('tr-TR', { maximumFractionDigits: 3 })} $/kWh (ortalama ${ort.toLocaleString('tr-TR', { maximumFractionDigits: 3 })}). Tüketimi, birimi ve tutarı kontrol edin.`);
+      if (f > ort * 1.5 || f < ort * 0.5) u.push(M_('Birim fiyat alışılmadık: {0} $/kWh (ortalama {1}). Tüketimi, birimi ve tutarı kontrol edin.', f.toLocaleString(NT.dil?.yerel() ?? 'tr-TR', { maximumFractionDigits: 3 }), ort.toLocaleString(NT.dil?.yerel() ?? 'tr-TR', { maximumFractionDigits: 3 })));
     }
     return u;
   }
@@ -144,13 +147,13 @@
     return son ? Math.max(0, ayNo(bugun().slice(0, 7)) - ayNo(son) - 1) : 0;
   }
 
-  const dolar = (n, basamak = 0) => `$${(Number(n) || 0).toLocaleString('tr-TR', { minimumFractionDigits: basamak, maximumFractionDigits: basamak })}`;
+  const dolar = (n, basamak = 0) => `$${(Number(n) || 0).toLocaleString(NT.dil?.yerel() ?? 'tr-TR', { minimumFractionDigits: basamak, maximumFractionDigits: basamak })}`;
   /* Karşılama ekranı kartı için kısa özet. */
   function ozet(d) {
     const s = son12(d);
     if (!s) return [(NT.dil?.t('Henüz kayıt yok') ?? 'Henüz kayıt yok'), (NT.dil?.t('Elektrik ve doğalgaz faturalarını girin') ?? 'Elektrik ve doğalgaz faturalarını girin')];
     const eksik = eksikAy(d);
-    return [(NT.dil?.m("Son 12 ay {0} · {1} kWh", dolar(s.toplam.usd), Math.round(s.toplam.kwh).toLocaleString('tr-TR')) ?? `Son 12 ay ${dolar(s.toplam.usd)} · ${Math.round(s.toplam.kwh).toLocaleString('tr-TR')} kWh`),
+    return [(NT.dil?.m("Son 12 ay {0} · {1} kWh", dolar(s.toplam.usd), Math.round(s.toplam.kwh).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')) ?? `Son 12 ay ${dolar(s.toplam.usd)} · ${Math.round(s.toplam.kwh).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')} kWh`),
       [(NT.dil?.m("Son kayıt {0}", ayAdi(s.bitis)) ?? `Son kayıt ${ayAdi(s.bitis)}`), eksik && (NT.dil?.m("{0} ay girilmedi", eksik) ?? `${eksik} ay girilmedi`)].filter(Boolean).join(' · ')];
   }
   /* Karşılama ekranındaki "dikkat bekleyenler" şeridi; kural kenar menüsündeki Kayıtlar sayacıyla aynıdır. */

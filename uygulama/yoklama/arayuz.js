@@ -18,7 +18,7 @@
 
   Object.assign(NT.ui.ALAN_ADLARI, { kisi: 'Kişi', tur: 'Tür', bas: 'Başlangıç', bit: 'Bitiş', saat: 'Saat', baslangic: 'Takip başlangıcı', ay: 'Dönem', sira: 'Sıra' });
   NT.ui.DEGER_YAZ.kisi = (v) => kisiAdi(v);
-  NT.ui.DEGER_YAZ.tur = (v) => Y.tur(v).ad;
+  NT.ui.DEGER_YAZ.tur = (v) => cevir(Y.tur(v).ad);
   NT.ui.DEGER_YAZ.ay = (v) => Y.ayAdi(v);
 
   function TurRozeti({ id, saat }) {
@@ -27,10 +27,10 @@
   }
   /* Bir günün durum yazısı */
   function durumYazi(g, t) {
-    if (g.disarda) return 'Takip dışı';
-    if (g.yok) return Y.tur(g.tur).ad + (g.yarim ? ` (yarım gün${T.yarimGun(t) ? ', arife' : ''})` : '');
-    if (g.tatil) return `Çalıştı (${T.tatil(t) ? 'resmî tatil' : 'hafta sonu'})${g.saat ? ` · ${Y.saatYaz(g.saat)} sa` : ''}`;
-    if (g.kapali) return T.tatil(t) || 'Hafta sonu';
+    if (g.disarda) return cevir('Takip dışı', 'Not tracked');
+    if (g.yok) return cevir(Y.tur(g.tur).ad) + (g.yarim ? ` (${cevir('yarım gün', 'half day')}${T.yarimGun(t) ? ', ' + cevir('arife', 'holiday eve') : ''})` : '');
+    if (g.tatil) return `${cevir('Çalıştı')} (${T.tatil(t) ? cevir('resmî tatil', 'public holiday') : cevir('hafta sonu', 'weekend')})${g.saat ? ` · ${Y.saatYaz(g.saat)} ${cevir('sa', 'hr')}` : ''}`;
+    if (g.kapali) return T.tatil(t) ? cevir(T.tatil(t)) : cevir('Hafta sonu');
     return g.saat ? NT.dil.m('İşte · +{0} sa mesai', Y.saatYaz(g.saat)) : cevir('İşte');
   }
 
@@ -55,11 +55,11 @@
       const v = { tur: f.tur, bas: f.bas, bit: f.bit || f.bas, saat: t.saat && String(f.saat).trim() !== '' ? saatSayi(f.saat) : '', yarim: !!(t.yok && f.yarim && f.bas === f.bit), notlar: f.notlar.trim(), ekler: f.ekler };
       if (kayit) await d.kaydet([{ c: 'istisna', k: kayit.id, v: { kisi: f.kisiler[0], ...v } }]);
       else await d.kaydet(f.kisiler.map((k) => ({ c: 'istisna', k: uid(), v: { kisi: k, ...v } })));
-      bildir(`${f.kisiler.map(kisiAdi).join(', ')} · ${cevir(t.ad)}${v.saat ? ` ${Y.saatYaz(v.saat)} sa` : ''} · ${aralik(v)}`);
+      bildir(`${f.kisiler.map(kisiAdi).join(', ')} · ${cevir(t.ad)}${v.saat ? ` ${Y.saatYaz(v.saat)} ${cevir('sa', 'hr')}` : ''} · ${aralik(v)}`);
       kapat();
     }
-    const silFn = async () => (await K.sil('istisna', kayit, `${kisiAdi(kayit.kisi)} · ${Y.tur(kayit.tur).ad} (${aralik(kayit)})`)) && kapat();
-    return html`<${Modal} baslik=${kayit ? `${kisiAdi(kayit.kisi)} · ${Y.tur(kayit.tur).ad}` : cevir("Yoklama kaydı")} kapat=${kapat}
+    const silFn = async () => (await K.sil('istisna', kayit, `${kisiAdi(kayit.kisi)} · ${cevir(Y.tur(kayit.tur).ad)} (${aralik(kayit)})`)) && kapat();
+    return html`<${Modal} baslik=${kayit ? `${kisiAdi(kayit.kisi)} · ${cevir(Y.tur(kayit.tur).ad)}` : cevir("Yoklama kaydı")} kapat=${kapat}
       alt=${html`<${K.FormAlt} kayit=${kayit} sil=${silFn} kapat=${kapat} kaydet=${kaydet} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket=${kayit ? cevir("Kişi") : cevir("Kişi (birden fazla seçilebilir)")} hata=${denendi && !f.kisiler.length ? 'Kişi seçin' : ''}>
@@ -67,7 +67,7 @@
             onClick=${() => s('kisiler')(kayit ? [k.id] : f.kisiler.includes(k.id) ? f.kisiler.filter((x) => x !== k.id) : [...f.kisiler, k.id])}>${k.ad}</button>`)}
             ${!kayit && kisiler.length > 1 && html`<button type="button" class="secenek" onClick=${() => s('kisiler')(f.kisiler.length === kisiler.length ? [] : kisiler.map((k) => k.id))}>${f.kisiler.length === kisiler.length ? cevir("Hiçbiri") : cevir("Hepsi")}</button>`}</div><//>
         <${Alan} etiket=${cevir("Ne oldu")} hata=${denendi && !f.tur ? 'Ne olduğunu seçin' : ''} ipucu=${t?.ipucu}>
-          <div class="secenekler">${Y.TURLER.map((x) => html`<button type="button" class=${'secenek yk-tur ' + x.renk + (f.tur === x.id ? ' secili' : '')} onClick=${() => s('tur')(x.id)}>${x.ad}</button>`)}</div><//>
+          <div class="secenekler">${Y.TURLER.map((x) => html`<button type="button" class=${'secenek yk-tur ' + x.renk + (f.tur === x.id ? ' secili' : '')} onClick=${() => s('tur')(x.id)}>${cevir(x.ad)}</button>`)}</div><//>
         <${Alan} etiket=${cevir("Başlangıç")} sinif="s4"><input class="girdi" type="date" value=${f.bas} onInput=${(e) => setF((p) => ({ ...p, bas: e.target.value, bit: p.bit < e.target.value || p.bit === p.bas ? e.target.value : p.bit }))} /><//>
         <${Alan} etiket=${cevir("Bitiş")} sinif="s4" hata=${denendi && f.bit < f.bas ? 'Başlangıçtan önce olamaz' : ''} ipucu=${gun.takvim ? NT.dil.m("{0} gün · {1} iş günü", gun.takvim, Y.saatYaz(gun.is)) : ''}><input class="girdi" type="date" value=${f.bit} min=${f.bas} onInput=${(e) => s('bit')(e.target.value)} /><//>
         ${t && t.saat ? html`<${Alan} etiket=${f.tur === 'mesai' ? cevir("Fazla mesai (saat, günlük)") : cevir("Çalışılan saat (isteğe bağlı)")} sinif="s4" hata=${denendi && f.tur === 'mesai' && !(saatSayi(f.saat) > 0) ? 'Saati yazın' : ''}>
@@ -77,7 +77,7 @@
             : html`<${Alan} etiket=${cevir("Süre")} sinif="s4"><label class="girdi yk-yarim"><input type="checkbox" checked=${f.yarim} onChange=${(e) => s('yarim')(e.target.checked)} /> ${cevir("Yarım gün")}</label><//>`)
           : html`<div class="s4" />`}
         ${uyari && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${uyari}</span></div>`}
-        ${cakisan.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${cevir("Bu tarihlerde zaten kayıt var:")} ${cakisan.map((c) => `${kisiAdi(c.kisi)} · ${Y.tur(c.tur).ad} (${aralik(c)})`).join('; ')}</span></div>`}
+        ${cakisan.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${cevir("Bu tarihlerde zaten kayıt var:")} ${cakisan.map((c) => `${kisiAdi(c.kisi)} · ${cevir(Y.tur(c.tur).ad)} (${aralik(c)})`).join('; ')}</span></div>`}
         <${Alan} etiket=${cevir("Açıklama")}><input class="girdi" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${f.tur === 'yillik' ? cevir("Örn: Yıllık izin, 3 gün") : f.tur === 'izin' ? cevir("Örn: Mahkemesi var") : f.tur === 'rapor' ? cevir("Örn: 2 günlük rapor") : ''} /><//>
         <${Alan} etiket=${cevir("Ekler")} ipucu=${f.tur === 'rapor' ? cevir("Rapor görseli / fotoğrafı") : cevir("İsteğe bağlı")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         ${kayit && html`<${GecmisBolumu} kayit=${kayit} />`}
@@ -110,7 +110,7 @@
     return html`
       <${K.Selam} bant baslik=${`${cevir(saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')}${adK ? ', ' + adK : ''}.`}
         sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => yeniKayit({})}><${Ikon} ad="arti" />${cevir("Kayıt gir")}</button>`}>
-        ${T.isGunu(bg) ? html`${cevir("Bugün")} <b class="v">${takipte.length - yok.length} / ${takipte.length}</b> ${cevir("kişi işte.")}${yok.length ? html` ${yok.map((x) => `${x.k.ad} (${Y.tur(x.g.tur).ad.toLocaleLowerCase('tr')})`).join(', ')}.` : ''}` : html`${cevir("Bugün")} ${T.tatil(bg) || cevir("hafta sonu")}.`}
+        ${T.isGunu(bg) ? html`${cevir("Bugün")} <b class="v">${takipte.length - yok.length} / ${takipte.length}</b> ${cevir("kişi işte.")}${yok.length ? html` ${yok.map((x) => `${x.k.ad} (${cevir(Y.tur(x.g.tur).ad).toLocaleLowerCase(NT.dil.yerel())})`).join(', ')}.` : ''}` : html`${cevir("Bugün")} ${T.tatil(bg) ? cevir(T.tatil(bg)) : cevir("hafta sonu")}.`}
         ${' '}${cevir("Herkes işte sayılır; yalnızca izin, rapor, gelmeme ve fazla mesai girilir.")}
       <//>
       ${a.baslangic && bg < Y.ayKaydir(a.baslangic.slice(0, 7), 1) + '-01' && html`<div class="uyari-kutu bilgi" style="margin-bottom:16px"><${Ikon} ad="bilgi" /><span>${cevir("Yoklama")} ${tarihYaz(a.baslangic)} ${cevir("tarihinden itibaren tutuluyor; önceki günler sayılmaz.")}</span></div>`}
@@ -133,11 +133,11 @@
         <div class="tz-sutun">
           <${K.Kart} baslik=${cevir("Devam eden ve yaklaşan izinler")}>
             ${devam.length ? html`<ul class="tz-akis">${devam.map((i) => html`<li onClick=${() => kayitAc(i)}><span class="ik"><${Ikon} ad="takvim" /></span>
-              <span class="ne"><b>${kisiAdi(i.kisi)}</b> · ${Y.tur(i.tur).ad}<small>${aralik(i)}${i.notlar ? ' · ' + i.notlar : ''}</small></span></li>`)}</ul>` : html`<p class="soluk" style="margin:0">${cevir("Devam eden izin veya rapor yok.")}</p>`}
+              <span class="ne"><b>${kisiAdi(i.kisi)}</b> · ${cevir(Y.tur(i.tur).ad)}<small>${aralik(i)}${i.notlar ? ' · ' + i.notlar : ''}</small></span></li>`)}</ul>` : html`<p class="soluk" style="margin:0">${cevir("Devam eden izin veya rapor yok.")}</p>`}
           <//>
           <${K.Kart} baslik=${cevir("Son fazla mesailer")}>
             ${sonMesai.length ? html`<ul class="tz-akis">${sonMesai.map((i) => html`<li onClick=${() => kayitAc(i)}><span class="ik"><${Ikon} ad="saat" /></span>
-              <span class="ne"><b>${kisiAdi(i.kisi)}</b> · ${Y.tur(i.tur).ad}<small>${aralik(i)}</small></span><span class="miktar">${i.saat ? Y.saatYaz(sayi(i.saat)) + ' sa' : ''}</span></li>`)}</ul>` : html`<p class="soluk" style="margin:0">${cevir("Henüz fazla mesai girilmedi.")}</p>`}
+              <span class="ne"><b>${kisiAdi(i.kisi)}</b> · ${cevir(Y.tur(i.tur).ad)}<small>${aralik(i)}</small></span><span class="miktar">${i.saat ? Y.saatYaz(sayi(i.saat)) + ' sa' : ''}</span></li>`)}</ul>` : html`<p class="soluk" style="margin:0">${cevir("Henüz fazla mesai girilmedi.")}</p>`}
           <//>
         </div>
       </div>`;
@@ -178,7 +178,7 @@
         ${Y.ayAdi(ay)} <b>${o._degistiren}</b> ${cevir("tarafından onaylandı (")}${NT.c.zamanYaz(o._degisim)}).${degisen.length ? NT.dil.m(" Onaydan sonra {0} kayıt değişti; kontrol edip yeniden onaylayın.", degisen.length) : ''}${o.notlar ? NT.dil.m(" Not: {0}", o.notlar) : ''}</span></div>`}
       ${!o && ayBitti && ozet.length > 0 && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${Y.ayAdi(ay)} ${cevir("bitti ama onaylanmadı. Kontrol edip “Ayı onayla” deyin; sonra Excel’i İK’ya verin.")}</span></div>`}
       ${ozet.length ? html`<div class="yk-cizelge-kap"><table class="yk-cizelge">
-        <thead><tr><th class="ad">${cevir("Personel")}</th>${gunler.map((t) => html`<th class=${(T.isGunu(t) ? '' : 'kapali') + (t === bg ? ' bugun' : '')} title=${T.tatil(t) || T.yarimGun(t) || ''}><span>${+t.slice(8)}</span><small>${Y.gunKisa(t)}</small></th>`)}</tr></thead>
+        <thead><tr><th class="ad">${cevir("Personel")}</th>${gunler.map((t) => html`<th class=${(T.isGunu(t) ? '' : 'kapali') + (t === bg ? ' bugun' : '')} title=${cevir(T.tatil(t) || T.yarimGun(t) || '')}><span>${+t.slice(8)}</span><small>${Y.gunKisa(t)}</small></th>`)}</tr></thead>
         <tbody>${ozet.map((x) => html`<tr><th class="ad">${x.kisi.ad}</th>${gunler.map((t) => {
           const g = x.gunler[t];
           const sinif = g.disarda ? 'disarda' : g.yok ? 'yok ' + Y.tur(g.tur).renk : g.tatil ? 'tatil-calisma' : g.kapali ? 'kapali' : g.saat ? 'mesai' : g.gelecek ? 'gelecek' : 'isde';
@@ -186,7 +186,7 @@
             onClick=${() => !g.disarda && hucreAc(x.kisi, t, g)}>${g.kod}</td>`;
         })}</tr>`)}</tbody></table></div>
         <div class="yk-lejant">${[['isde', '+', 'İşte'], ['mesai', '2', 'Fazla mesai (saat)'], ...Y.TURLER.filter((t) => t.yok).map((t) => ['yok ' + t.renk, t.kod, t.ad]), ['yok bilgi', 'Yİ½', 'Yarım gün (arifede kendiliğinden)'], ['tatil-calisma', 'Ç', 'Hafta sonu / tatil çalıştı'], ['kapali', 'HT', 'Hafta tatili'], ['kapali', 'RT', 'Resmî tatil']]
-          .map(([s, k, a]) => html`<span><i class=${s}>${k}</i>${a}</span>`)}</div>
+          .map(([s, k, a]) => html`<span><i class=${s}>${k}</i>${cevir(a)}</span>`)}</div>
         <${K.Kart} baslik=${cevir("Özet (İK karşılaştırması)")} stil="margin-top:18px"><${OzetTablo} ozet=${ozet} tam /><//>`
       : html`<${BosDurum} ikon="takvim" baslik=${cevir("Bu ay takipte kimse yok")} aciklama=${Y.ayar(d).baslangic ? NT.dil.m("Yoklama {0} tarihinden itibaren tutuluyor.", tarihYaz(Y.ayar(d).baslangic)) : ''} />`}`;
   }
@@ -287,7 +287,7 @@
       <//>
       <${K.AyarKarti} ic=${false} baslik=${cevir("Resmî tatiller")} aciklama=${cevir("Hafta sonu ve bu günler iş günü sayılmaz (RT). Arife günleri yarım gündür, iş günü sayılır.")} sag=${html`<select class="girdi kisa" value=${yil} onChange=${(e) => setYil(+e.target.value)}>${[-1, 0, 1].map((i) => html`<option value=${+bugun().slice(0, 4) + i}>${+bugun().slice(0, 4) + i}</option>`)}</select>`}>
         ${!T.bilinenYil(yil) && html`<div class="uyari-kutu kritik" style="margin:0 16px 12px"><${Ikon} ad="uyari" /><span>${yil} ${cevir("dinî bayram tarihleri programa henüz eklenmedi; yalnızca sabit tatiller görünüyor.")}</span></div>`}
-        <div class="tablo-kap" style="max-height:320px"><table class="tablo"><tbody>${T.liste(yil).map((x) => html`<tr><td>${tarihYaz(x.tarih)}</td><td>${x.ad}${x.yarim ? html` <span class="soluk kucuk">${cevir("(yarım gün)")}</span>` : ''}</td></tr>`)}</tbody></table></div>
+        <div class="tablo-kap" style="max-height:320px"><table class="tablo"><tbody>${T.liste(yil).map((x) => html`<tr><td>${tarihYaz(x.tarih)}</td><td>${cevir(x.ad)}${x.yarim ? html` <span class="soluk kucuk">${cevir("(yarım gün)")}</span>` : ''}</td></tr>`)}</tbody></table></div>
       <//>`;
   }
   function Ayarlar() {

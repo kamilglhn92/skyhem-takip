@@ -49,8 +49,8 @@
     const ekstra = deger && !sik.includes(deger) && !hepsi.includes(deger) ? [deger] : [];
     return html`<select class="girdi" style=${stil} value=${deger || ''} onChange=${(e) => degis(e.target.value)}>
       <option value="">${cevir("— Ülke seçin —")}</option>
-      <optgroup label="Sık kullanılan">${[...sik, ...ekstra].map((u) => html`<option value=${u}>${u}</option>`)}</optgroup>
-      <optgroup label="Tüm ülkeler">${hepsi.map((u) => html`<option value=${u}>${u}</option>`)}</optgroup>
+      <optgroup label=${cevir("Sık kullanılan", "Frequently used")}>${[...sik, ...ekstra].map((u) => html`<option value=${u}>${cevir(u)}</option>`)}</optgroup>
+      <optgroup label=${cevir("Tüm ülkeler", "All countries")}>${hepsi.map((u) => html`<option value=${u}>${cevir(u)}</option>`)}</optgroup>
     </select>`;
   }
 
@@ -79,8 +79,8 @@
     const secenek = (u) => html`<option value=${u.iso}>${u.ad} +${u.tel}</option>`;
     return html`<div style="display:flex;gap:6px">
       <select class="girdi" style="flex:0 0 150px;min-width:0" aria-label=${cevir("Ülke kodu")} value=${iso} onChange=${(e) => { setIso(e.target.value); degis(H.telefonBirlestir(e.target.value, numara)); }}>
-        <optgroup label="Sık kullanılan">${ust.map(secenek)}</optgroup>
-        <optgroup label="Tüm ülkeler">${liste.filter((u) => !ust.includes(u)).map(secenek)}</optgroup>
+        <optgroup label=${cevir("Sık kullanılan", "Frequently used")}>${ust.map(secenek)}</optgroup>
+        <optgroup label=${cevir("Tüm ülkeler", "All countries")}>${liste.filter((u) => !ust.includes(u)).map(secenek)}</optgroup>
       </select>
       <input class="girdi" style="flex:1;min-width:0" type="tel" aria-label=${cevir("Telefon numarası")} value=${numara} placeholder=${cevir("Numara")} onInput=${(e) => degis(H.telefonBirlestir(iso, e.target.value))} />
     </div>`;
@@ -139,7 +139,7 @@
     async function kaydet() {
       setDenendi(true);
       if (!gecerli) return;
-      if (yetersiz && !(await onayla(`${H.ambalajAdi(d, f.ambalaj)} boş şişe stokunda ${bos} adet görünüyor, ${f.adet} adet dolum girdiniz. Kaydederseniz boş şişe stoku eksiye düşer — sayım farkı olabilir.`, { baslik: cevir("Boş şişe yetersiz"), evet: cevir("Yine de kaydet") }))) return;
+      if (yetersiz && !(await onayla(NT.dil.m('{0} boş şişe stokunda {1} adet görünüyor, {2} adet dolum girdiniz. Kaydederseniz boş şişe stoku eksiye düşer — sayım farkı olabilir.', H.ambalajAdi(d, f.ambalaj), bos, f.adet), { baslik: cevir("Boş şişe yetersiz"), evet: cevir("Yine de kaydet") }))) return;
       const v = { tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), dolduranlar: f.dolduranlar, kaynakTur: f.kaynakTur, kaynakNo: f.kaynakTur ? f.kaynakNo.trim() : '', notlar: f.notlar.trim(), ekler: f.ekler };
       // Açık kap: kaynak kap korunur, alınan litre yeni adet/ambalaja göre; kaynak türü değişirse bağ kalkar.
       if (kayit?.kaynakKap) {
@@ -279,7 +279,7 @@
           yeni[i][j].ek = await d.ekYaz(dosyalar[n]);
         }
         degis(yeni.flat());
-      } catch (err) { bildir('Etiket yüklenemedi: ' + err.message, { tur: 'hata' }); }
+      } catch (err) { bildir(cevir('Etiket yüklenemedi', 'Label upload failed') + ': ' + err.message, { tur: 'hata' }); }
       setYukleniyor(false);
     }
     const bosYuvalar = yuvalar.flatMap((g, i) => g.map((x, j) => (x.ek ? null : [i, j]))).filter(Boolean);
@@ -429,8 +429,8 @@
             <input class="girdi" list="kargo-dl" value=${f.kargoFirma} onInput=${(e) => s('kargoFirma')(e.target.value)} placeholder=${cevir("Yurtiçi / Aras / MNG")} />
             <${Oneri} id="kargo-dl" liste=${benzersiz(['Yurtiçi Kargo', 'Aras Kargo', 'MNG Kargo', 'Sürat Kargo', 'PTT Kargo', 'UPS', 'DHL', ...onceki.map((r) => r.kargoFirma)])} />
           <//>
-          <div class="s12"><${BelgeKutusu} baslik=${(f.sekil === 'Kurye' ? 'Kurye' : 'Kargo') + ' gönderi belgesi'} ekler=${f.kargoBelge} degis=${s('kargoBelge')}
-            ipucu=${cevir("Kargo firmasından gelen belge (takip no içinde); gönderince de yüklenebilir")} eski=${f.takipNo && `Eski kayıt: takip no ${f.takipNo}`} /></div>`
+          <div class="s12"><${BelgeKutusu} baslik=${f.sekil === 'Kurye' ? 'Kurye gönderi belgesi' : 'Kargo gönderi belgesi'} ekler=${f.kargoBelge} degis=${s('kargoBelge')}
+            ipucu=${cevir("Kargo firmasından gelen belge (takip no içinde); gönderince de yüklenebilir")} eski=${f.takipNo && NT.dil.m('Eski kayıt: takip no {0}', f.takipNo)} /></div>`
         : html`<div class="s8"></div>`}
         <${Alan} etiket=${cevir("Ülke")} sinif="s4"><${UlkeSecimi} deger=${f.ulke} degis=${s('ulke')} /><//>
         <${Alan} etiket=${cevir("Teslim adresi")} sinif="s8"><textarea class="girdi" rows="2" value=${f.adres} onInput=${(e) => s('adres')(e.target.value)} /><//>
@@ -464,7 +464,7 @@
       } else {
         const no = H.yeniNo(d, 'alim', f.tarih);
         await d.kaydet([{ c: 'alim', k: uid(), v: { no, ...v } }]);
-        bildir(`${no} kaydedildi · ${v.adet} × ${H.ambalajAdi(d, v.ambalaj)} boş şişe`);
+        bildir(NT.dil.m('{0} kaydedildi · {1} × {2} boş şişe', no, v.adet, H.ambalajAdi(d, v.ambalaj)));
       }
       kapat();
     }
@@ -504,8 +504,8 @@
     const [acikSayilan, setAcikSayilan] = useState(acikSistem);
     const acikFark = bosMu || acikSayilan === '' ? 0 : Math.round((sayi(acikSayilan) - acikSistem) * 1000) / 1000;
     const kapLitre = sayi(H.ambalajlar(d, { hepsi: true }).find((a) => a.id === hedef.ambalaj)?.litre);
-    const acikHata = !bosMu && sayi(acikSayilan) > kapLitre && `Kap ${H.litreYazi(kapLitre)}; daha fazlası olamaz`;
-    const ad = bosMu ? `${H.ambalajAdi(d, hedef.ambalaj)} boş şişe` : `${hedef.urun}${hedef.parti ? ' · ' + hedef.parti : ''} · ${H.ambalajAdi(d, hedef.ambalaj)}`;
+    const acikHata = !bosMu && sayi(acikSayilan) > kapLitre && NT.dil.m('Kap {0}; daha fazlası olamaz', H.litreYazi(kapLitre));
+    const ad = bosMu ? NT.dil.m('{0} boş şişe', H.ambalajAdi(d, hedef.ambalaj)) : `${hedef.urun}${hedef.parti ? ' · ' + hedef.parti : ''} · ${H.ambalajAdi(d, hedef.ambalaj)}`;
     async function kaydet() {
       if (fark === 0 && acikFark === 0) return kapat();
       setDenendi(true);
@@ -517,7 +517,7 @@
       if (fark !== 0) ops.push({ c: 'sayim', k: uid(), v: { no: no(ops.length), ...ortak, tur: bosMu ? 'bos' : 'dolu', onceki: sistem, sayilan: sayi(sayilan), fark } });
       if (acikFark !== 0) ops.push({ c: 'sayim', k: uid(), v: { no: no(ops.length), ...ortak, tur: 'acik', onceki: acikSistem, sayilan: sayi(acikSayilan), litre: sayi(acikSayilan), fark: acikFark } });
       await d.kaydet(ops);
-      bildir(NT.dil.m("{0}: {1} olarak düzeltildi.", ad, [fark !== 0 && `tam ${sistem} → ${sayilan}`, acikFark !== 0 && `açık kap ${H.litreYazi(acikSistem)} → ${H.litreYazi(sayi(acikSayilan))}`].filter(Boolean).join(', ')));
+      bildir(NT.dil.m("{0}: {1} olarak düzeltildi.", ad, [fark !== 0 && `${cevir('tam', 'full')} ${sistem} → ${sayilan}`, acikFark !== 0 && `${cevir('açık kap')} ${H.litreYazi(acikSistem)} → ${H.litreYazi(sayi(acikSayilan))}`].filter(Boolean).join(', ')));
       kapat();
     }
     return html`<${Modal} dar baslik=${cevir("Sayım düzeltmesi")} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class="d ana-d" disabled=${fark === 0 && acikFark === 0} onClick=${kaydet}><${Ikon} ad="tik" />${cevir("Düzeltmeyi kaydet")}</button>`}>
@@ -558,12 +558,12 @@
       const no = H.yeniNo(d, 'acik', f.tarih);
       await d.kaydet([{ c: 'acik', k: uid(), v: { no, tarih: f.tarih, kisi: f.kisi.trim(), tur: islem, urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj,
         litre: x?.acikL || 0, aciklama: f.aciklama.trim(), ...(islem === 'tamamla' ? { kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim() } : {}) } }]);
-      bildir(`${no} · ${ad}: ${islem === 'not' ? 'açıklama kaydedildi' : islem === 'tamamla' ? 'üstü tamamlandı, rafa tam kap olarak döndü' : 'atığa ayrıldı'}.`);
+      bildir(`${no} · ${ad}: ${cevir(islem === 'not' ? 'açıklama kaydedildi' : islem === 'tamamla' ? 'üstü tamamlandı, rafa tam kap olarak döndü' : 'atığa ayrıldı')}.`);
       kapat();
     }
-    return html`<${Modal} dar baslik=${t.baslik} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class=${'d ' + (islem === 'atik' ? 'tehlike' : 'ana-d')} onClick=${kaydet}><${Ikon} ad="tik" />${t.dugme}</button>`}>
+    return html`<${Modal} dar baslik=${t.baslik} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button><button class=${'d ' + (islem === 'atik' ? 'tehlike' : 'ana-d')} onClick=${kaydet}><${Ikon} ad="tik" />${cevir(t.dugme)}</button>`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
-        <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">${cevir("Açık kapta")} ${H.litreYazi(x?.acikL || 0)} ${cevir("var.")} ${t.metin}</div></div>
+        <div class="s12"><div class="ust-satir">${ad}</div><div class="alt-satir">${cevir("Açık kapta")} ${H.litreYazi(x?.acikL || 0)} ${cevir("var.")} ${cevir(t.metin)}</div></div>
         <${Alan} etiket=${cevir("Kişi")} sinif="s6" hata=${denendi && hatalar.kisi}><${NT.ui.KisiSec} etiket=${cevir("Kişi")} deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('acik').map((r) => r.kisi))} /><//>
         <${Alan} etiket=${cevir("Tarih")} sinif="s6" hata=${denendi && hatalar.tarih}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
         ${islem === 'tamamla' && html`<${Alan} etiket=${cevir("Nereden tamamlandı?")} hata=${denendi && hatalar.kaynakTur}>

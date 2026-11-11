@@ -15,7 +15,7 @@
   if (b.modul && b.modul.id === 'klips') { location.replace(NT.c.adres('satis') + '#/klipsler'); return; }
   const depo = () => NT.klipsUI.depo();
   const sayiYaz = (n) => K.sayiYaz(n);
-  const tarihVeya = (t) => (t ? tarihYaz(t) : 'Tarih yok');
+  const tarihVeya = (t) => (t ? tarihYaz(t) : cevir('Tarih yok', 'No date'));
 
   const { TakanSec, useSevkler, KlipsCip, KartIzgara, sevkKalemleri, klipsTak, klipsTakSevk, ambalajAc, FormAlt, sil } = NT.klipsUI;
 
@@ -115,7 +115,7 @@
       return undefined;
     }
     return html`<${Modal} dar baslik=${kayit ? cevir("Klips aralığı") : cevir("Yeni klips aralığı")} kapat=${kapat}
-      alt=${html`<${FormAlt} kayit=${kayit} sil=${async () => (await sil('aralik', kayit, `${kayit.bas}–${kayit.bit} aralığı`)) && kapat()} kapat=${kapat} kaydet=${kaydet} />`}>
+      alt=${html`<${FormAlt} kayit=${kayit} sil=${async () => (await sil('aralik', kayit, NT.dil.m('{0}–{1} aralığı', kayit.bas, kayit.bit))) && kapat()} kapat=${kapat} kaydet=${kaydet} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket=${cevir("İlk numara")} sinif="s6"><input class="girdi mono" inputmode="numeric" value=${f.bas} onInput=${s('bas')} /><//>
         <${Alan} etiket=${cevir("Son numara")} sinif="s6" ipucu=${adet ? NT.dil.m("{0} klips", sayiYaz(adet)) : ''}><input class="girdi mono" inputmode="numeric" value=${f.bit} onInput=${s('bit')} autofocus=${!kayit} /><//>
@@ -144,7 +144,7 @@
       const kullanilan = liste.filter((n) => st.harita.has(n));
       if (kullanilan.length) return setHata(NT.dil.m("{0} zaten kayıtlı. Takılı klips kesildiyse ambalaj kaydından “Değiştir” kullanın.", kullanilan.join(', ')));
       await d.kaydet(liste.map((no) => ({ c: 'klips', k: uid(), v: { numara: no, ambalaj: '', durum: tur, tarih: f.tarih, neden: f.neden.trim(), takan: f.kisi.trim() } })));
-      bildir(NT.dil.m("{0} klips {1} olarak işlendi.", liste.length, ver ? 'verildi' : 'fire'));
+      bildir(NT.dil.m("{0} klips {1} olarak işlendi.", liste.length, ver ? cevir('verildi', 'issued') : cevir('fire', 'waste')));
       kapat();
       return undefined;
     }
@@ -179,7 +179,7 @@
       <div class="km-harita">${hucreler.map((h) => {
         const ambalaj = h.l[0] && h.l[0].ambalaj ? d.kayit('ambalaj', h.l[0].ambalaj) : null;
         return html`<button type="button" key=${h.no} class=${`km-hucre ${h.sinif}`} disabled=${!ambalaj} onClick=${() => ambalaj && ambalajAc(ambalaj)}
-          title=${h.l.length ? `${h.no} · ${S.DURUMLAR[h.l[0].durum] || ''}${ambalaj && ambalaj.numara ? ' · ' + ambalaj.numara : ''}${h.l[0].neden ? ' · ' + h.l[0].neden : ''}` : NT.dil.m("{0} · Boşta", h.no)}>${h.no}</button>`;
+          title=${h.l.length ? `${h.no} · ${cevir(S.DURUMLAR[h.l[0].durum] || '')}${ambalaj && ambalaj.numara ? ' · ' + ambalaj.numara : ''}${h.l[0].neden ? ' · ' + h.l[0].neden : ''}` : NT.dil.m("{0} · Boşta", h.no)}>${h.no}</button>`;
       })}</div>
       <div class="km-anahtar"><span><i class="km-bos" />${cevir("Boşta")}</span><span><i class="km-takili" />${cevir("Takılı")}</span><span><i class="km-degisti" />${cevir("Değiştirildi")}</span><span><i class="km-fire" />${cevir("Fire")}</span><span><i class="km-verildi" />${cevir("Verildi")}</span><span><i class="km-cakisan" />${cevir("İki kez girilmiş")}</span></div>`;
   }
@@ -190,7 +190,7 @@
     const fireler = d.kayitlar('klips').filter((k) => k.durum === 'fire').sort((a, c) => +a.numara - +c.numara);
     const verilen = S.verilenler(d);
     async function verilenGeriAl(g) {
-      if (!(await NT.ui.onayla(`${g.araliklar.join(', ')} (${g.adet} klips) yeniden boşa düşsün mü? Klipsler › Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: 'Geri al', evet: 'Geri al' }))) return;
+      if (!(await NT.ui.onayla(NT.dil.m('{0} ({1} klips) yeniden boşa düşsün mü? Klipsler › Ayarlar › Çöp kutusu’ndan geri alınabilir.', g.araliklar.join(', '), g.adet), { baslik: 'Geri al', evet: 'Geri al' }))) return;
       await d.kaydet(g.kayitlar.map((k) => ({ op: 'del', c: 'klips', k: k.id })));
       bildir(NT.dil.m("{0} klips yeniden boşta.", g.adet));
     }
@@ -223,7 +223,7 @@
           <${K.Kart} baslik=${cevir("Fire")} sag=${html`<span class="soluk kucuk">${fireler.length} ${cevir("klips")}</span>`}>
             ${fireler.length ? html`<div class="km-fire-liste">${fireler.map((k) => html`<div key=${k.id} class="km-klips-satir">
               <${KlipsCip} k=${k} /><span class="km-klips-bilgi">${k.neden || cevir("Neden yazılmamış")}<small>${tarihVeya(k.tarih)}</small></span>
-              <button type="button" class="d hayalet ikon-d" title=${cevir("Yanlış girildiyse çıkar; numara boşa düşer")} onClick=${() => sil('klips', k, `${k.numara} fire kaydı`)}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">${cevir("Fire yok.")}</p>`}
+              <button type="button" class="d hayalet ikon-d" title=${cevir("Yanlış girildiyse çıkar; numara boşa düşer")} onClick=${() => sil('klips', k, NT.dil.m('{0} fire kaydı', k.numara))}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">${cevir("Fire yok.")}</p>`}
           <//>
         </div>
       </div>`;
@@ -244,8 +244,8 @@
   function Ayarlar() {
     return html`<${KlipsAyarlari} />
       <${K.CopKutusu} depo=${depo()} turler=${{
-        ambalaj: { ad: 'Ambalaj', ozet: (r) => `${r.numara || 'Numarasız'}${r.parti ? ' · ' + r.parti : ''}` },
-        klips: { ad: 'Klips', ozet: (r) => `${r.numara} · ${S.DURUMLAR[r.durum] || ''}` },
+        ambalaj: { ad: 'Ambalaj', ozet: (r) => `${r.numara || cevir('Numarasız')}${r.parti ? ' · ' + r.parti : ''}` },
+        klips: { ad: 'Klips', ozet: (r) => `${r.numara} · ${cevir(S.DURUMLAR[r.durum] || '')}` },
         aralik: { ad: 'Aralık', ozet: (r) => `${r.bas}–${r.bit}` },
       }} />`;
   }

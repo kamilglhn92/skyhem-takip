@@ -85,7 +85,7 @@
   const karisimAdi = (karisim) => karisim.map((p) => String(p.parti || '').trim()).filter(Boolean).join(' + ');
   /* Partinin yazılışı; kgIle: karışımda her partinin kg'ı da yazılır. */
   const partiYazi = (k, kgIle) => (karisimMi(k)
-    ? kalemPartileri(k).map((p) => (kgIle ? `${p.parti} (${Math.round(p.net).toLocaleString('tr-TR')} kg)` : p.parti)).join(' + ')
+    ? kalemPartileri(k).map((p) => (kgIle ? `${p.parti} (${Math.round(p.net).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')} kg)` : p.parti)).join(' + ')
     : k.parti || '');
   /* Hatırlatma yalnızca araç yola çıkarken / çıktıktan sonra yapılır; siparişte belgeler henüz olmaz. */
   const belgeZamani = (s) => !s.iptal && (s.durum === 'Yolda' || s.durum === 'Teslim edildi');
@@ -203,7 +203,7 @@
     const hazir = l.filter((s) => !s.iptal && (s.durum === 'Sipariş' || s.durum === 'Hazırlanıyor')).length;
     return [
       NT.dil?.m('Bu ay {0} ton sevk edildi', (buAy / 1000).toLocaleString(NT.dil.yerel(), { maximumFractionDigits: 1 }))
-        ?? `Bu ay ${(buAy / 1000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} ton sevk edildi`,
+        ?? `Bu ay ${(buAy / 1000).toLocaleString(NT.dil?.yerel() ?? 'tr-TR', { maximumFractionDigits: 1 })} ton sevk edildi`,
       yolda || hazir ? [yolda && (NT.dil?.m("{0} sevkiyat yolda", yolda) ?? `${yolda} sevkiyat yolda`), hazir && (NT.dil?.m("{0} hazırlanıyor", hazir) ?? `${hazir} hazırlanıyor`)].filter(Boolean).join(' · ') : (NT.dil?.t('Bekleyen sevkiyat yok') ?? 'Bekleyen sevkiyat yok'),
     ];
   }

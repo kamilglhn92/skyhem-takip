@@ -55,7 +55,7 @@
     const n = Number(String(v ?? '').replace(',', '.'));
     return Number.isFinite(n) ? n : 0;
   };
-  const adetYaz = (n) => new Intl.NumberFormat('tr-TR').format(n);
+  const adetYaz = (n) => new Intl.NumberFormat(NT.dil?.yerel() ?? 'tr-TR').format(n);
   function basHarfler(ad) {
     return String(ad || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toLocaleUpperCase('tr-TR');
   }

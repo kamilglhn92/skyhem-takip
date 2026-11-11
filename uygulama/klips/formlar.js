@@ -77,24 +77,24 @@
     const disi = s.toplam > 0 ? liste.filter((n) => !s.aralikNo.has(+n) && !s.harita.has(n)) : [];
     if (!kullanilan.length && !disi.length) return true;
     const p = [];
-    if (kullanilan.length) p.push(`${kullanilan.join(', ')} daha önce girilmiş; aynı numara iki kez görünecek.`);
-    if (disi.length) p.push(`${disi.join(', ')} tanımlı klips numaraları arasında değil.`);
+    if (kullanilan.length) p.push(NT.dil.m('{0} daha önce girilmiş; aynı numara iki kez görünecek.', kullanilan.join(', ')));
+    if (disi.length) p.push(NT.dil.m('{0} tanımlı klips numaraları arasında değil.', disi.join(', ')));
     return onayla(NT.dil.m("{0} Yine de kaydedilsin mi?", p.join(' ')), { baslik: cevir("Numarayı kontrol edin"), evet: cevir("Yine de kaydet") });
   }
   /* Tek numaranın formda gösterilecek uyarısı. */
   function numaraNotu(d, no) {
     const n = S.klipsNo(no);
     if (!String(no || '').trim()) return '';
-    if (!n) return 'Geçersiz numara';
+    if (!n) return cevir('Geçersiz numara', 'Invalid number');
     const s = S.stok(d);
-    if (s.harita.has(n)) return `${n} daha önce girilmiş`;
-    if (s.toplam > 0 && !s.aralikNo.has(+n)) return `${n} tanımlı aralıkta değil`;
+    if (s.harita.has(n)) return NT.dil.m('{0} daha önce girilmiş', n);
+    if (s.toplam > 0 && !s.aralikNo.has(+n)) return NT.dil.m('{0} tanımlı aralıkta değil', n);
     return '';
   }
 
   /* ---------------- Ortak parçalar ---------------- */
   function KlipsCip({ k, cakisan }) {
-    return html`<span class=${`km-cip km-${k.durum}${cakisan ? ' km-cakisan' : ''}`} title=${`${S.DURUMLAR[k.durum] || ''}${k.yerine ? ' · yerine ' + k.yerine : ''}${cakisan ? ' · iki kez girilmiş' : ''}`}>${k.numara}</span>`;
+    return html`<span class=${`km-cip km-${k.durum}${cakisan ? ' km-cakisan' : ''}`} title=${`${cevir(S.DURUMLAR[k.durum] || '')}${k.yerine ? ` ${cevir('· yerine', '· replaced by')} ${k.yerine}` : ''}${cakisan ? ' · ' + cevir('iki kez girilmiş', 'entered twice') : ''}`}>${k.numara}</span>`;
   }
   function AmbalajKart({ a }) {
     const d = depo();
@@ -103,7 +103,7 @@
     const c = new Set(S.stok(d).cakisan);
     return html`<button type="button" class="km-kart" onClick=${() => ambalajAc(a)}>
       <div class="km-kart-bas"><span class="km-tur">${a.tur || cevir("Ambalaj")}</span><b>${a.numara || cevir("Numarasız")}</b>
-        ${eksik.length > 0 && html`<span class="km-eksik" title=${eksik.join(', ')}>${eksik.length} ${cevir("eksik")}</span>`}</div>
+        ${eksik.length > 0 && html`<span class="km-eksik" title=${eksik.map((x) => cevir(x)).join(', ')}>${eksik.length} ${cevir("eksik")}</span>`}</div>
       <div class="km-cipler">${klipsler.map((k) => html`<${KlipsCip} key=${k.id} k=${k} cakisan=${c.has(k.numara)} />`)}${!klipsler.length && html`<span class="soluk kucuk">${cevir("Klips yok")}</span>`}</div>
       <div class="km-meta"><span>${[a.urun, a.parti].filter(Boolean).join(' · ') || cevir("Ürün ve parti yok")}</span>
         <span>${[a.firma, a.sevkNo].filter(Boolean).join(' · ') || cevir("Sevkiyat yok")}</span><span>${tarihVeya(a.tarih)}</span></div>
@@ -144,7 +144,7 @@
 
   function KlipsSatiri({ r, i, degis, sil, d, tekrar }) {
     const klipsDegis = (j, v) => degis({ ...r, klipsler: r.klipsler.map((x, n) => (n === j ? v : x)) });
-    const notlar = [...new Set(r.klipsler.map((x) => (tekrar.has(S.klipsNo(x)) ? `${S.klipsNo(x)} bu pencerede iki kez yazılmış` : numaraNotu(d, x))).filter(Boolean))];
+    const notlar = [...new Set(r.klipsler.map((x) => (tekrar.has(S.klipsNo(x)) ? NT.dil.m('{0} bu pencerede iki kez yazılmış', S.klipsNo(x)) : numaraNotu(d, x))).filter(Boolean))];
     return html`<div class="km-satir">
       <div class="km-satir-sira">${i + 1}</div>
       <div class="km-satir-ic">
@@ -220,7 +220,7 @@
           }
         }
         await d.kaydet(ops);
-        bildir(`${dolular.length} ambalaj, ${klipsSay} klips kaydedildi.`);
+        bildir(NT.dil.m('{0} ambalaj, {1} klips kaydedildi.', dolular.length, klipsSay));
         kapat();
       } finally { setMesgul(false); }
       return undefined;
@@ -330,8 +330,8 @@
       } finally { setMesgul(false); }
     }
     async function silFn() {
-      const ad = guncel.numara || 'Bu ambalaj';
-      if (!(await onayla(`${ad} ve ${klipsler.length} klipsi silinsin mi? Numaralar yeniden boşa düşer; Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: cevir("Sil"), evet: cevir("Sil"), tehlike: true }))) return;
+      const ad = guncel.numara || cevir('Bu ambalaj', 'This container');
+      if (!(await onayla(NT.dil.m('{0} ve {1} klipsi silinsin mi? Numaralar yeniden boşa düşer; Ayarlar › Çöp kutusu’ndan geri alınabilir.', ad, klipsler.length), { baslik: cevir("Sil"), evet: cevir("Sil"), tehlike: true }))) return;
       const ops = [{ op: 'del', c: 'ambalaj', k: a.id }, ...klipsler.map((k) => ({ op: 'del', c: 'klips', k: k.id }))];
       await d.kaydet(ops);
       bildir(NT.dil.m("{0} silindi.", ad), { eylem: { yazi: 'Geri al', fn: () => d.kaydet(ops.map((o) => ({ ...o, op: 'undel' }))) } });
@@ -398,7 +398,7 @@
     } catch (e) {
       console.warn('Klips kayıtları açılamadı', e);
       bag.durum = 'hata';
-      bag.hata = e.message || 'Klips kayıtları açılamadı.';
+      bag.hata = e.message || cevir('Klips kayıtları açılamadı.', 'Seal records could not be loaded.');
     }
     b.bildir();
   }

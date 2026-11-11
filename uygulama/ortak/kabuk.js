@@ -90,7 +90,7 @@
   }
   /* Çöp kutusuna gönderir; bildirimde "Geri al" vardır. */
   async function sil(c, r, ad) {
-    const ne = ad || r.no || r.ad || 'Kayıt';
+    const ne = ad || r.no || r.ad || cevir('Kayıt');
     if (!(await onayla(NT.dil.m("{0} silinsin mi? Çöp kutusuna gider; Ayarlar › Çöp kutusu’ndan geri alınabilir.", ne), { baslik: cevir("Sil"), evet: cevir("Sil"), tehlike: true }))) return false;
     const d = depo();
     await d.kaydet([{ op: 'del', c, k: r.id }]);
@@ -98,6 +98,8 @@
     return true;
   }
   /* Gelişmiş Excel: NT.xlsx üzerine dosya adı + indirme. */
+  /* Kullanıcıya gösterilen sürüm. İç sayaç (surum.js) güncelleme sırası için sürer; 12 = 1.0 (2026-11-11, ilk genel dağıtım). */
+  const gorunenSurum = (n) => (n >= 12 ? `1.${n - 12}` : `0.${n}`);
   function excel(dosyaAdi, secenek) {
     indir(dosyaAdi, NT.xlsx(secenek));
     bildir(cevir("Excel dosyası indirildi."));
@@ -122,7 +124,7 @@
   }
   function Kpi({ ad, deger, birim, alt, vurgu, ikon }) {
     return html`<div class=${'kart kpi' + (vurgu ? ' vurgu' : '')}><div class="ad">${ikon && html`<${Ikon} ad=${ikon} boyut=${15} />`}${cevir(ad)}</div>
-      <div class="deger">${deger}${birim && html`<small>${cevir(birim)}</small>`}</div>${alt && html`<div class="alt">${alt}</div>`}</div>`;
+      <div class="deger">${deger}${birim && html`<small>${cevir(birim)}</small>`}</div>${alt && html`<div class="alt">${typeof alt === 'string' ? cevir(alt) : alt}</div>`}</div>`;
   }
   /* Basit çubuk grafik: [{ ad, deger, etiket, ipucu, vurgu }] */
   function Cubuklar({ veri, yukseklik = 150 }) {
@@ -205,7 +207,7 @@
       <div class="form-izgara">
         <${Alan} etiket=${cevir("Adınız")} sinif="s6"><div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
           <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div><//>
-        <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><div class="segment">${[['oto', 'Sistem'], ['acik', 'Açık'], ['koyu', 'Koyu']].map(([id, yazi]) => html`<button class=${t === id ? 'secili' : ''} onClick=${() => { setT(id); temaUygula(id); }}>${yazi}</button>`)}</div><//>
+        <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><div class="segment">${[['oto', cevir('Sistem', 'System')], ['acik', cevir('Açık', 'Light')], ['koyu', cevir('Koyu', 'Dark')]].map(([id, yazi]) => html`<button class=${t === id ? 'secili' : ''} onClick=${() => { setT(id); temaUygula(id); }}>${yazi}</button>`)}</div><//>
       </div>
     <//>`;
   }
@@ -217,7 +219,7 @@
         <div class="s6"><div class="alt-satir">${cevir("Bağlantı")}</div><div class="ust-satir">${b.mod === 'demo' ? cevir("Sunum modu (kaydedilmez)") : d.cevrimici ? cevir("Bulut · bağlı") : cevir("Bulut · bağlantı yok")}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Toplam hareket")}</div><div class="ust-satir sayi">${adetYaz(d.olaylar.size)}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Son eşitleme")}</div><div class="ust-satir">${d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—'}</div></div>
-        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${window.NT_SURUM_AKTIF.surum} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
+        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${gorunenSurum(window.NT_SURUM_AKTIF.surum)} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
         ${d.bekleyen.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${d.bekleyen.length} ${cevir("değişiklik bu bilgisayarda bekliyor; internete ulaşılınca otomatik gönderilecek.")}</span></div>`}
         ${d.hata && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="uyari" /><span>${d.hata}</span></div>`}
         ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayardaki erişim kodu silinir (bütün sistemler için); bir dahaki açılışta kod yeniden sorulur. Buluttaki kayıtlara dokunulmaz."), { baslik: cevir("Bağlantıyı kes"), evet: cevir("Bağlantıyı kes") })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button></div>`}
@@ -231,7 +233,7 @@
       .sort((a, x) => x.r._degisim - a.r._degisim);
     return html`<${AyarKarti} ic=${false} baslik=${cevir("Çöp kutusu")} aciklama=${cevir("Silinen kayıtlar kalıcı olarak kaybolmaz; buradan geri alınabilir.")}>
       ${silinen.length ? html`<div class="tablo-kap" style="max-height:340px"><table class="tablo"><thead><tr><th>${cevir("Tür")}</th><th>${cevir("Kayıt")}</th><th>${cevir("Silen")}</th><th></th></tr></thead><tbody>
-        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td>${turler[c].ad}</td><td>${r.no && html`<span class="etiket-kod">${r.no}</span> `}${turler[c].ozet(r)}</td>
+        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td>${cevir(turler[c].ad)}</td><td>${r.no && html`<span class="etiket-kod">${r.no}</span> `}${turler[c].ozet(r)}</td>
           <td>${r._degistiren} <span class="soluk kucuk">· ${onceYaz(r._degisim)}</span></td>
           <td class="sag"><button class="d kucuk-d" onClick=${async () => { await d.kaydet([{ op: 'undel', c, k: r.id }]); bildir(cevir("Geri alındı.")); }}><${Ikon} ad="geri" boyut=${15} />${cevir("Geri al")}</button></td></tr>`)}
       </tbody></table></div>` : html`<${BosDurum} ikon="cop" baslik=${cevir("Çöp kutusu boş")} />`}
@@ -398,7 +400,7 @@
         return b.depo.abone(({ yeni }) => {
           tik();
           const uzak = (yeni || []).filter((e) => e.d !== b.cihaz && e.t > baslangic - 5000 && (ayar.uzakKoleksiyonlar || []).includes(e.c));
-          if (uzak.length) bildir(NT.dil.m("{0} {1} yaptı.", [...new Set(uzak.map((e) => e.u))].join(', '), uzak.length === 1 ? 'bir değişiklik' : uzak.length + ' değişiklik'));
+          if (uzak.length) bildir(NT.dil.m("{0} {1} yaptı.", [...new Set(uzak.map((e) => e.u))].join(', '), uzak.length === 1 ? cevir('bir değişiklik', 'one change') : NT.dil.m('{0} değişiklik', uzak.length)));
         });
       }, [b.depo]);
       const ic = b.durum === 'hazir' && b.depo ? html`<${Iskelet} ayar=${ayar} />`

@@ -40,7 +40,7 @@
     const st = H.stok(d);
     const kalem = bosMu ? st.bos.get(hedef.ambalaj) : st.dolu.get(H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj));
     const mevcut = kalem?.mevcut ?? 0;
-    const baslik = bosMu ? `${H.ambalajAdi(d, hedef.ambalaj)} boş şişe` : `${hedef.urun} ${hedef.parti ? '· ' + hedef.parti + ' ' : ''}· ${H.ambalajAdi(d, hedef.ambalaj)}`;
+    const baslik = bosMu ? NT.dil.m('{0} boş şişe', H.ambalajAdi(d, hedef.ambalaj)) : `${hedef.urun} ${hedef.parti ? '· ' + hedef.parti + ' ' : ''}· ${H.ambalajAdi(d, hedef.ambalaj)}`;
     const ozet = bosMu
       ? [['Rafta', mevcut], ['Toplam gelen', kalem?.alinan ?? 0], ['Dolumda kullanılan', kalem?.kullanilan ?? 0]]
       : [['Rafta (tam kap)', mevcut], ...(kalem?.acikL > 0 || kalem?.acilan ? [['Açık kap', H.litreYazi(kalem.acikL || 0)]] : []),

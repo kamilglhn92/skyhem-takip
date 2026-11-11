@@ -69,7 +69,7 @@
       if (hata.tarih || hata.miktar || hata.tutar) return;
       const no = (kayit && kayit.no) || K.yeniNo(d, 'kayit', 'EN', f.tarih);
       await d.kaydet([{ c: 'kayit', k: kayit ? kayit.id : uid(), v: { no, tarih: f.tarih, tip: f.tip, miktar: sayi(f.miktar), birim: gaz ? f.birim : 'kWh', tutar: sayi(f.tutar), notlar: f.notlar.trim(), belge: f.belge } }]);
-      bildir(kayit ? NT.dil.m("{0} güncellendi.", no) : `${no} kaydedildi: ${E.ayAdi(f.tarih.slice(0, 7))} ${E.tipBul(f.tip).ad.toLocaleLowerCase('tr')}.`);
+      bildir(kayit ? NT.dil.m("{0} güncellendi.", no) : NT.dil.m('{0} kaydedildi: {1} {2}.', no, E.ayAdi(f.tarih.slice(0, 7)), cevir(E.tipBul(f.tip).ad).toLocaleLowerCase(NT.dil.yerel())));
       kapat();
     }
     return html`<${Modal} baslik=${kayit ? `${kayit.no || 'Kayıt'} · ${cevir(E.tipBul(kayit.tip).ad)}` : cevir("Enerji kaydı ekle")} kapat=${kapat}
@@ -130,12 +130,12 @@
         <div class="tz-sutun">
           <${K.Kart} baslik=${cevir("Birim fiyat ($/kWh) · son 24 ay")} sag=${html`<a href="#/rapor" style="color:var(--ana)">${cevir("Rapor →")}</a>`}>
             <${IkiSeri} olcekYaz=${(n) => K.sayiYaz(n, 2)} veri=${son24.map((x, i) => { const ef = x.elektrik.kwh > 0 ? x.elektrik.usd / x.elektrik.kwh : 0, gf = x.dogalgaz.kwh > 0 ? x.dogalgaz.usd / x.dogalgaz.kwh : 0;
-              return { anahtar: x.ay, ad: i % 3 === 0 ? E.ayKisa(x.ay) : '', a: ef, b: gf, ipucu: `${E.ayAdi(x.ay)}: elektrik ${ef ? fiyatYaz(ef) : 'yok'} · doğalgaz ${gf ? fiyatYaz(gf) : 'yok'}` }; })} />
+              return { anahtar: x.ay, ad: i % 3 === 0 ? E.ayKisa(x.ay) : '', a: ef, b: gf, ipucu: `${E.ayAdi(x.ay)}: ${cevir('elektrik', 'electricity')} ${ef ? fiyatYaz(ef) : cevir('yok', 'none')} · ${cevir('doğalgaz', 'natural gas')} ${gf ? fiyatYaz(gf) : cevir('yok', 'none')}` }; })} />
             <p class="soluk kucuk" style="margin:10px 0 0">${cevir("Tüketim olmayan ayda sütun çizilmez. Doğalgazın $/kWh değeri satın alınan yakıt enerjisinin fiyatıdır; kazan verimi dahil değildir.")}</p>
           <//>
           <${K.Kart} baslik=${cevir("Aylık maliyet (USD) · son 12 ay")}>
-            <${IkiSeri} yigin olcekYaz=${(n) => K.sayiYaz(n)} veri=${s.aylar.map((x) => ({ anahtar: x.ay, ad: E.AY_KISA[+x.ay.slice(5, 7) - 1], a: x.elektrik.usd, b: x.dogalgaz.usd,
-              ipucu: `${E.ayAdi(x.ay)}: ${x.n ? `elektrik ${usd(x.elektrik.usd)} · doğalgaz ${usd(x.dogalgaz.usd)} · toplam ${usd(x.usd)}` : 'kayıt yok'}` }))} />
+            <${IkiSeri} yigin olcekYaz=${(n) => K.sayiYaz(n)} veri=${s.aylar.map((x) => ({ anahtar: x.ay, ad: cevir(E.AY_KISA[+x.ay.slice(5, 7) - 1]), a: x.elektrik.usd, b: x.dogalgaz.usd,
+              ipucu: `${E.ayAdi(x.ay)}: ${x.n ? `${cevir('elektrik', 'electricity')} ${usd(x.elektrik.usd)} · ${cevir('doğalgaz', 'natural gas')} ${usd(x.dogalgaz.usd)} · ${cevir('toplam', 'total')} ${usd(x.usd)}` : cevir('kayıt yok', 'no record')}` }))} />
           <//>
         </div>
         <div class="tz-sutun">
@@ -199,7 +199,7 @@
   function Matris({ baslik, satirlar, renk, yazdir = (n) => K.sayiYaz(n) }) {
     const en = Math.max(1e-9, ...satirlar.flatMap((r) => r.aylar.map((v) => v || 0)));
     return html`<${K.Kart} baslik=${baslik}>
-      <div class="tablo-kap"><table class="tablo en-matris"><thead><tr><th>${cevir("Yıl")}</th>${E.AY_KISA.map((m) => html`<th class="sag">${m}</th>`)}<th class="sag">${cevir("Toplam")}</th></tr></thead><tbody>
+      <div class="tablo-kap"><table class="tablo en-matris"><thead><tr><th>${cevir("Yıl")}</th>${E.AY_KISA.map((m) => html`<th class="sag">${cevir(m)}</th>`)}<th class="sag">${cevir("Toplam")}</th></tr></thead><tbody>
         ${satirlar.map((r) => html`<tr><td><b>${r.yil}</b></td>${r.aylar.map((v) => html`<td class="sag sayi" style=${v > 0 ? { background: `color-mix(in srgb, ${renk} ${Math.round(8 + (v / en) * 42)}%, transparent)` } : null}>${v == null ? html`<span class="soluk">–</span>` : yazdir(v)}</td>`)}
           <td class="sag sayi"><b>${yazdir(r.toplam)}</b></td></tr>`)}
       </tbody></table></div>
@@ -218,7 +218,7 @@
             <td class="sag sayi">${K.sayiYaz(y.dogalgaz.m3)}</td><td class="sag sayi">${usd(y.dogalgaz.usd)}</td><td class="sag sayi">${y.gazFiyatM3 == null ? cizgi : K.sayiYaz(y.gazFiyatM3, 3)}</td><td class="sag sayi">${y.gazFiyat == null ? cizgi : K.sayiYaz(y.gazFiyat, 3)}</td>
             <td class="sag sayi">${K.sayiYaz(y.kwh)}</td><td class="sag sayi"><b>${usd(y.usd)}</b></td><td class="sag sayi soluk">${y.n}</td></tr>`)}
         </tbody></table></div>
-        <p class="soluk kucuk" style="margin:10px 0 0">Doğalgaz kWh eşdeğeri: 1 m³ = ${K.sayiYaz(sayi(a.katsayi), 2)} ${cevir("kWh (Ayarlar’dan değişir). Doğalgazın $/kWh değeri yakıt enerjisinin fiyatıdır; kazan verimi dahil değildir.")}</p>
+        <p class="soluk kucuk" style="margin:10px 0 0">${cevir("Doğalgaz kWh eşdeğeri", "Natural gas kWh equivalent")}: 1 m³ = ${K.sayiYaz(sayi(a.katsayi), 2)} ${cevir("kWh (Ayarlar’dan değişir). Doğalgazın $/kWh değeri yakıt enerjisinin fiyatıdır; kazan verimi dahil değildir.")}</p>
       <//>
       <${Matris} baslik=${cevir("Elektrik tüketimi (kWh)")} renk="var(--gr-1)" satirlar=${E.matris(d, (x) => (x.elektrik.n ? x.elektrik.kwh : null))} />
       <${Matris} baslik=${cevir("Doğalgaz tüketimi (m³)")} renk="var(--gr-2)" satirlar=${E.matris(d, (x) => (x.dogalgaz.n ? x.dogalgaz.m3 : null))} />
@@ -245,7 +245,7 @@
     <//>`;
   }
   function Ayarlar() {
-    return html`<${K.AyarlarSayfasi} cop=${{ kayit: { ad: 'Enerji kaydı', ozet: (r) => `${r.tarih ? E.ayAdi(r.tarih.slice(0, 7)) : ''} · ${E.tipBul(r.tip).ad} · ${usd(sayi(r.tutar), 2)}` } }}><${EnerjiAyarlari} /><//>`;
+    return html`<${K.AyarlarSayfasi} cop=${{ kayit: { ad: 'Enerji kaydı', ozet: (r) => `${r.tarih ? E.ayAdi(r.tarih.slice(0, 7)) : ''} · ${cevir(E.tipBul(r.tip).ad)} · ${usd(sayi(r.tutar), 2)}` } }}><${EnerjiAyarlari} /><//>`;
   }
 
   /* ---------------- Excel ---------------- */

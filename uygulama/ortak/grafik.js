@@ -4,6 +4,15 @@
   'use strict';
   const NT = window.NT;
   const { html, useState, useRef } = window.htmPreact;
+  const cevir = NT.dil.t;
+  /* İpucu html parçası olabilir; ekran okuyucu etiketi için düz metne çevrilir. */
+  function duzMetin(v) {
+    if (v == null || v === false || v === true) return '';
+    if (Array.isArray(v)) return v.map(duzMetin).join('');
+    if (typeof v === 'object') return v.type === 'br' ? ' · ' : duzMetin(v.props && v.props.children);
+    return String(v);
+  }
+  const etiketYaz = (v) => duzMetin(v).replace(/\s+/g, ' ').trim();
 
   /* Üzerine gelince imlecin yanında duran küçük bilgi kutusu. */
   function useIpucu() {
@@ -30,9 +39,9 @@
       ${iki && seriler && html`<div class="gr-lejant"><span><i class="gr-kare" style="background:var(--gr-ana)" />${seriler[0]}</span><span><i class="gr-kare" style="background:var(--gr-onceki)" />${seriler[1]}</span></div>`}
       <div class="gr-sutunlar" style=${{ height: yukseklik + 'px' }}>
         <div class="gr-izgara">${[1, 0.5, 0].map((o) => html`<div style=${{ bottom: `calc(${o} * (100% - 46px) + 22px)` }}><span>${bos ? '' : olcekYaz(en * o)}</span></div>`)}</div>
-        ${bos && html`<div class="gr-bos">Henüz veri yok</div>`}
+        ${bos && html`<div class="gr-bos">${cevir("Henüz veri yok")}</div>`}
         ${veri.map((x) => html`<button type="button" class=${'gr-sutun' + (x.vurgu ? ' vurgu' : '') + (tikla ? '' : ' pasif')} key=${x.anahtar}
-            aria-label=${x.ipucu} onClick=${() => tikla && tikla(x.anahtar)} onMouseMove=${(e) => ip.goster(e, x.ipucu)}>
+            aria-label=${etiketYaz(x.ipucu)} onClick=${() => tikla && tikla(x.anahtar)} onMouseMove=${(e) => ip.goster(e, x.ipucu)}>
           <span class="gr-cubuklar">
             ${iki && html`<i class="gr-cubuk onceki" style=${{ height: h(x.onceki || 0) + 'px' }} />`}
             <i class="gr-cubuk" style=${{ height: h(x.deger) + 'px' }}>${(x === enBuyuk || x.vurgu) && x.deger > 0 && html`<b>${x.etiket}</b>`}</i>
@@ -87,7 +96,7 @@
     const en = Math.max(1, ...satirlar.map((x) => x.parcalar.reduce((t, p) => t + p.deger, 0)));
     return html`<div class="gr-yatay" ref=${ip.kap} onMouseLeave=${ip.gizle}>
       ${lejant && html`<div class="gr-lejant">${lejant.map((l) => html`<span><i class="gr-kare" style=${{ background: l.renk }} />${l.ad}</span>`)}</div>`}
-      ${satirlar.map((x) => html`<button type="button" key=${x.anahtar} class="gr-yatay-satir" aria-label=${x.ipucu}
+      ${satirlar.map((x) => html`<button type="button" key=${x.anahtar} class="gr-yatay-satir" aria-label=${etiketYaz(x.ipucu)}
           onClick=${() => tikla && tikla(x.anahtar)} onMouseMove=${(e) => ip.goster(e, x.ipucu)}>
         <span class="ad">${x.ad}${x.alt && html`<small>${x.alt}</small>`}</span>
         <span class="iz">${x.parcalar.filter((p) => p.deger > 0).map((p) => html`<i style=${{ width: (p.deger / en) * 100 + '%', background: p.renk }} />`)}</span>

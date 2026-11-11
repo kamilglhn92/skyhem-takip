@@ -105,7 +105,11 @@
     return new Blob([...parcalar, ...merkez, son], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
-  function xlsx(secenek) {
+  /* Çıktı seçili arayüz dilinde: sayfa adı, başlıklar ve sözlükte birebir karşılığı olan metin hücreleri çevrilir. */
+  const dilde = (v) => (typeof v === 'string' && NT.dil ? NT.dil.t(v) : v);
+  function xlsx(ham) {
+    const secenek = { ...ham, sayfa: dilde(ham.sayfa), baslik: (ham.baslik || []).map(dilde),
+      satirlar: (ham.satirlar || []).map((sat) => ({ ...sat, hucreler: sat.hucreler.map((h) => (h && typeof h.v === 'string' ? { ...h, v: dilde(h.v) } : h)) })) };
     const sayfa = kacis((secenek.sayfa || 'Sayfa1').slice(0, 31));
     return zip([
       ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],

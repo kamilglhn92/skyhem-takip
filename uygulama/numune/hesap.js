@@ -2,6 +2,9 @@
 (function (kok) {
   'use strict';
   const NT = (kok.NT = kok.NT || {});
+  /* Arayüz dili (Node testlerinde dil modülü yoktur; Türkçe kalır). */
+  const M_ = (k, ...a) => (NT.dil ? NT.dil.m(k, ...a) : k.replace(/\{(\d+)\}/g, (_, i) => String(a[i] ?? '')));
+  const T_ = (k) => (NT.dil ? NT.dil.t(k) : k);
   const { trSirala, sayi, bugun } = NT.c;
 
   const AMBALAJLAR = [
@@ -190,7 +193,7 @@
      tur 'tamamla' → tam kap +1) ya da atığa ayrılır (tur 'atik'). tur 'not' açıklamayı değiştirir.
      Sayımda tur 'acik' kaydı açık kaptaki litreyi doğrudan ayarlar; tam kap sayısını değiştirmez. */
   const yuvarla = (x) => Math.round(x * 1000) / 1000;
-  const litreYazi = (x) => `${yuvarla(x).toLocaleString('tr-TR')} L`;
+  const litreYazi = (x) => `${yuvarla(x).toLocaleString(NT.dil?.yerel() ?? 'tr-TR')} L`;
   function acikKaplariIsle(depo, amb, doluAl) {
     const kapLitre = new Map(amb.map((a) => [a.id, sayi(a.litre)]));
     const ambAd = (id) => amb.find((a) => a.id === id)?.ad || id;
@@ -217,16 +220,16 @@
         }
         if (o.r.acikAciklama && d.acikL > 0) d.acikAciklama = o.r.acikAciklama;
         log.adet = acilan ? -acilan : 0;
-        log.aciklama = [`${litreYazi(o.litre)} alındı → ${o.r.no || 'dolum'} (${sayi(o.r.adet)} × ${ambAd(o.r.ambalaj)})`,
-          acilan ? `${acilan} kap açıldı` : '', biten ? `${biten} kap bitti (atık)` : '', `açık kapta ${litreYazi(d.acikL)} kaldı`].filter(Boolean).join(' · ');
+        log.aciklama = [M_('{0} alındı → {1} ({2} × {3})', litreYazi(o.litre), o.r.no || T_('dolum'), sayi(o.r.adet), ambAd(o.r.ambalaj)),
+          acilan ? M_('{0} kap açıldı', acilan) : '', biten ? M_('{0} kap bitti (atık)', biten) : '', M_('açık kapta {0} kaldı', litreYazi(d.acikL))].filter(Boolean).join(' · ');
       } else if (o.tur === 'tamamla') {
         if (d.acikL <= 1e-9) continue;
         log.adet = 1;
-        log.aciklama = `Açık kabın üstü tamamlandı (${litreYazi(d.acikL)} → ${litreYazi(kap)})${o.r.kaynakTur ? ' · ' + dolumKaynagi(o.r) : ''}`;
+        log.aciklama = M_('Açık kabın üstü tamamlandı ({0} → {1})', litreYazi(d.acikL), litreYazi(kap)) + (o.r.kaynakTur ? ' · ' + dolumKaynagi(o.r) : '');
         d.tamamlanan += 1; d.acikL = 0; d.acikAciklama = '';
       } else if (o.tur === 'atik') {
         if (d.acikL <= 1e-9) continue;
-        log.aciklama = `Açık kap atığa ayrıldı (${litreYazi(d.acikL)})${o.r.aciklama ? ' · ' + o.r.aciklama : ''}`;
+        log.aciklama = M_('Açık kap atığa ayrıldı ({0})', litreYazi(d.acikL)) + (o.r.aciklama ? ' · ' + o.r.aciklama : '');
         d.atik += 1; d.atikLitre = yuvarla(d.atikLitre + d.acikL); d.acikL = 0; d.acikAciklama = '';
       } else if (o.tur === 'not') {
         d.acikAciklama = o.r.aciklama || '';
@@ -237,7 +240,7 @@
         if (d.acikL > 0 && once <= 1e-9) d.acikTarih = o.tarih;
         if (d.acikL <= 1e-9) d.acikAciklama = '';
         if (o.r.aciklama) d.acikAciklama = o.r.aciklama;
-        log.aciklama = `Sayım: açık kap ${litreYazi(once)} → ${litreYazi(d.acikL)}`;
+        log.aciklama = M_('Sayım: açık kap {0} → {1}', litreYazi(once), litreYazi(d.acikL));
       } else continue;
       log.acikSonra = d.acikL;
       d.acikLog.push(log);
