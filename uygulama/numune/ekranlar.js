@@ -3,6 +3,7 @@
 (function () {
   'use strict';
   const NT = window.NT;
+  const cevir = NT.dil.t;
   const { html } = window.htmPreact;
   const { Ikon, StokRozeti, Modal, BosDurum, bildir } = NT.ui;
   const H = NT.hesap;
@@ -17,9 +18,9 @@
     const metin = H.whatsappMetni(depo());
     try {
       await navigator.clipboard.writeText(metin);
-      bildir('Sayım listesi panoya kopyalandı. WhatsApp’a yapıştırabilirsiniz.');
+      bildir(cevir("Sayım listesi panoya kopyalandı. WhatsApp’a yapıştırabilirsiniz."));
     } catch {
-      NT.form.ac(({ kapat }) => html`<${Modal} baslik="WhatsApp sayım metni" kapat=${kapat}><div class="modal-ic"><textarea class="girdi mono" rows="18" readonly onFocus=${(e) => e.target.select()}>${metin}</textarea></div><//>`);
+      NT.form.ac(({ kapat }) => html`<${Modal} baslik=${cevir("WhatsApp sayım metni")} kapat=${kapat}><div class="modal-ic"><textarea class="girdi mono" rows="18" readonly onFocus=${(e) => e.target.select()}>${metin}</textarea></div><//>`);
     }
   }
 
@@ -27,7 +28,7 @@
     return html`<div class="sayfa-bas"><div><h1>${baslik}</h1>${aciklama && html`<p>${aciklama}</p>`}</div><div class="sag">${children}</div></div>`;
   }
   function Segment({ secenekler, deger, degis }) {
-    return html`<div class="segment" role="tablist">${secenekler.map(([id, ad, n]) => html`<button role="tab" aria-selected=${deger === id} class=${deger === id ? 'secili' : ''} onClick=${() => degis(id)}>${ad}${n != null && html`<span class="n">${n}</span>`}</button>`)}</div>`;
+    return html`<div class="segment" role="tablist">${secenekler.map(([id, ad, n]) => html`<button role="tab" aria-selected=${deger === id} class=${deger === id ? 'secili' : ''} onClick=${() => degis(id)}>${cevir(ad)}${n != null && html`<span class="n">${n}</span>`}</button>`)}</div>`;
   }
   /* ---------------- Defter: bir kalemin hareketleri, yürüyen bakiyeyle (tablo değil, zaman çizgisi) ---------------- */
   const TUR = { alim: 'Şişe girişi', dolum: 'Dolum', sevk: 'Gönderi', sayim: 'Sayım', acik: 'Açık kap' };
@@ -48,34 +49,34 @@
     return html`<${Modal} genis baslik=${baslik} kapat=${kapat}
       sag=${bosMu ? kalem && html`<${StokRozeti} durum=${kalem.durum} />` : (() => {
         const t = st.urunAmbalaj.get(`${hedef.urun}|${hedef.ambalaj}`);
-        return html`${kalem?.durum === 'eksi' && html`<${StokRozeti} durum="eksi" />`}${t && t.alarm && html`<span class="kucuk soluk">Tüm partiler: ${t.mevcut}</span> <${StokRozeti} durum=${t.durum} />`}`;
+        return html`${kalem?.durum === 'eksi' && html`<${StokRozeti} durum="eksi" />`}${t && t.alarm && html`<span class="kucuk soluk">${cevir("Tüm partiler:")} ${t.mevcut}</span> <${StokRozeti} durum=${t.durum} />`}`;
       })()}
-      alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />Sayım düzelt</button></div>
-        ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${t("Şişe geldi")}</button>`
-          : html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ anahtar: H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj), urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${t("Numune gönder")}</button>`}
-        <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${t("Dolum yaptım")}</button>`}>
+      alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />${cevir("Sayım düzelt")}</button></div>
+        ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${cevir("Şişe geldi")}</button>`
+          : html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ anahtar: H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj), urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Numune gönder")}</button>`}
+        <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${cevir("Dolum yaptım")}</button>`}>
       <div class="modal-ic">
-        <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${ad}</span><b>${n}</b></div>`)}</div>
+        <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${cevir(ad)}</span><b>${n}</b></div>`)}</div>
         ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
-            <b>Açık kap: içinde ${H.litreYazi(kalem.acikL)}</b> (${H.ambalajAdi(d, hedef.ambalaj)} kap${kalem.acikTarih ? `, ${tarihYaz(kalem.acikTarih)} tarihinden beri açık` : ''}).
+            <b>${cevir("Açık kap: içinde")} ${H.litreYazi(kalem.acikL)}</b> (${H.ambalajAdi(d, hedef.ambalaj)} ${cevir("kap")}${kalem.acikTarih ? NT.dil.m(", {0} tarihinden beri açık", tarihYaz(kalem.acikTarih)) : ''}).
             Açık kap gönderilemez; üstü tamamlanır ya da daha küçük kaplara alınır.
             ${kalem.acikAciklama && html`<br /><i>${kalem.acikAciklama}</i>`}
             <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'tamamla')}><${Ikon} ad="dolum" boyut=${14} />Üstünü tamamla</button>
-              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'not')}><${Ikon} ad="kalem" boyut=${14} />${t("Açıklama")}</button>
-              <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />Atığa ayır</button>
+              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'tamamla')}><${Ikon} ad="dolum" boyut=${14} />${cevir("Üstünü tamamla")}</button>
+              <button class="d kucuk-d" onClick=${() => F.acikIslem(hedef, 'not')}><${Ikon} ad="kalem" boyut=${14} />${cevir("Açıklama")}</button>
+              <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />${cevir("Atığa ayır")}</button>
             </span></span></div>`}
         ${satirlar.length ? html`<ul class="tz-akis defter-akis">${satirlar.map((x) => {
           const acilir = ['dolum', 'sevk', 'alim'].includes(x.c);
           const tur = x.adet > 0 ? 'arti' : x.adet < 0 ? 'eksi' : 'notr';
           return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(x.c, x.r)}>
             <span class=${'ik ' + x.c}><${Ikon} ad=${IKON[x.c] || x.c} /></span>
-            <span class="ne">${x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ayrıldı</span>` : ''}
-              <small>${tarihYaz(x.tarih)} · ${TUR[x.c]}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
-            <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>bakiye ${x.bakiye}</small></span>
+            <span class="ne">${x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ${cevir("ayrıldı")}</span>` : ''}
+              <small>${tarihYaz(x.tarih)} · ${cevir(TUR[x.c])}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
+            <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>${cevir("bakiye")} ${x.bakiye}</small></span>
           </li>`;
         })}</ul>`
-        : html`<${BosDurum} baslik="Hareket yok" aciklama="Bu kalem için henüz dolum, gönderi veya şişe girişi yok." />`}
+        : html`<${BosDurum} baslik=${cevir("Hareket yok")} aciklama=${cevir("Bu kalem için henüz dolum, gönderi veya şişe girişi yok.")} />`}
       </div>
     <//>`;
   }

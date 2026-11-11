@@ -28,7 +28,7 @@
   function tarihYaz(t) {
     if (!t) return '—';
     const [y, m, d] = t.split('-');
-    return `${+d} ${AYLAR[+m - 1]} ${y}`;
+    return `${+d} ${(NT.dil?.t(AYLAR[+m - 1]) ?? AYLAR[+m - 1])} ${y}`;
   }
   function zamanYaz(ms) {
     const d = new Date(ms);
@@ -36,11 +36,11 @@
   }
   function onceYaz(ms, simdi = Date.now()) {
     const s = Math.round((simdi - ms) / 1000);
-    if (s < 45) return 'az önce';
-    if (s < 3600) return `${Math.round(s / 60)} dk önce`;
-    if (s < 86400) return `${Math.round(s / 3600)} sa önce`;
+    if (s < 45) return NT.dil?.t('az önce') ?? 'az önce';
+    if (s < 3600) return NT.dil?.m('{0} dk önce', Math.round(s / 60)) ?? `${Math.round(s / 60)} dk önce`;
+    if (s < 86400) return NT.dil?.m('{0} sa önce', Math.round(s / 3600)) ?? `${Math.round(s / 3600)} sa önce`;
     const g = Math.round(s / 86400);
-    return g < 30 ? `${g} gün önce` : tarihYaz(bugun(new Date(ms)));
+    return g < 30 ? (NT.dil?.m('{0} gün önce', g) ?? `${g} gün önce`) : tarihYaz(bugun(new Date(ms)));
   }
 
   const kucuk = (s) => String(s ?? '').toLocaleLowerCase('tr-TR');

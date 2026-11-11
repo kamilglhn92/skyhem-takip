@@ -19,11 +19,11 @@
     const st = H.stok(d);
     const dolu = [...st.dolu.values()].reduce((t, x) => t + Math.max(0, x.mevcut), 0);
     const yolda = d.kayitlar('sevk').filter((s) => s.durum !== 'Gönderildi' && H.sevkEtkili(s)).length;
-    return [`Rafta ${dolu} dolu numune`, yolda ? `${yolda} gönderi hazırlanıyor` : 'Bekleyen gönderi yok'];
+    return [(NT.dil?.m("Rafta {0} dolu numune", dolu) ?? `Rafta ${dolu} dolu numune`), yolda ? (NT.dil?.m("{0} gönderi hazırlanıyor", yolda) ?? `${yolda} gönderi hazırlanıyor`) : (NT.dil?.t('Bekleyen gönderi yok') ?? 'Bekleyen gönderi yok')];
   }
   function numuneDikkat(d) {
     const n = d.kayitlar('sevk').filter((s) => s.durum === 'Etiket Bekliyor' && NT.hesap.sevkEtkili(s)).length;
-    return n ? [{ metin: `${n} gönderi etiket bekliyor`, sekme: 'gonderiler' }] : [];
+    return n ? [{ metin: (NT.dil?.m("{0} gönderi etiket bekliyor", n) ?? `${n} gönderi etiket bekliyor`), sekme: 'gonderiler' }] : [];
   }
 
   /* dikkat(d): karşılama ekranındaki "dikkat bekleyenler" şeridi için [{ metin, sekme }] (her modülün hesap.js'inde). */
@@ -67,6 +67,9 @@
   }
 
   /* Uyarı hesabı bozulursa kartın özeti yine görünsün. */
+  function ozetAl(m, d) {
+    try { return m.ozet(d); } catch (e) { console.warn(m.id, 'özet', e); return []; }
+  }
   function dikkatAl(m, d) {
     try { return m.dikkat ? m.dikkat(d) : []; } catch (e) { console.warn(m.id, 'dikkat', e); return []; }
   }
@@ -83,10 +86,10 @@
           const d = b.depoOlustur(m.id, b.kod, b.kullanici);
           try {
             const kayitli = await d.onbellek.al().catch(() => null);
-            if (kayitli && kayitli.olaylar) { for (const e of kayitli.olaylar) d.ekle(e); d.sonSira = kayitli.sonSira || 0; d.yenidenHesapla(); yaz(m.id, { satirlar: m.ozet(d), dikkat: dikkatAl(m, d), eski: true }); }
+            if (kayitli && kayitli.olaylar) { for (const e of kayitli.olaylar) d.ekle(e); d.sonSira = kayitli.sonSira || 0; d.yenidenHesapla(); yaz(m.id, { d, eski: true }); }
             d.cevrimici = true;
             await d.tara();
-            yaz(m.id, d.hata && !d.olaylar.size ? { hata: d.hata } : { satirlar: m.ozet(d), dikkat: dikkatAl(m, d), eski: !!d.hata });
+            yaz(m.id, d.hata && !d.olaylar.size ? { hata: d.hata } : { d, eski: !!d.hata });
           } catch (e) { yaz(m.id, { hata: e.message }); }
         })();
       }
@@ -118,7 +121,7 @@
   /* Bandın altındaki şerit: bütün sistemlerde dikkat bekleyen işler; tıklanınca ilgili sistemin ilgili sayfası açılır. */
   function DikkatSeridi({ ozet }) {
     const acik = gorunen();
-    const listeler = demo ? demoDikkat() : Object.fromEntries(acik.map((m) => [m.id, (ozet[m.id] && ozet[m.id].dikkat) || []]));
+    const listeler = demo ? demoDikkat() : Object.fromEntries(acik.map((m) => [m.id, ozet[m.id]?.d ? dikkatAl(m, ozet[m.id].d) : []]));
     const isler = acik.flatMap((m) => (listeler[m.id] || []).map((x) => ({ ...x, m })));
     const hepsiGeldi = demo || acik.every((m) => ozet[m.id] && !ozet[m.id].hata);
     if (!isler.length && !hepsiGeldi) return null;
@@ -171,7 +174,7 @@
             <span class="pt-aciklama">${cevir(m.aciklama)}</span>
             <span class="pt-ozet">${!m.hazir ? '' : demo ? html`<span class="soluk">${cevir("Örnek verilerle açılır")}</span>`
               : !o ? html`<span class="soluk">${cevir("Yükleniyor…")}</span>` : o.hata ? html`<span class="pt-hata">${o.hata}</span>`
-              : o.satirlar.map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}</span>
+              : ozetAl(m, o.d).map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}</span>
             ${m.hazir && html`<span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span>`}
           </button>`;
         })}</div>

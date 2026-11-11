@@ -28,7 +28,7 @@
     mesaj: 'Merhaba, SKYHEM Kimya için {liste} rica ediyoruz. Teşekkürler.',
   };
   const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-  const ayAdi = (ay) => `${AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
+  const ayAdi = (ay) => `${NT.dil?.t(AY_ADLARI[+ay.slice(5, 7) - 1]) ?? AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
   const faturaAnahtari = (ay) => `ay-${ay}`;
 
   function ayar(d) {
@@ -174,8 +174,8 @@
     const faturaBekleyen = l.filter((x) => x.kontrol === 'bekliyor' && x.ay < bg).length;
     const fark = l.filter((x) => x.kontrol === 'fark').length;
     return [
-      `Bu ay ${Math.round(buAy ? buAy.litre : 0).toLocaleString('tr-TR')} L su geldi`,
-      [acik ? `${acik} sipariş bekleniyor` : 'Bekleyen sipariş yok', faturaBekleyen && `${faturaBekleyen} ayın faturası girilmedi`, fark && `${fark} ayda fatura farkı`].filter(Boolean).join(' · '),
+      (NT.dil?.m("Bu ay {0} L su geldi", Math.round(buAy ? buAy.litre : 0).toLocaleString('tr-TR')) ?? `Bu ay ${Math.round(buAy ? buAy.litre : 0).toLocaleString('tr-TR')} L su geldi`),
+      [acik ? (NT.dil?.m("{0} sipariş bekleniyor", acik) ?? `${acik} sipariş bekleniyor`) : (NT.dil?.t('Bekleyen sipariş yok') ?? 'Bekleyen sipariş yok'), faturaBekleyen && (NT.dil?.m("{0} ayın faturası girilmedi", faturaBekleyen) ?? `${faturaBekleyen} ayın faturası girilmedi`), fark && (NT.dil?.m("{0} ayda fatura farkı", fark) ?? `${fark} ayda fatura farkı`)].filter(Boolean).join(' · '),
     ];
   }
 
@@ -185,8 +185,8 @@
     const l = aylar(d);
     const bekleyen = l.filter((x) => x.kontrol === 'bekliyor' && x.ay < bg).length;
     const fark = l.filter((x) => x.kontrol === 'fark').length;
-    return [bekleyen && { metin: `${bekleyen} ayın su faturası girilmedi`, sekme: 'faturalar' },
-      fark && { metin: `${fark} ayda su faturası farkı`, sekme: 'faturalar' }].filter(Boolean);
+    return [bekleyen && { metin: (NT.dil?.m("{0} ayın su faturası girilmedi", bekleyen) ?? `${bekleyen} ayın su faturası girilmedi`), sekme: 'faturalar' },
+      fark && { metin: (NT.dil?.m("{0} ayda su faturası farkı", fark) ?? `${fark} ayda su faturası farkı`), sekme: 'faturalar' }].filter(Boolean);
   }
 
   NT.su = { URUNLER, bosAdet, VARSAYILAN, AY_ADLARI, ayAdi, faturaAnahtari, ayar, litre, fiyatlar, fiyatBul, teslimler, durum, acikMi, teslimTutar, gecerliTeslimler, aylar, yilAylari, aylikLitre, liste, whatsappMetni, whatsappAdresi, sonAdetler, ozet, dikkat };

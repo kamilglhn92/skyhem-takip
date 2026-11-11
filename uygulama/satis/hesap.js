@@ -192,7 +192,7 @@
   /* Karşılama ekranındaki "dikkat bekleyenler" şeridi: yoldaki kartlardaki "N eksik belge" işaretiyle aynı kural. */
   function dikkat(d) {
     const n = d.kayitlar('sevk').filter((s) => !s.iptal && s.durum === 'Yolda' && eksikler(s).length).length;
-    return n ? [{ metin: `${n} sevkiyatta eksik belge`, sekme: 'sevkiyatlar' }] : [];
+    return n ? [{ metin: (NT.dil?.m("{0} sevkiyatta eksik belge", n) ?? `${n} sevkiyatta eksik belge`), sekme: 'sevkiyatlar' }] : [];
   }
 
   function ozet(d) {
@@ -202,8 +202,9 @@
     const yolda = l.filter((s) => !s.iptal && s.durum === 'Yolda').length;
     const hazir = l.filter((s) => !s.iptal && (s.durum === 'Sipariş' || s.durum === 'Hazırlanıyor')).length;
     return [
-      `Bu ay ${(buAy / 1000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} ton sevk edildi`,
-      yolda || hazir ? [yolda && `${yolda} sevkiyat yolda`, hazir && `${hazir} hazırlanıyor`].filter(Boolean).join(' · ') : 'Bekleyen sevkiyat yok',
+      NT.dil?.m('Bu ay {0} ton sevk edildi', (buAy / 1000).toLocaleString(NT.dil.yerel(), { maximumFractionDigits: 1 }))
+        ?? `Bu ay ${(buAy / 1000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} ton sevk edildi`,
+      yolda || hazir ? [yolda && (NT.dil?.m("{0} sevkiyat yolda", yolda) ?? `${yolda} sevkiyat yolda`), hazir && (NT.dil?.m("{0} hazırlanıyor", hazir) ?? `${hazir} hazırlanıyor`)].filter(Boolean).join(' · ') : (NT.dil?.t('Bekleyen sevkiyat yok') ?? 'Bekleyen sevkiyat yok'),
     ];
   }
 

@@ -116,3 +116,32 @@
 .pano-hat-adim.dolu { background: var(--ana-acik); border-color: var(--ana-cizgi); color: var(--ana); }
 .pano-hat-adim:hover, .pano-hat-adim:focus-visible { border-color: var(--ana); }
 @media (max-width: 700px) { .pano-hat { flex-direction: column; } .pano-hat-ok { transform: rotate(90deg); justify-content: center; } }
+
+.st-ambalaj-detay { margin-top: 10px; }
+.st-ambalaj-sirasi { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(78px, 100%), 1fr)); gap: 7px; }
+.st-ambalaj-birim {
+  min-width: 0; position: relative; display: grid; justify-items: center; gap: 4px;
+  min-height: 72px; padding: 6px 4px; border: 1px solid var(--cizgi); border-radius: 10px;
+  color: var(--murekkep); background: var(--yuzey2); cursor: pointer;
+}
+.st-ambalaj-birim:is(:hover, [aria-expanded="true"]) { border-color: var(--ana); background: var(--ana-acik); }
+.st-ambalaj-birim:focus-visible { outline: 2px solid var(--ana); outline-offset: 2px; }
+.st-ambalaj-birim-ad { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 650; }
+.st-ambalaj-sayac {
+  position: absolute; top: 4px; right: 4px; display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 4px; border-radius: 999px; color: var(--ana-koyu); background: var(--ana-acik); font-size: 10px; font-weight: 700;
+}
+.st-ambalaj-pop, .st-ambalaj-acik {
+  padding: 11px 13px; border: 1px solid var(--ana-cizgi); border-radius: 11px; background: var(--yuzey); color: var(--murekkep);
+}
+.st-ambalaj-pop { position: fixed; z-index: 60; pointer-events: none; box-shadow: var(--golge-buyuk); }
+.st-ambalaj-pop.yukari { transform: translateY(-100%); }
+.st-ambalaj-acik { margin-top: 8px; }
+.st-ambalaj-klips-ozet { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.st-ambalaj-klips-ozet small { color: var(--ikincil); }
+.st-ambalaj-klips { display: flex; flex-wrap: wrap; gap: 4px; }
+.st-ambalaj-pop .st-ambalaj-klips { max-height: 106px; overflow: hidden; }
+.st-ambalaj-acik > .tz-detay-bolum { margin-top: 12px; }
+.st-ambalaj-klips-gecmisi { margin: 8px 0 0; padding: 0; list-style: none; }
+.st-ambalaj-klips-gecmisi li { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0; border-top: 1px solid var(--cizgi); }
+.st-ambalaj-klips-gecmisi small, .st-ambalaj-baglanti { color: var(--ikincil); }

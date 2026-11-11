@@ -38,35 +38,35 @@
     return html`
       <${K.Selam} baslik=${cevir("Klipsler")}
         sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => klipsTak()}><${Ikon} ad="etiket" />${cevir("Klips tak")}</button>`}>
-        ${s.sirada ? html`Sıradaki klips <b class="v">${s.sirada}</b>. ` : ''}<b>${sayiYaz(s.takili)}</b> klips takılı, <b>${sayiYaz(s.bosta.length)}</b> klips boşta.
+        ${s.sirada ? html`${cevir("Sıradaki klips")} <b class="v">${s.sirada}</b>. ` : ''}<b>${sayiYaz(s.takili)}</b> ${cevir("klips takılı,")} <b>${sayiYaz(s.bosta.length)}</b> ${cevir("klips boşta.")}
       <//>
-      ${!s.toplam && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>Klips numaraları tanımlı değil. <a href="#" onClick=${git('stok')}>Stok bölümünden ekleyin →</a></span></div>`}
-      ${s.cakisan.length > 0 && html`<div class="uyari-kutu yok" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${s.cakisan.join(', ')} numarası iki kez girilmiş. <a href="#" onClick=${git('kayitlar')}>Kayıtlara bak →</a></span></div>`}
-      ${s.toplam > 0 && sinir > 0 && s.bosta.length <= sinir && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>Boşta ${sayiYaz(s.bosta.length)} klips kaldı.</span></div>`}
+      ${!s.toplam && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>${cevir("Klips numaraları tanımlı değil.")} <a href="#" onClick=${git('stok')}>${cevir("Stok bölümünden ekleyin →")}</a></span></div>`}
+      ${s.cakisan.length > 0 && html`<div class="uyari-kutu yok" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${s.cakisan.join(', ')} ${cevir("numarası iki kez girilmiş.")} <a href="#" onClick=${git('kayitlar')}>${cevir("Kayıtlara bak →")}</a></span></div>`}
+      ${s.toplam > 0 && sinir > 0 && s.bosta.length <= sinir && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${cevir("Boşta")} ${sayiYaz(s.bosta.length)} ${cevir("klips kaldı.")}</span></div>`}
       <div class="kpi-sira">
-        <${K.Kpi} vurgu ikon="etiket" ad="Takılı" deger=${sayiYaz(s.takili)} alt=${`${d.kayitlar('ambalaj').length} ambalajda`} />
-        <${K.Kpi} ikon="stok" ad="Boşta" deger=${sayiYaz(s.bosta.length)} alt=${s.sirada ? `Sıradaki ${s.sirada}` : 'Boş numara yok'} />
-        <${K.Kpi} ikon="senkron" ad="Değiştirildi" deger=${sayiYaz(s.degisti)} alt="Kesilip yerine yenisi takılan" />
+        <${K.Kpi} vurgu ikon="etiket" ad="Takılı" deger=${sayiYaz(s.takili)} alt=${NT.dil.m("{0} ambalajda", d.kayitlar('ambalaj').length)} />
+        <${K.Kpi} ikon="stok" ad="Boşta" deger=${sayiYaz(s.bosta.length)} alt=${s.sirada ? NT.dil.m("Sıradaki {0}", s.sirada) : cevir("Boş numara yok")} />
+        <${K.Kpi} ikon="senkron" ad="Değiştirildi" deger=${sayiYaz(s.degisti)} alt=${cevir("Kesilip yerine yenisi takılan")} />
         <${K.Kpi} ikon="cop" ad="Fire" deger=${sayiYaz(s.fire)} alt="Kullanılamadan ıskartaya çıkan" />
       </div>
       <div class="tz-izgara">
         <div class="tz-sutun">
           <${K.Kart} baslik=${cevir("Son takılanlar")} sag=${html`<a href="#" style="color:var(--ana)" onClick=${git('kayitlar')}>${cevir("Tümü →")}</a>`}>
-            ${son.length ? html`<${KartIzgara} liste=${son} />` : html`<p class="soluk" style="margin:0">Tarihli kayıt yok. “Klips tak” ile başlayın.</p>`}
+            ${son.length ? html`<${KartIzgara} liste=${son} />` : html`<p class="soluk" style="margin:0">${cevir("Tarihli kayıt yok. “Klips tak” ile başlayın.")}</p>`}
           <//>
         </div>
         <div class="tz-sutun">
-          ${s.toplam > 0 && html`<${K.Kart} baslik=${cevir("Klips stoğu")} sag=${html`<a href="#" style="color:var(--ana)" onClick=${git('stok')}>Stok →</a>`}>
-            <div class="km-doluluk" role="img" aria-label=${`Yüzde ${kullanilan} kullanıldı`}><span style=${{ width: `${kullanilan}%` }} /></div>
-            <p class="soluk kucuk" style="margin:8px 0 0">${sayiYaz(s.toplam)} numaranın ${sayiYaz(s.toplam - s.bosta.length)} tanesi kullanıldı.</p>
+          ${s.toplam > 0 && html`<${K.Kart} baslik=${cevir("Klips stoğu")} sag=${html`<a href="#" style="color:var(--ana)" onClick=${git('stok')}>${cevir("Stok →")}</a>`}>
+            <div class="km-doluluk" role="img" aria-label=${NT.dil.m("Yüzde {0} kullanıldı", kullanilan)}><span style=${{ width: `${kullanilan}%` }} /></div>
+            <p class="soluk kucuk" style="margin:8px 0 0">${sayiYaz(s.toplam)} ${cevir("numaranın")} ${sayiYaz(s.toplam - s.bosta.length)} ${cevir("tanesi kullanıldı.")}</p>
           <//>`}
-          ${klipssiz.length > 0 && html`<${K.Kart} baslik=${cevir("Klipsi girilmemiş sevkiyatlar")} sag=${html`<span class="km-eksik">${klipssiz.length} yolda</span>`}>
+          ${klipssiz.length > 0 && html`<${K.Kart} baslik=${cevir("Klipsi girilmemiş sevkiyatlar")} sag=${html`<span class="km-eksik">${klipssiz.length} ${cevir("yolda")}</span>`}>
             <ul class="km-sevk-liste">${klipssiz.map((x) => html`<li key=${x.id}><span><b>${x.no}</b><small>${x.firma || ''}${sevkKalemleri(x) ? ' · ' + sevkKalemleri(x) : ''}</small></span>
               <button class="d kucuk-d" onClick=${() => klipsTakSevk(x)}><${Ikon} ad="arti" boyut=${14} />${cevir("Klips")}</button></li>`)}</ul>
           <//>`}
           ${(eksikli.length > 0 || cakisan.length > 0) && html`<${K.Kart} baslik=${cevir("Tamamlanacak kayıtlar")}>
-            <p class="soluk" style="margin:0 0 8px">${eksikli.length} ambalajda tarih, sevkiyat veya ürün gibi bilgiler eksik.</p>
-            <a href="#" style="color:var(--ana)" onClick=${(e) => { kayitSuzgec.deger = 'eksik'; git('kayitlar')(e); }}>Eksikleri göster →</a>
+            <p class="soluk" style="margin:0 0 8px">${eksikli.length} ${cevir("ambalajda tarih, sevkiyat veya ürün gibi bilgiler eksik.")}</p>
+            <a href="#" style="color:var(--ana)" onClick=${(e) => { kayitSuzgec.deger = 'eksik'; git('kayitlar')(e); }}>${cevir("Eksikleri göster →")}</a>
           <//>`}
         </div>
       </div>`;
@@ -83,9 +83,9 @@
     const uygun = (l) => l.filter((a) => ara(ambalajMetni(d, a), q));
     const g = { hepsi: uygun(S.ambalajlar(d)), eksik: uygun(S.eksikliAmbalajlar(d)), cakisan: uygun(S.cakisanAmbalajlar(d)) };
     return html`<${K.Selam} baslik=${cevir("Kayıtlar")} sag=${html`<button class="d" onClick=${() => excelKayitlar(d, g[f], f === 'hepsi' && !q)}><${Ikon} ad="indir" boyut=${15} />Excel</button>
-        <button class="d ana-d tz-buyuk" onClick=${() => klipsTak()}><${Ikon} ad="etiket" />${cevir("Klips tak")}</button>`}>Klips numarası, ambalaj numarası, parti veya müşteriyle arayın.<//>
+        <button class="d ana-d tz-buyuk" onClick=${() => klipsTak()}><${Ikon} ad="etiket" />${cevir("Klips tak")}</button>`}>${cevir("Klips numarası, ambalaj numarası, parti veya müşteriyle arayın.")}<//>
       <${K.Cipler} secenekler=${[['hepsi', 'Tümü', g.hepsi.length], ['eksik', 'Eksik bilgili', g.eksik.length], ['cakisan', 'Çakışan', g.cakisan.length]]} deger=${f} degis=${setF}>
-        <input class="girdi km-ara" placeholder="Klips, ambalaj, parti, müşteri…" value=${q} onInput=${(e) => setQ(e.target.value)} />
+        <input class="girdi km-ara" placeholder=${cevir("Klips, ambalaj, parti, müşteri…")} value=${q} onInput=${(e) => setQ(e.target.value)} />
       <//>
       ${g[f].length ? html`<${KartIzgara} liste=${g[f]} />` : html`<div class="tz-kart"><p class="soluk" style="margin:0">${cevir("Bu süzgeçte kayıt yok.")}</p></div>`}`;
   }
@@ -102,23 +102,23 @@
     const bit = S.klipsNo(f.bit);
     const adet = bas && bit && +bit >= +bas ? +bit - +bas + 1 : 0;
     async function kaydet() {
-      if (!bas || !bit) return setHata('Başlangıç ve bitiş numarasını yazın.');
-      if (!kayit && !f.tarih) return setHata('Tarih seçin.');
-      if (!kayit && !f.kisi.trim()) return setHata('Teslim alan kişiyi seçin.');
-      if (+bit < +bas) return setHata('Bitiş numarası başlangıçtan küçük olamaz.');
-      if (adet > S.ARALIK_SINIRI) return setHata(`Tek seferde en fazla ${S.ARALIK_SINIRI} numara eklenebilir.`);
+      if (!bas || !bit) return setHata(cevir("Başlangıç ve bitiş numarasını yazın."));
+      if (!kayit && !f.tarih) return setHata(cevir("Tarih seçin."));
+      if (!kayit && !f.kisi.trim()) return setHata(cevir("Teslim alan kişiyi seçin."));
+      if (+bit < +bas) return setHata(cevir("Bitiş numarası başlangıçtan küçük olamaz."));
+      if (adet > S.ARALIK_SINIRI) return setHata(NT.dil.m("Tek seferde en fazla {0} numara eklenebilir.", S.ARALIK_SINIRI));
       const cakisan = liste.find((a) => a.id !== (kayit && kayit.id) && +bas <= +a.bit && +bit >= +a.bas);
-      if (cakisan) return setHata(`${cakisan.bas}–${cakisan.bit} aralığıyla çakışıyor.`);
+      if (cakisan) return setHata(NT.dil.m("{0}–{1} aralığıyla çakışıyor.", cakisan.bas, cakisan.bit));
       await d.kaydet([{ c: 'aralik', k: kayit ? kayit.id : uid(), v: { bas, bit, tarih: f.tarih, kisi: f.kisi.trim(), notlar: f.notlar.trim() } }]);
-      bildir(`${bas}–${bit} kaydedildi · ${sayiYaz(adet)} klips.`);
+      bildir(NT.dil.m("{0}–{1} kaydedildi · {2} klips.", bas, bit, sayiYaz(adet)));
       kapat();
       return undefined;
     }
-    return html`<${Modal} dar baslik=${kayit ? 'Klips aralığı' : 'Yeni klips aralığı'} kapat=${kapat}
+    return html`<${Modal} dar baslik=${kayit ? cevir("Klips aralığı") : cevir("Yeni klips aralığı")} kapat=${kapat}
       alt=${html`<${FormAlt} kayit=${kayit} sil=${async () => (await sil('aralik', kayit, `${kayit.bas}–${kayit.bit} aralığı`)) && kapat()} kapat=${kapat} kaydet=${kaydet} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
         <${Alan} etiket=${cevir("İlk numara")} sinif="s6"><input class="girdi mono" inputmode="numeric" value=${f.bas} onInput=${s('bas')} /><//>
-        <${Alan} etiket=${cevir("Son numara")} sinif="s6" ipucu=${adet ? `${sayiYaz(adet)} klips` : ''}><input class="girdi mono" inputmode="numeric" value=${f.bit} onInput=${s('bit')} autofocus=${!kayit} /><//>
+        <${Alan} etiket=${cevir("Son numara")} sinif="s6" ipucu=${adet ? NT.dil.m("{0} klips", sayiYaz(adet)) : ''}><input class="girdi mono" inputmode="numeric" value=${f.bit} onInput=${s('bit')} autofocus=${!kayit} /><//>
         <${Alan} etiket=${cevir("Alındığı tarih")} sinif="s6"><input class="girdi" type="date" value=${f.tarih} onInput=${s('tarih')} /><//>
         <${Alan} etiket=${cevir("Teslim alan")} sinif="s6"><${TakanSec} etiket=${cevir("Teslim alan")} d=${d} deger=${f.kisi} degis=${(v) => setF((p) => ({ ...p, kisi: v }))} /><//>
         <${Alan} etiket=${cevir("Not")}><input class="girdi" value=${f.notlar} onInput=${s('notlar')} /><//>
@@ -136,22 +136,22 @@
     const s = (a) => (e) => { const v = e.target.value; setF((p) => ({ ...p, [a]: v })); };
     async function kaydet() {
       const { liste, hata: h } = S.numaraListesi(f.metin);
-      if (h || !liste.length) return setHata(h || 'Numara yazın.');
-      if (ver && !f.neden.trim()) return setHata('Kime gönderildiğini yazın.');
-      if (!f.tarih) return setHata('Tarih seçin.');
-      if (!f.kisi.trim()) return setHata('Kişiyi seçin.');
+      if (h || !liste.length) return setHata(h || cevir("Numara yazın."));
+      if (ver && !f.neden.trim()) return setHata(cevir("Kime gönderildiğini yazın."));
+      if (!f.tarih) return setHata(cevir("Tarih seçin."));
+      if (!f.kisi.trim()) return setHata(cevir("Kişiyi seçin."));
       const st = S.stok(d);
       const kullanilan = liste.filter((n) => st.harita.has(n));
-      if (kullanilan.length) return setHata(`${kullanilan.join(', ')} zaten kayıtlı. Takılı klips kesildiyse ambalaj kaydından “Değiştir” kullanın.`);
+      if (kullanilan.length) return setHata(NT.dil.m("{0} zaten kayıtlı. Takılı klips kesildiyse ambalaj kaydından “Değiştir” kullanın.", kullanilan.join(', ')));
       await d.kaydet(liste.map((no) => ({ c: 'klips', k: uid(), v: { numara: no, ambalaj: '', durum: tur, tarih: f.tarih, neden: f.neden.trim(), takan: f.kisi.trim() } })));
-      bildir(`${liste.length} klips ${ver ? 'verildi' : 'fire'} olarak işlendi.`);
+      bildir(NT.dil.m("{0} klips {1} olarak işlendi.", liste.length, ver ? 'verildi' : 'fire'));
       kapat();
       return undefined;
     }
-    return html`<${Modal} dar baslik=${ver ? 'Başka firmaya ver' : 'Fire işle'} kapat=${kapat} alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${ver ? 'Verildi olarak kaydet' : 'Fire olarak kaydet'} />`}>
+    return html`<${Modal} dar baslik=${ver ? cevir("Başka firmaya ver") : cevir("Fire işle")} kapat=${kapat} alt=${html`<${FormAlt} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${ver ? cevir("Verildi olarak kaydet") : cevir("Fire olarak kaydet")} />`}>
       <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
-        <${Alan} etiket=${cevir("Klips numaraları")} ipucu="Örn: 1-7, 9" hata=${hata}><input class="girdi mono" value=${f.metin} onInput=${s('metin')} autofocus /><//>
-        <${Alan} etiket=${ver ? 'Kime gönderildi' : 'Neden'} sinif="s8"><input class="girdi" value=${f.neden} onInput=${s('neden')} placeholder=${ver ? 'Örn: Kor Kimya’ya gönderildi' : 'Örn: Takarken kırıldı'} /><//>
+        <${Alan} etiket=${cevir("Klips numaraları")} ipucu=${cevir("Örn: 1-7, 9")} hata=${hata}><input class="girdi mono" value=${f.metin} onInput=${s('metin')} autofocus /><//>
+        <${Alan} etiket=${ver ? cevir("Kime gönderildi") : cevir("Neden")} sinif="s8"><input class="girdi" value=${f.neden} onInput=${s('neden')} placeholder=${ver ? cevir("Örn: Kor Kimya’ya gönderildi") : cevir("Örn: Takarken kırıldı")} /><//>
         <${Alan} etiket=${cevir("Tarih")} sinif="s4"><input class="girdi" type="date" value=${f.tarih} onInput=${s('tarih')} /><//>
         <${Alan} etiket=${cevir("İşleyen kişi")}><${TakanSec} etiket=${cevir("İşleyen kişi")} d=${d} deger=${f.kisi} degis=${(v) => setF((p) => ({ ...p, kisi: v }))} /><//>
         <button type="submit" class="gizli" />
@@ -166,7 +166,7 @@
     const baslangic = s.sirada ? Math.floor((+s.sirada - 1) / 100) : sayfalar[0];
     const [sayfa, setSayfa] = useState(baslangic);
     const aktif = sayfalar.includes(sayfa) ? sayfa : sayfalar[0];
-    if (aktif == null) return html`<p class="soluk" style="margin:0">Henüz numara yok.</p>`;
+    if (aktif == null) return html`<p class="soluk" style="margin:0">${cevir("Henüz numara yok.")}</p>`;
     const hucreler = [];
     for (let i = aktif * 100 + 1; i <= aktif * 100 + 100; i++) {
       const no = String(i).padStart(5, '0');
@@ -179,9 +179,9 @@
       <div class="km-harita">${hucreler.map((h) => {
         const ambalaj = h.l[0] && h.l[0].ambalaj ? d.kayit('ambalaj', h.l[0].ambalaj) : null;
         return html`<button type="button" key=${h.no} class=${`km-hucre ${h.sinif}`} disabled=${!ambalaj} onClick=${() => ambalaj && ambalajAc(ambalaj)}
-          title=${h.l.length ? `${h.no} · ${S.DURUMLAR[h.l[0].durum] || ''}${ambalaj && ambalaj.numara ? ' · ' + ambalaj.numara : ''}${h.l[0].neden ? ' · ' + h.l[0].neden : ''}` : `${h.no} · Boşta`}>${h.no}</button>`;
+          title=${h.l.length ? `${h.no} · ${S.DURUMLAR[h.l[0].durum] || ''}${ambalaj && ambalaj.numara ? ' · ' + ambalaj.numara : ''}${h.l[0].neden ? ' · ' + h.l[0].neden : ''}` : NT.dil.m("{0} · Boşta", h.no)}>${h.no}</button>`;
       })}</div>
-      <div class="km-anahtar"><span><i class="km-bos" />Boşta</span><span><i class="km-takili" />${cevir("Takılı")}</span><span><i class="km-degisti" />${cevir("Değiştirildi")}</span><span><i class="km-fire" />${cevir("Fire")}</span><span><i class="km-verildi" />${cevir("Verildi")}</span><span><i class="km-cakisan" />${cevir("İki kez girilmiş")}</span></div>`;
+      <div class="km-anahtar"><span><i class="km-bos" />${cevir("Boşta")}</span><span><i class="km-takili" />${cevir("Takılı")}</span><span><i class="km-degisti" />${cevir("Değiştirildi")}</span><span><i class="km-fire" />${cevir("Fire")}</span><span><i class="km-verildi" />${cevir("Verildi")}</span><span><i class="km-cakisan" />${cevir("İki kez girilmiş")}</span></div>`;
   }
   function Stok() {
     const d = depo();
@@ -192,38 +192,38 @@
     async function verilenGeriAl(g) {
       if (!(await NT.ui.onayla(`${g.araliklar.join(', ')} (${g.adet} klips) yeniden boşa düşsün mü? Klipsler › Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: 'Geri al', evet: 'Geri al' }))) return;
       await d.kaydet(g.kayitlar.map((k) => ({ op: 'del', c: 'klips', k: k.id })));
-      bildir(`${g.adet} klips yeniden boşta.`);
+      bildir(NT.dil.m("{0} klips yeniden boşta.", g.adet));
     }
-    return html`<${K.Selam} baslik=${cevir("Stok")} sag=${html`<button class="d" onClick=${() => K.ac(FirePenceresi, {})}><${Ikon} ad="cop" boyut=${15} />Fire işle</button>
-        <button class="d" onClick=${() => K.ac(FirePenceresi, { tur: 'verildi' })}><${Ikon} ad="sevk" boyut=${15} />Başka firmaya ver</button>
-        <button class="d ana-d tz-buyuk" onClick=${() => K.ac(AralikPenceresi, {})}><${Ikon} ad="arti" />${cevir("Yeni klips aralığı")}</button>`}>Stok kayıtlardan hesaplanır: tanımlı numaralardan takılı, değiştirilmiş, fire ve başka firmaya verilenler düşer.<//>
+    return html`<${K.Selam} baslik=${cevir("Stok")} sag=${html`<button class="d" onClick=${() => K.ac(FirePenceresi, {})}><${Ikon} ad="cop" boyut=${15} />${cevir("Fire işle")}</button>
+        <button class="d" onClick=${() => K.ac(FirePenceresi, { tur: 'verildi' })}><${Ikon} ad="sevk" boyut=${15} />${cevir("Başka firmaya ver")}</button>
+        <button class="d ana-d tz-buyuk" onClick=${() => K.ac(AralikPenceresi, {})}><${Ikon} ad="arti" />${cevir("Yeni klips aralığı")}</button>`}>${cevir("Stok kayıtlardan hesaplanır: tanımlı numaralardan takılı, değiştirilmiş, fire ve başka firmaya verilenler düşer.")}<//>
       <div class="kpi-sira">
-        <${K.Kpi} vurgu ikon="stok" ad="Boşta" deger=${sayiYaz(s.bosta.length)} alt=${s.sirada ? `Sıradaki ${s.sirada}` : 'Boş numara yok'} />
+        <${K.Kpi} vurgu ikon="stok" ad="Boşta" deger=${sayiYaz(s.bosta.length)} alt=${s.sirada ? NT.dil.m("Sıradaki {0}", s.sirada) : cevir("Boş numara yok")} />
         <${K.Kpi} ikon="etiket" ad="Takılı" deger=${sayiYaz(s.takili)} />
         <${K.Kpi} ikon="senkron" ad="Değiştirildi" deger=${sayiYaz(s.degisti)} />
         <${K.Kpi} ikon="cop" ad="Fire" deger=${sayiYaz(s.fire)} />
-        ${s.verildi > 0 && html`<${K.Kpi} ikon="sevk" ad="Verildi" deger=${sayiYaz(s.verildi)} alt="Başka firmaya gönderilen" />`}
+        ${s.verildi > 0 && html`<${K.Kpi} ikon="sevk" ad="Verildi" deger=${sayiYaz(s.verildi)} alt=${cevir("Başka firmaya gönderilen")} />`}
       </div>
-      ${s.disinda.length > 0 && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>Tanımlı aralık dışında kullanılan numaralar: ${s.disinda.join(', ')}</span></div>`}
+      ${s.disinda.length > 0 && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>${cevir("Tanımlı aralık dışında kullanılan numaralar:")} ${s.disinda.join(', ')}</span></div>`}
       <${K.Kart} baslik=${cevir("Numaralar")}><${NumaraHaritasi} /><//>
       <div class="tz-izgara">
         <div class="tz-sutun">
           <${K.Kart} baslik=${cevir("Klips aralıkları")}>
             ${liste.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Aralık")}</th><th class="sag">${cevir("Adet")}</th><th>${cevir("Tarih")}</th><th>${cevir("Not")}</th></tr></thead><tbody>
               ${liste.map((a) => html`<tr class="tik" key=${a.id} onClick=${() => K.ac(AralikPenceresi, { kayit: a })}><td class="mono"><b>${a.bas}–${a.bit}</b></td><td class="sag sayi">${sayiYaz(+a.bit - +a.bas + 1)}</td><td>${a.tarih ? tarihYaz(a.tarih) : '—'}</td><td class="kucuk">${a.notlar || ''}</td></tr>`)}
-            </tbody></table></div>` : html`<${BosDurum} ikon="stok" baslik="Aralık tanımlı değil" aciklama="Elinizdeki klipslerin ilk ve son numarasını girin." />`}
+            </tbody></table></div>` : html`<${BosDurum} ikon="stok" baslik=${cevir("Aralık tanımlı değil")} aciklama=${cevir("Elinizdeki klipslerin ilk ve son numarasını girin.")} />`}
           <//>
         </div>
         <div class="tz-sutun">
-          ${verilen.length > 0 && html`<${K.Kart} baslik="Başka firmaya verilenler">
+          ${verilen.length > 0 && html`<${K.Kart} baslik=${cevir("Başka firmaya verilenler")}>
             <div class="km-fire-liste">${verilen.map((g) => html`<div key=${g.neden} class="km-klips-satir">
-              <span class="km-klips-bilgi"><b>${g.araliklar.join(', ')}</b><small>${g.neden} · ${sayiYaz(g.adet)} klips</small></span>
+              <span class="km-klips-bilgi"><b>${g.araliklar.join(', ')}</b><small>${g.neden} · ${sayiYaz(g.adet)} ${cevir("klips")}</small></span>
               <button type="button" class="d hayalet kucuk-d" onClick=${() => verilenGeriAl(g)}><${Ikon} ad="geri" boyut=${14} />${cevir("Geri al")}</button></div>`)}</div>
           <//>`}
-          <${K.Kart} baslik=${cevir("Fire")} sag=${html`<span class="soluk kucuk">${fireler.length} klips</span>`}>
+          <${K.Kart} baslik=${cevir("Fire")} sag=${html`<span class="soluk kucuk">${fireler.length} ${cevir("klips")}</span>`}>
             ${fireler.length ? html`<div class="km-fire-liste">${fireler.map((k) => html`<div key=${k.id} class="km-klips-satir">
-              <${KlipsCip} k=${k} /><span class="km-klips-bilgi">${k.neden || 'Neden yazılmamış'}<small>${tarihVeya(k.tarih)}</small></span>
-              <button type="button" class="d hayalet ikon-d" title="Yanlış girildiyse çıkar; numara boşa düşer" onClick=${() => sil('klips', k, `${k.numara} fire kaydı`)}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">Fire yok.</p>`}
+              <${KlipsCip} k=${k} /><span class="km-klips-bilgi">${k.neden || cevir("Neden yazılmamış")}<small>${tarihVeya(k.tarih)}</small></span>
+              <button type="button" class="d hayalet ikon-d" title=${cevir("Yanlış girildiyse çıkar; numara boşa düşer")} onClick=${() => sil('klips', k, `${k.numara} fire kaydı`)}><${Ikon} ad="cop" boyut=${15} /></button></div>`)}</div>` : html`<p class="soluk" style="margin:0">${cevir("Fire yok.")}</p>`}
           <//>
         </div>
       </div>`;
@@ -235,10 +235,10 @@
     const [sinir, setSinir] = useState(String(S.ayar(d).uyariSiniri));
     async function kaydet() {
       await d.kaydet([{ c: 'ayar', k: 'genel', v: { uyariSiniri: Math.max(0, Number(sinir) || 0) } }]);
-      bildir('Klips ayarları kaydedildi.');
+      bildir(cevir("Klips ayarları kaydedildi."));
     }
-    return html`<${K.AyarKarti} baslik=${cevir("Stok uyarısı")} aciklama="Bu sistemi kullanan herkes için ortaktır." sag=${html`<button class="d ana-d kucuk-d" onClick=${kaydet}><${Ikon} ad="tik" boyut=${15} />${cevir("Kaydet")}</button>`}>
-      <div class="form-izgara"><${Alan} etiket="Boşta klips bu sayıya inince uyar" sinif="s6" ipucu="0 yazılırsa uyarı verilmez"><input class="girdi sayi" inputmode="numeric" value=${sinir} onInput=${(e) => setSinir(e.target.value)} /><//></div>
+    return html`<${K.AyarKarti} baslik=${cevir("Stok uyarısı")} aciklama=${cevir("Bu sistemi kullanan herkes için ortaktır.")} sag=${html`<button class="d ana-d kucuk-d" onClick=${kaydet}><${Ikon} ad="tik" boyut=${15} />${cevir("Kaydet")}</button>`}>
+      <div class="form-izgara"><${Alan} etiket=${cevir("Boşta klips bu sayıya inince uyar")} sinif="s6" ipucu=${cevir("0 yazılırsa uyarı verilmez")}><input class="girdi sayi" inputmode="numeric" value=${sinir} onInput=${(e) => setSinir(e.target.value)} /><//></div>
     <//>`;
   }
   function Ayarlar() {

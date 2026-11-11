@@ -33,7 +33,7 @@
     NT.Depo.prototype.kaydet = function (ops) {
       /* Sunum modunun örnek verisi hazırlanırken (durum henüz 'hazir' değilken) engellenmez. Başka modülün deposu (Satış'taki klips) etkilenmez. */
       if (this === b.depo && b.durum === 'hazir' && !yazabilir()) {
-        bildir('Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir.', { tur: 'hata' });
+        bildir(cevir("Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir."), { tur: 'hata' });
         return Promise.resolve([]);
       }
       return asil.call(this, ops);
@@ -91,18 +91,18 @@
   /* Çöp kutusuna gönderir; bildirimde "Geri al" vardır. */
   async function sil(c, r, ad) {
     const ne = ad || r.no || r.ad || 'Kayıt';
-    if (!(await onayla(`${ne} silinsin mi? Çöp kutusuna gider; Ayarlar › Çöp kutusu’ndan geri alınabilir.`, { baslik: 'Sil', evet: 'Sil', tehlike: true }))) return false;
+    if (!(await onayla(NT.dil.m("{0} silinsin mi? Çöp kutusuna gider; Ayarlar › Çöp kutusu’ndan geri alınabilir.", ne), { baslik: cevir("Sil"), evet: cevir("Sil"), tehlike: true }))) return false;
     const d = depo();
     await d.kaydet([{ op: 'del', c, k: r.id }]);
-    bildir(`${ne} silindi.`, { eylem: { yazi: 'Geri al', fn: () => d.kaydet([{ op: 'undel', c, k: r.id }]) } });
+    bildir(NT.dil.m("{0} silindi.", ne), { eylem: { yazi: 'Geri al', fn: () => d.kaydet([{ op: 'undel', c, k: r.id }]) } });
     return true;
   }
   /* Gelişmiş Excel: NT.xlsx üzerine dosya adı + indirme. */
   function excel(dosyaAdi, secenek) {
     indir(dosyaAdi, NT.xlsx(secenek));
-    bildir('Excel dosyası indirildi.');
+    bildir(cevir("Excel dosyası indirildi."));
   }
-  const sayiYaz = (n, basamak = 0) => (Number(n) || 0).toLocaleString('tr-TR', { minimumFractionDigits: basamak, maximumFractionDigits: basamak });
+  const sayiYaz = (n, basamak = 0) => (Number(n) || 0).toLocaleString(NT.dil.yerel(), { minimumFractionDigits: basamak, maximumFractionDigits: basamak });
 
   /* ---------------- Sayfa parçaları ---------------- */
   /* bant: Genel Bakış'ın başlığı, karşılama ekranındaki bandın küçüğü (modülün yeşil tonunda; renkler tezgah.css › .tz-m-<modül>). */
@@ -118,11 +118,11 @@
   }
   /* Süzgeç çipleri: [[id, ad, sayı]] */
   function Cipler({ secenekler, deger, degis, children }) {
-    return html`<div class="tz-cipler">${secenekler.map(([id, ad, n]) => html`<button class=${'tz-cip' + (deger === id ? ' secili' : '')} onClick=${() => degis(id)}>${ad}${n != null && html`<span class="n">${n}</span>`}</button>`)}${children}</div>`;
+    return html`<div class="tz-cipler">${secenekler.map(([id, ad, n]) => html`<button class=${'tz-cip' + (deger === id ? ' secili' : '')} onClick=${() => degis(id)}>${cevir(ad)}${n != null && html`<span class="n">${n}</span>`}</button>`)}${children}</div>`;
   }
   function Kpi({ ad, deger, birim, alt, vurgu, ikon }) {
-    return html`<div class=${'kart kpi' + (vurgu ? ' vurgu' : '')}><div class="ad">${ikon && html`<${Ikon} ad=${ikon} boyut=${15} />`}${ad}</div>
-      <div class="deger">${deger}${birim && html`<small>${birim}</small>`}</div>${alt && html`<div class="alt">${alt}</div>`}</div>`;
+    return html`<div class=${'kart kpi' + (vurgu ? ' vurgu' : '')}><div class="ad">${ikon && html`<${Ikon} ad=${ikon} boyut=${15} />`}${cevir(ad)}</div>
+      <div class="deger">${deger}${birim && html`<small>${cevir(birim)}</small>`}</div>${alt && html`<div class="alt">${alt}</div>`}</div>`;
   }
   /* Basit çubuk grafik: [{ ad, deger, etiket, ipucu, vurgu }] */
   function Cubuklar({ veri, yukseklik = 150 }) {
@@ -130,7 +130,7 @@
     return html`<div class="cubuk-grafik" style=${{ height: yukseklik + 'px' }}>${veri.map((x) => html`<div class=${'sutun' + (x.vurgu ? ' bu-ay' : '')}>
       ${x.ipucu && html`<span class="ipucu-kutu">${x.ipucu}</span>`}
       <span class="deger">${x.deger ? x.etiket ?? x.deger : ''}</span>
-      <div class="cubuk" style=${{ height: `${(x.deger / en) * (yukseklik - 40)}px` }} /><span class="ay">${x.ad}</span></div>`)}</div>`;
+      <div class="cubuk" style=${{ height: `${(x.deger / en) * (yukseklik - 40)}px` }} /><span class="ay">${cevir(x.ad)}</span></div>`)}</div>`;
   }
   /* Kayıt penceresinin alt düğmeleri: Sil (varsa) · Vazgeç · Kaydet */
   /* serbest: yazma kısıtından bağımsız (Satış içindeki klips pencereleri: klipsi herkes girer). */
@@ -138,7 +138,7 @@
     if (!serbest && !yazabilir()) return saltAlt(kapat);
     return html`${(kayit && silFn || ek) && html`<div class="sol">${kayit && silFn && html`<button class="d tehlike" onClick=${silFn}><${Ikon} ad="cop" />${cevir("Sil")}</button>`}${ek}</div>`}
       <button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button>
-      <button class="d ana-d" disabled=${mesgul} onClick=${kaydet}><${Ikon} ad="tik" />${mesgul ? cevir("Kaydediliyor…") : kaydetYazi}</button>`;
+      <button class="d ana-d" disabled=${mesgul} onClick=${kaydet}><${Ikon} ad="tik" />${mesgul ? cevir("Kaydediliyor…") : cevir(kaydetYazi)}</button>`;
   }
 
   /* Yazdıkça altta öneri listesi açılan metin kutusu (datalist'ten farkı: ek bilgi ve klavyeyle seçim). */
@@ -186,7 +186,7 @@
           else if (e.key === 'Enter' && sonuc[sec]) calistir(sonuc[sec]);
           else if (e.key === 'Escape') { setQ(''); e.target.blur(); }
         }} />
-      ${acik && q.trim() && html`<div class="tz-ara-sonuc">${sonuc.length ? sonuc.map((x, i) => html`<button class=${i === sec ? 'secili' : ''} onMouseDown=${(e) => { e.preventDefault(); calistir(x); }}><span class="tur">${x.tur}</span><span>${x.ad}</span><span class="ek">${x.ek}</span></button>`)
+      ${acik && q.trim() && html`<div class="tz-ara-sonuc">${sonuc.length ? sonuc.map((x, i) => html`<button class=${i === sec ? 'secili' : ''} onMouseDown=${(e) => { e.preventDefault(); calistir(x); }}><span class="tur">${cevir(x.tur)}</span><span>${x.ad}</span><span class="ek">${x.ek}</span></button>`)
         : html`<div class="soluk kucuk" style="padding:10px 12px">${cevir("Sonuç yok")}</div>`}</div>`}
     </div>`;
   }
@@ -201,26 +201,26 @@
   function Profil() {
     const [ad, setAd] = useState(b.kullanici);
     const [t, setT] = useState(temaAl());
-    return html`<${AyarKarti} baslik=${cevir("Profil")} aciklama="Adınız her kaydın geçmişinde “kim yaptı” olarak görünür. Bütün sistemlerde ortaktır.">
+    return html`<${AyarKarti} baslik=${cevir("Profil")} aciklama=${cevir("Adınız her kaydın geçmişinde “kim yaptı” olarak görünür. Bütün sistemlerde ortaktır.")}>
       <div class="form-izgara">
         <${Alan} etiket=${cevir("Adınız")} sinif="s6"><div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
-          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir('Adınız güncellendi.'); }}>${cevir("Kaydet")}</button></div><//>
+          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div><//>
         <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><div class="segment">${[['oto', 'Sistem'], ['acik', 'Açık'], ['koyu', 'Koyu']].map(([id, yazi]) => html`<button class=${t === id ? 'secili' : ''} onClick=${() => { setT(id); temaUygula(id); }}>${yazi}</button>`)}</div><//>
       </div>
     <//>`;
   }
   function Bulut() {
     const d = depo();
-    return html`<${AyarKarti} baslik=${cevir("Bulut bağlantısı")} aciklama="Kayıtlar internet üzerinden tutulur; bu sistemi açan herkes aynı kayıtları görür. İnternet yokken son kayıtlarla çalışır, yenileri bağlantı gelince gönderir."
-      sag=${html`<button class="d kucuk-d" onClick=${async () => { await d.tara(); bildir(d.hata ? d.hata : 'Eşitlendi.', d.hata ? { tur: 'hata' } : {}); }}><${Ikon} ad="senkron" boyut=${15} />${cevir("Şimdi eşitle")}</button>`}>
+    return html`<${AyarKarti} baslik=${cevir("Bulut bağlantısı")} aciklama=${cevir("Kayıtlar internet üzerinden tutulur; bu sistemi açan herkes aynı kayıtları görür. İnternet yokken son kayıtlarla çalışır, yenileri bağlantı gelince gönderir.")}
+      sag=${html`<button class="d kucuk-d" onClick=${async () => { await d.tara(); bildir(d.hata ? d.hata : cevir("Eşitlendi."), d.hata ? { tur: 'hata' } : {}); }}><${Ikon} ad="senkron" boyut=${15} />${cevir("Şimdi eşitle")}</button>`}>
       <div class="form-izgara">
-        <div class="s6"><div class="alt-satir">${cevir("Bağlantı")}</div><div class="ust-satir">${b.mod === 'demo' ? 'Sunum modu (kaydedilmez)' : d.cevrimici ? 'Bulut · bağlı' : 'Bulut · bağlantı yok'}</div></div>
+        <div class="s6"><div class="alt-satir">${cevir("Bağlantı")}</div><div class="ust-satir">${b.mod === 'demo' ? cevir("Sunum modu (kaydedilmez)") : d.cevrimici ? cevir("Bulut · bağlı") : cevir("Bulut · bağlantı yok")}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Toplam hareket")}</div><div class="ust-satir sayi">${adetYaz(d.olaylar.size)}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Son eşitleme")}</div><div class="ust-satir">${d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—'}</div></div>
-        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${window.NT_SURUM_AKTIF.surum} · güncellemeler kendiliğinden gelir</div>`}
-        ${d.bekleyen.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${d.bekleyen.length} değişiklik bu bilgisayarda bekliyor; internete ulaşılınca otomatik gönderilecek.</span></div>`}
+        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${window.NT_SURUM_AKTIF.surum} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
+        ${d.bekleyen.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${d.bekleyen.length} ${cevir("değişiklik bu bilgisayarda bekliyor; internete ulaşılınca otomatik gönderilecek.")}</span></div>`}
         ${d.hata && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="uyari" /><span>${d.hata}</span></div>`}
-        ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla('Bu bilgisayardaki erişim kodu silinir (bütün sistemler için); bir dahaki açılışta kod yeniden sorulur. Buluttaki kayıtlara dokunulmaz.', { baslik: 'Bağlantıyı kes', evet: 'Bağlantıyı kes' })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button></div>`}
+        ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayardaki erişim kodu silinir (bütün sistemler için); bir dahaki açılışta kod yeniden sorulur. Buluttaki kayıtlara dokunulmaz."), { baslik: cevir("Bağlantıyı kes"), evet: cevir("Bağlantıyı kes") })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button></div>`}
       </div>
     <//>`;
   }
@@ -233,18 +233,18 @@
       ${silinen.length ? html`<div class="tablo-kap" style="max-height:340px"><table class="tablo"><thead><tr><th>${cevir("Tür")}</th><th>${cevir("Kayıt")}</th><th>${cevir("Silen")}</th><th></th></tr></thead><tbody>
         ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td>${turler[c].ad}</td><td>${r.no && html`<span class="etiket-kod">${r.no}</span> `}${turler[c].ozet(r)}</td>
           <td>${r._degistiren} <span class="soluk kucuk">· ${onceYaz(r._degisim)}</span></td>
-          <td class="sag"><button class="d kucuk-d" onClick=${async () => { await d.kaydet([{ op: 'undel', c, k: r.id }]); bildir('Geri alındı.'); }}><${Ikon} ad="geri" boyut=${15} />${cevir("Geri al")}</button></td></tr>`)}
+          <td class="sag"><button class="d kucuk-d" onClick=${async () => { await d.kaydet([{ op: 'undel', c, k: r.id }]); bildir(cevir("Geri alındı.")); }}><${Ikon} ad="geri" boyut=${15} />${cevir("Geri al")}</button></td></tr>`)}
       </tbody></table></div>` : html`<${BosDurum} ikon="cop" baslik=${cevir("Çöp kutusu boş")} />`}
     <//>`;
   }
   function Yedek({ onEk }) {
     const d = depo();
-    return html`<${AyarKarti} baslik=${cevir("Yedek")} aciklama="Kayıtlar bulutta durur; yine de ara sıra tam yedek indirip saklamanızı öneririz.">
-      <button class="d" onClick=${() => { indir(`${onEk}-yedek-${bugun()}.json`, JSON.stringify({ uygulama: 'SKYHEM Takip', modul: b.modul.id, tarih: new Date().toISOString(), olaylar: d.sirali }, null, 1), 'application/json'); bildir('Yedek indirildi.'); }}><${Ikon} ad="indir" />${cevir("Tam yedek indir")}</button>
+    return html`<${AyarKarti} baslik=${cevir("Yedek")} aciklama=${cevir("Kayıtlar bulutta durur; yine de ara sıra tam yedek indirip saklamanızı öneririz.")}>
+      <button class="d" onClick=${() => { indir(`${onEk}-yedek-${bugun()}.json`, JSON.stringify({ uygulama: 'SKYHEM Takip', modul: b.modul.id, tarih: new Date().toISOString(), olaylar: d.sirali }, null, 1), 'application/json'); bildir(cevir("Yedek indirildi.")); }}><${Ikon} ad="indir" />${cevir("Tam yedek indir")}</button>
     <//>`;
   }
   function AyarlarSayfasi({ aciklama, cop, children }) {
-    return html`<${Selam} baslik=${cevir("Ayarlar")}>${aciklama || 'Buradaki ayarlar bu sistemi kullanan herkes için ortaktır (profil ve görünüm hariç).'}<//>
+    return html`<${Selam} baslik=${cevir("Ayarlar")}>${aciklama || cevir("Buradaki ayarlar bu sistemi kullanan herkes için ortaktır (profil ve görünüm hariç).")}<//>
       <${Profil} />${children}<${Bulut} />${cop && yazabilir() && html`<${CopKutusu} turler=${cop} />`}<${Yedek} onEk=${b.modul.id} />`;
   }
 
@@ -275,7 +275,7 @@
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
     const Sayfa = sayfalar[sekme] || sayfalar[sekmeler[0].id];
     if (!gorebilir()) return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}><div class="tz-ana"><main class="tz-icerik" style="max-width:560px;margin:12vh auto 0">
-      <${BosDurum} ikon="yasak" baslik=${`${b.modul.ad} size açık değil`} aciklama=${cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
+      <${BosDurum} ikon="yasak" baslik=${NT.dil.m("{0} size açık değil", b.modul.ad)} aciklama=${cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
       <div style="display:flex;justify-content:center;margin-top:16px"><${AnaEkranLinki} /></div></main></div></div>`;
     return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}>
       <aside class="tz-yan">
@@ -293,8 +293,8 @@
             ${cevrimici.slice(0, 5).map((k) => html`<${Avatar} key=${k.cihaz} ad=${k.ad} kucuk />`)}
             <span class="yazi">${cevrimici.length <= 1 ? cevir("Şu an sadece siz") : cevir(`${cevrimici.length} kişi çevrimiçi`, `${cevrimici.length} people online`)}</span></div>`}
           <button class=${'tz-canli ' + durum} onClick=${() => d.tara()} title=${d.hata || cevir("Şimdi eşitle")}><span class="nokta" />
-            <span><b>${b.mod === 'demo' ? cevir("Sunum modu") : d.hata ? cevir("Bağlantı sorunu") : d.bekleyen.length ? `${d.bekleyen.length} değişiklik bekliyor` : cevir("Eşitlendi")}</b>
-              ${b.mod === 'demo' ? cevir("Örnek veri · kaydedilmez") : `Bulut · ${d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—'}`}</span></button>
+            <span><b>${b.mod === 'demo' ? cevir("Sunum modu") : d.hata ? cevir("Bağlantı sorunu") : d.bekleyen.length ? NT.dil.m("{0} değişiklik bekliyor", d.bekleyen.length) : cevir("Eşitlendi")}</b>
+              ${b.mod === 'demo' ? cevir("Örnek veri · kaydedilmez") : NT.dil.m("Bulut · {0}", d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—')}</span></button>
           <a class="tz-kullanici" href="#/ayarlar"><${Avatar} ad=${b.kullanici || '?'} kucuk /><span>${b.kullanici}</span></a>
         </div>
       </aside>
@@ -313,8 +313,8 @@
     const [hata, setHata] = useState('');
     const [bekle, setBekle] = useState(false);
     const giris = async () => {
-      if (ad.trim().length < 2) return setHata('Önce adınızı yazın.');
-      if (kod.trim().length < 4) return setHata('Erişim kodunu yazın.');
+      if (ad.trim().length < 2) return setHata(cevir("Önce adınızı yazın."));
+      if (kod.trim().length < 4) return setHata(cevir("Erişim kodunu yazın."));
       setHata(''); setBekle(true);
       try { await b.girisYap(ad, kod); } catch (e) { console.error(e); setHata(e); } finally { setBekle(false); }
     };
@@ -398,7 +398,7 @@
         return b.depo.abone(({ yeni }) => {
           tik();
           const uzak = (yeni || []).filter((e) => e.d !== b.cihaz && e.t > baslangic - 5000 && (ayar.uzakKoleksiyonlar || []).includes(e.c));
-          if (uzak.length) bildir(`${[...new Set(uzak.map((e) => e.u))].join(', ')} ${uzak.length === 1 ? 'bir değişiklik' : uzak.length + ' değişiklik'} yaptı.`);
+          if (uzak.length) bildir(NT.dil.m("{0} {1} yaptı.", [...new Set(uzak.map((e) => e.u))].join(', '), uzak.length === 1 ? 'bir değişiklik' : uzak.length + ' değişiklik'));
         });
       }, [b.depo]);
       const ic = b.durum === 'hazir' && b.depo ? html`<${Iskelet} ayar=${ayar} />`

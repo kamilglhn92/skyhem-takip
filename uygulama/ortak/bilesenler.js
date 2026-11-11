@@ -119,28 +119,85 @@
       return () => window.removeEventListener('keydown', f, true);
     }, [kapat]);
     return html`<div class="perde" ref=${perde} onMouseDown=${(e) => e.target === e.currentTarget && kapat()}>
-      <div class=${`modal ${genis ? 'genis' : ''} ${dar ? 'dar' : ''} ${sinif}`} role="dialog" aria-modal="true" aria-label=${baslik}>
-        ${baslik && html`<div class="modal-bas"><h2>${baslik}</h2><div class="sag">${sag}<button class="d hayalet ikon-d" onClick=${kapat} aria-label=${cevir("Kapat")}><${Ikon} ad="kapat" /></button></div></div>`}
+      <div class=${`modal ${genis ? 'genis' : ''} ${dar ? 'dar' : ''} ${sinif}`} role="dialog" aria-modal="true" aria-label=${cevir(baslik)}>
+        ${baslik && html`<div class="modal-bas"><h2>${cevir(baslik)}</h2><div class="sag">${sag}<button class="d hayalet ikon-d" onClick=${kapat} aria-label=${cevir("Kapat")}><${Ikon} ad="kapat" /></button></div></div>`}
         ${children}
         ${alt && html`<div class="modal-alt">${alt}</div>`}
       </div>
     </div>`;
   }
 
+  function KartDetayDugmesi({ no, firma, ac }) {
+    const etiket = cevir('Detayları görüntüle', 'View details');
+    return html`<button type="button" class="firma tz-kart-detay-dugme" onClick=${ac}
+      aria-label=${[etiket, no, firma].filter(Boolean).join(' · ')}>${firma || no}</button>`;
+  }
+
+  function KayitDetay({ baslik, kapat, durum, ozet, children }) {
+    const govde = useRef();
+    useEffect(() => {
+      const onceki = document.activeElement;
+      govde.current?.focus();
+      return () => { if (onceki?.isConnected) onceki.focus(); };
+    }, []);
+    return html`<${Modal} genis sinif="tz-detay-modal" baslik=${cevir(baslik)} sag=${durum} kapat=${kapat}>
+      <div class="modal-ic tz-detay-govde" ref=${govde} tabIndex="-1">
+        <dl class="tz-detay-ozet">${ozet.filter(([, deger]) => deger || deger === 0).map(([ad, deger]) => html`<div key=${ad}>
+          <dt>${ad}</dt><dd>${deger}</dd>
+        </div>`)}</dl>
+        ${children}
+      </div>
+    <//>`;
+  }
+
+  function DetayEkleri({ ekler }) {
+    const [secili, sec] = useState(null);
+    const gorsel = ekler.find((ek) => ek.dosya === secili);
+    return html`
+      <ul class="tz-detay-ekler">${ekler.map((ek) => {
+        const resim = /^image\//i.test(ek.tur || '');
+        const acik = resim && ek.dosya === secili;
+        return html`<li key=${ek.dosya}><button type="button" title=${ek.ad}
+          aria-expanded=${resim ? acik : undefined} onClick=${() => resim ? sec(acik ? null : ek.dosya) : ekAc(ek)}>
+          <span class="tz-detay-ek-simge" aria-hidden="true">${resim ? html`<${EkOnizleme} ek=${ek} />`
+            : html`<${Ikon} ad="belge" boyut=${22} />`}</span>
+          <span class="tz-detay-ek-ad">${ek.ad}</span>
+        </button></li>`;
+      })}</ul>
+      ${gorsel && html`<figure class="tz-detay-ek-onizleme"><${EkOnizleme} ek=${gorsel} /></figure>`}`;
+  }
+
+  function DetayBolumu({ baslik, ikon, gorsel, alanlar = [], belgeler = [], children }) {
+    const dolu = (v) => v != null && v !== '' && v !== false;
+    const alan = alanlar.filter(([, v]) => dolu(v));
+    const dosya = belgeler.filter(([, ek, eski]) => ek?.length || dolu(eski));
+    if (!alan.length && !dosya.length && !children && !gorsel) return null;
+    return html`<section class="tz-detay-bolum">
+      <h3>${gorsel || (ikon && html`<span class="tz-detay-simge"><${Ikon} ad=${ikon} boyut=${16} /></span>`)}<span>${cevir(baslik)}</span></h3>
+      ${(alan.length > 0 || dosya.length > 0) && html`<dl class="tz-detay-alanlar">
+        ${alan.map(([ad, v, genis]) => html`<div key=${ad} class=${genis ? "tz-detay-genis" : ""}><dt>${ad}</dt><dd>${v}</dd></div>`)}
+        ${dosya.map(([ad, ek, eski]) => html`<div key=${ad} class="tz-detay-belge"><dt>${ad}</dt><dd>
+          ${dolu(eski) && eski}${ek?.length > 0 && html`<${DetayEkleri} ekler=${ek} />`}
+        </dd></div>`)}
+      </dl>`}
+      ${children}
+    </section>`;
+  }
+
   function Alan({ etiket, ipucu, hata, sinif = 's12', children }) {
     return html`<div class=${'alan ' + sinif}>
-      ${etiket && html`<label>${etiket}</label>`}
+      ${etiket && html`<label>${cevir(etiket)}</label>`}
       ${children}
-      ${hata ? html`<span class="hata-yazi">${hata}</span>` : ipucu && html`<span class="ipucu">${ipucu}</span>`}
+      ${hata ? html`<span class="hata-yazi">${cevir(hata)}</span>` : ipucu && html`<span class="ipucu">${cevir(ipucu)}</span>`}
     </div>`;
   }
 
   function AdetGirdi({ deger, degis, min = 0, otomatikOdak }) {
     const n = Number(deger) || 0;
     return html`<div class="adet-girdi">
-      <button type="button" tabindex="-1" onClick=${() => degis(Math.max(min, n - 1))} aria-label="Azalt">−</button>
+      <button type="button" tabindex="-1" onClick=${() => degis(Math.max(min, n - 1))} aria-label=${cevir("Azalt")}>−</button>
       <input class="girdi" type="number" inputmode="numeric" min=${min} value=${deger} autofocus=${otomatikOdak} onInput=${(e) => degis(e.target.value === '' ? '' : Number(e.target.value))} />
-      <button type="button" tabindex="-1" onClick=${() => degis(n + 1)} aria-label="Artır">+</button>
+      <button type="button" tabindex="-1" onClick=${() => degis(n + 1)} aria-label=${cevir("Artır")}>+</button>
     </div>`;
   }
 
@@ -149,7 +206,7 @@
   }
 
   function BosDurum({ ikon = 'liste', baslik, aciklama, children }) {
-    return html`<div class="bos-durum"><${Ikon} ad=${ikon} /><h3>${baslik}</h3>${aciklama && html`<p>${aciklama}</p>`}${children}</div>`;
+    return html`<div class="bos-durum"><${Ikon} ad=${ikon} /><h3>${cevir(baslik)}</h3>${aciklama && html`<p>${aciklama}</p>`}${children}</div>`;
   }
 
   /* --- Global: bildirim ve onay penceresi --- */
@@ -174,14 +231,14 @@
       <div class="bildirimler" role="status" aria-live="polite">
         ${ui.bildirimler.map((b) => html`<div key=${b.id} class=${'bildirim ' + b.tur}>
           <span>${b.mesaj}</span>
-          ${b.eylem && html`<button onClick=${() => { b.eylem.fn(); ui.bildirimler = ui.bildirimler.filter((x) => x !== b); uiGuncelle(); }}>${b.eylem.yazi}</button>`}
+          ${b.eylem && html`<button onClick=${() => { b.eylem.fn(); ui.bildirimler = ui.bildirimler.filter((x) => x !== b); uiGuncelle(); }}>${cevir(b.eylem.yazi)}</button>`}
         </div>`)}
       </div>
-      ${o && html`<${Modal} baslik=${o.baslik} dar kapat=${() => bitir(false)} alt=${html`
-          <button class="d hayalet" onClick=${() => bitir(false)}>${o.hayir}</button>
-          ${o.alternatif && html`<button class="d" onClick=${() => bitir('alternatif')}>${o.alternatif}</button>`}
-          <button class=${'d ' + (o.tehlike ? 'tehlike' : 'ana-d')} autofocus onClick=${() => bitir(true)}>${o.evet}</button>`}>
-        <div class="modal-ic"><p style="margin:0">${o.metin}</p>${o.detay}</div>
+      ${o && html`<${Modal} baslik=${cevir(o.baslik)} dar kapat=${() => bitir(false)} alt=${html`
+          <button class="d hayalet" onClick=${() => bitir(false)}>${cevir(o.hayir)}</button>
+          ${o.alternatif && html`<button class="d" onClick=${() => bitir('alternatif')}>${cevir(o.alternatif)}</button>`}
+          <button class=${'d ' + (o.tehlike ? 'tehlike' : 'ana-d')} autofocus onClick=${() => bitir(true)}>${cevir(o.evet)}</button>`}>
+        <div class="modal-ic"><p style="margin:0">${cevir(o.metin)}</p>${o.detay}</div>
       <//>`}`;
   }
 
@@ -235,8 +292,8 @@
     return html`<div class="s12 gecmis-bolum">
       <button type="button" class="gecmis-serit" aria-expanded=${acik} onClick=${() => setAcik(!acik)}>
         <${Ikon} ad=${acik ? 'asagi' : 'ok'} boyut=${16} />
-        <b>${cevir("Kayıt geçmişi")}</b><span class="soluk">${kayit._gecmis.length} işlem</span>
-        ${son && html`<span class="soluk kucuk sag">Son: ${son.u} · ${NT.c.zamanYaz(son.t)}</span>`}
+        <b>${cevir("Kayıt geçmişi")}</b><span class="soluk">${kayit._gecmis.length} ${cevir("işlem")}</span>
+        ${son && html`<span class="soluk kucuk sag">${cevir("Son:")} ${son.u} · ${NT.c.zamanYaz(son.t)}</span>`}
       </button>
       ${acik && html`<div class="gecmis-ic"><${Gecmis} kayit=${kayit} /></div>`}
     </div>`;
@@ -247,7 +304,7 @@
     try {
       const f = await NT.baglanti.depo.ekOku(ek.dosya);
       window.open(URL.createObjectURL(f), '_blank');
-    } catch { bildir('Dosya açılamadı (silinmiş ya da erişim yok).', { tur: 'hata' }); }
+    } catch { bildir(cevir("Dosya açılamadı (silinmiş ya da erişim yok)."), { tur: 'hata' }); }
   }
   /* Görsel ekin küçük önizlemesi (PDF vb. için simge + ad). */
   function EkOnizleme({ ek }) {
@@ -272,7 +329,7 @@
       e.target.value = '';
       if (!dosyalar.length) return;
       const buyuk = dosyalar.find((f) => f.size > 15 * 1024 * 1024);
-      if (buyuk) return bildir(`${buyuk.name} 15 MB'tan büyük.`, { tur: 'hata' });
+      if (buyuk) return bildir(NT.dil.m("{0} 15 MB'tan büyük.", buyuk.name), { tur: 'hata' });
       setYukleniyor(true);
       try {
         const yeni = [];
@@ -284,9 +341,9 @@
     return html`<div class="dugmeler">
       ${ekler.map((ek) => html`<span class="kalem-cip" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px">
         <a href="#" onClick=${(e) => { e.preventDefault(); ac(ek); }}>${ek.ad}</a>
-        ${!salt && html`<button class="d hayalet ikon-d" style="padding:0" title="Kaldır" onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${13} /></button>`}
+        ${!salt && html`<button class="d hayalet ikon-d" style="padding:0" title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${13} /></button>`}
       </span>`)}
-      ${!salt && html`<button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="ataç" boyut=${15} />${yukleniyor ? 'Yükleniyor…' : 'Dosya / fotoğraf ekle'}</button>
+      ${!salt && html`<button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="ataç" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : cevir("Dosya / fotoğraf ekle")}</button>
       <input ref=${girdi} type="file" multiple class="gizli" onChange=${ekle} />`}
     </div>`;
   }
@@ -329,16 +386,16 @@
     return html`<div class=${'belge-kutu' + (tamam ? ' tamam' : '') + (surukle ? ' surukle' : '')}
       onDragOver=${(e) => { e.preventDefault(); setSurukle(true); }} onDragLeave=${() => setSurukle(false)}
       onDrop=${(e) => { e.preventDefault(); setSurukle(false); yukle([...e.dataTransfer.files]); }}>
-      <div class="belge-bas"><${Ikon} ad=${tamam ? 'daire_tik' : foto ? 'kamera' : 'belge'} boyut=${18} /><b>${baslik}</b>${tamam && html`<span class="belge-sayi">${ekler.length}</span>`}</div>
+      <div class="belge-bas"><${Ikon} ad=${tamam ? 'daire_tik' : foto ? 'kamera' : 'belge'} boyut=${18} /><b>${cevir(baslik)}</b>${tamam && html`<span class="belge-sayi">${ekler.length}</span>`}</div>
       ${eski && html`<div class="belge-eski">${eski}</div>`}
       ${children}
       ${tamam && html`<div class="belge-dosyalar">${ekler.map((ek) => html`<div class="belge-dosya" key=${ek.dosya}>
         <button type="button" class="belge-onizle" title=${ek.ad + ' — açmak için tıklayın'} onClick=${() => ekAc(ek)}><${EkOnizleme} ek=${ek} /></button>
-        <button type="button" class="belge-kaldir" title="Kaldır" onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
+        <button type="button" class="belge-kaldir" title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
       </div>`)}</div>`}
       <div class="belge-alt">
-        <button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? 'Yükleniyor…' : tamam ? 'Ekle' : foto ? 'Fotoğraf yükle' : 'Belge yükle'}</button>
-        ${!tamam && !yukleniyor && html`<span class="ipucu">${ipucu || (foto ? 'veya buraya sürükleyin' : 'PDF ya da görsel; buraya da sürükleyebilirsiniz')}</span>`}
+        <button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : tamam ? cevir("Ekle") : foto ? cevir("Fotoğraf yükle") : cevir("Belge yükle")}</button>
+        ${!tamam && !yukleniyor && html`<span class="ipucu">${ipucu || (foto ? cevir("veya buraya sürükleyin") : cevir("PDF ya da görsel; buraya da sürükleyebilirsiniz"))}</span>`}
       </div>
       <input ref=${girdi} type="file" multiple accept=${foto ? 'image/*' : 'image/*,application/pdf'} class="gizli" onChange=${(e) => { const l = [...e.target.files]; e.target.value = ''; yukle(l); }} />
     </div>`;
@@ -381,7 +438,7 @@
     const k = (a) => String(a || '').trim().toLocaleLowerCase('tr');
     const tum = deger && !liste.some((a) => k(a) === k(deger)) ? [...liste, deger] : liste;
     const secili = tum.find((a) => k(a) === k(deger)) || '';
-    return html`<select class="girdi" aria-label=${etiket} value=${diger ? '__diger' : secili} onChange=${(e) => { const v = e.target.value; if (v === '__diger') { setDiger(true); degis(''); } else { setDiger(false); degis(v); } }}>
+    return html`<select class="girdi" aria-label=${cevir(etiket)} value=${diger ? '__diger' : secili} onChange=${(e) => { const v = e.target.value; if (v === '__diger') { setDiger(true); degis(''); } else { setDiger(false); degis(v); } }}>
         <option value="">${cevir("Seçin…")}</option>
         ${tum.map((a) => html`<option value=${a}>${a}</option>`)}
         <option value="__diger">${cevir("Başka kişi…")}</option>
@@ -389,6 +446,6 @@
       ${diger && html`<input class="girdi" style="margin-top:6px" value=${deger} placeholder=${cevir("Ad Soyad")} autofocus onInput=${(e) => degis(e.target.value)} />`}`;
   }
 
-  NT.ui = { HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
+  NT.ui = { KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
   Object.assign(NT.ui, { PERSONEL, kisiListesi, KisiSec });
 })();

@@ -23,8 +23,8 @@
   const VARSAYILAN = { tedarikci: 'DESBAŞ', katsayi: 10.64 };
   const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const AY_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-  const ayAdi = (ay) => `${AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
-  const ayKisa = (ay) => `${AY_KISA[+ay.slice(5, 7) - 1]} ${ay.slice(2, 4)}`;
+  const ayAdi = (ay) => `${NT.dil?.t(AY_ADLARI[+ay.slice(5, 7) - 1]) ?? AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
+  const ayKisa = (ay) => `${NT.dil?.t(AY_KISA[+ay.slice(5, 7) - 1]) ?? AY_KISA[+ay.slice(5, 7) - 1]} ${ay.slice(2, 4)}`;
   const ayNo = (ay) => +ay.slice(0, 4) * 12 + (+ay.slice(5, 7) - 1);
   const ayYaz = (n) => `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`;
   const ayKaydir = (ay, n) => ayYaz(ayNo(ay) + n);
@@ -148,15 +148,15 @@
   /* Karşılama ekranı kartı için kısa özet. */
   function ozet(d) {
     const s = son12(d);
-    if (!s) return ['Henüz kayıt yok', 'Elektrik ve doğalgaz faturalarını girin'];
+    if (!s) return [(NT.dil?.t('Henüz kayıt yok') ?? 'Henüz kayıt yok'), (NT.dil?.t('Elektrik ve doğalgaz faturalarını girin') ?? 'Elektrik ve doğalgaz faturalarını girin')];
     const eksik = eksikAy(d);
-    return [`Son 12 ay ${dolar(s.toplam.usd)} · ${Math.round(s.toplam.kwh).toLocaleString('tr-TR')} kWh`,
-      [`Son kayıt ${ayAdi(s.bitis)}`, eksik && `${eksik} ay girilmedi`].filter(Boolean).join(' · ')];
+    return [(NT.dil?.m("Son 12 ay {0} · {1} kWh", dolar(s.toplam.usd), Math.round(s.toplam.kwh).toLocaleString('tr-TR')) ?? `Son 12 ay ${dolar(s.toplam.usd)} · ${Math.round(s.toplam.kwh).toLocaleString('tr-TR')} kWh`),
+      [(NT.dil?.m("Son kayıt {0}", ayAdi(s.bitis)) ?? `Son kayıt ${ayAdi(s.bitis)}`), eksik && (NT.dil?.m("{0} ay girilmedi", eksik) ?? `${eksik} ay girilmedi`)].filter(Boolean).join(' · ')];
   }
   /* Karşılama ekranındaki "dikkat bekleyenler" şeridi; kural kenar menüsündeki Kayıtlar sayacıyla aynıdır. */
   function dikkat(d) {
     const eksik = eksikAy(d);
-    return eksik ? [{ metin: `${eksik} ayın enerji kaydı girilmedi`, sekme: 'kayitlar' }] : [];
+    return eksik ? [{ metin: (NT.dil?.m("{0} ayın enerji kaydı girilmedi", eksik) ?? `${eksik} ayın enerji kaydı girilmedi`), sekme: 'kayitlar' }] : [];
   }
 
   NT.enerji = { TIPLER, tipBul, BIRIM_YAZ, VARSAYILAN, AY_ADLARI, AY_KISA, ayAdi, ayKisa, ayKaydir, ayar, birimi, kwh, m3, satirlar, aylar, sonAy, pencere, topla, son12, yillar, matris, uyarilar, eksikAy, dolar, ozet, dikkat };

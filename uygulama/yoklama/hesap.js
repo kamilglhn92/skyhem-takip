@@ -29,8 +29,8 @@
   const tur = (id) => TURLER.find((t) => t.id === id) || TURLER[0];
   const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-  const ayAdi = (ay) => `${AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
-  const gunKisa = (t) => GUN_KISA[new Date(t + 'T12:00:00').getDay()];
+  const ayAdi = (ay) => `${NT.dil?.t(AY_ADLARI[+ay.slice(5, 7) - 1]) ?? AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
+  const gunKisa = (t) => NT.dil?.t(GUN_KISA[new Date(t + 'T12:00:00').getDay()]) ?? GUN_KISA[new Date(t + 'T12:00:00').getDay()];
   const ayGunleri = (ay) => Array.from({ length: new Date(+ay.slice(0, 4), +ay.slice(5, 7), 0).getDate() }, (_, i) => `${ay}-${String(i + 1).padStart(2, '0')}`);
   const ayKaydir = (ay, n) => { const d = new Date(+ay.slice(0, 4), +ay.slice(5, 7) - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   const saatYaz = (s) => (Number.isInteger(s) ? String(s) : String(Math.round(s * 10) / 10).replace('.', ','));
@@ -128,20 +128,20 @@
   function dikkat(d) {
     const g = ayKaydir(bugun().slice(0, 7), -1);
     if (!ayOzet(d, g).length) return [];
-    if (!onay(d, g)) return [{ metin: `${ayAdi(g)} yoklaması onaylanmadı`, sekme: 'cizelge' }];
+    if (!onay(d, g)) return [{ metin: (NT.dil?.m("{0} yoklaması onaylanmadı", ayAdi(g)) ?? `${ayAdi(g)} yoklaması onaylanmadı`), sekme: 'cizelge' }];
     const n = onaydanSonraDegisen(d, g).length;
-    return n ? [{ metin: `${ayAdi(g)} onayından sonra ${n} kayıt değişti`, sekme: 'cizelge' }] : [];
+    return n ? [{ metin: (NT.dil?.m("{0} onayından sonra {1} kayıt değişti", ayAdi(g), n) ?? `${ayAdi(g)} onayından sonra ${n} kayıt değişti`), sekme: 'cizelge' }] : [];
   }
 
   function ozet(d) {
     const l = bugunListe(d).filter((x) => !x.g.disarda);
-    if (!kisiler(d).length) return ['Personel eklenmedi', 'Ayarlar › Personel'];
+    if (!kisiler(d).length) return [(NT.dil?.t('Personel eklenmedi') ?? 'Personel eklenmedi'), (NT.dil?.t('Ayarlar › Personel') ?? 'Ayarlar › Personel')];
     const bg = bugun();
     const ay = ayOzet(d, bg.slice(0, 7));
     const yok = l.filter((x) => x.g.yok);
-    const ilk = T.isGunu(bg) ? `Bugün ${l.length - yok.length}/${l.length} kişi işte` : `Bugün ${T.tatil(bg) || 'hafta sonu'}`;
+    const ilk = T.isGunu(bg) ? (NT.dil?.m("Bugün {0}/{1} kişi işte", l.length - yok.length, l.length) ?? `Bugün ${l.length - yok.length}/${l.length} kişi işte`) : (NT.dil?.m("Bugün {0}", T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`);
     const mesai = ay.reduce((s, x) => s + x.mesaiSaat + x.tatilSaat, 0);
-    return [ilk, [yok.length && yok.map((x) => `${x.k.ad.split(' ')[0]}: ${tur(x.g.tur).ad.toLocaleLowerCase('tr')}`).join(', '), `Bu ay ${saatYaz(mesai)} saat fazla mesai`].filter(Boolean).join(' · ')];
+    return [ilk, [yok.length && yok.map((x) => `${x.k.ad.split(' ')[0]}: ${tur(x.g.tur).ad.toLocaleLowerCase('tr')}`).join(', '), (NT.dil?.m("Bu ay {0} saat fazla mesai", saatYaz(mesai)) ?? `Bu ay ${saatYaz(mesai)} saat fazla mesai`)].filter(Boolean).join(' · ')];
   }
 
   NT.yoklama = { TURLER, tur, AY_ADLARI, ayAdi, gunKisa, ayGunleri, ayKaydir, saatYaz, onayAnahtari, ayar, kisiler, takipte, istisnalar, kapsar, yarimMi, gunDurum, ayOzet, onay, onaydanSonraDegisen, kayitGunleri, cakisanlar, bugunListe, ozet, dikkat };

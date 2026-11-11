@@ -31,8 +31,8 @@
   const MENULU = OGUNLER.filter((o) => o.menu);
   const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const GUN_ADLARI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-  const ayAdi = (ay) => `${AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
-  const gunAdi = (t) => GUN_ADLARI[new Date(t + 'T12:00:00').getDay()];
+  const ayAdi = (ay) => `${NT.dil?.t(AY_ADLARI[+ay.slice(5, 7) - 1]) ?? AY_ADLARI[+ay.slice(5, 7) - 1]} ${ay.slice(0, 4)}`;
+  const gunAdi = (t) => NT.dil?.t(GUN_ADLARI[new Date(t + 'T12:00:00').getDay()]) ?? GUN_ADLARI[new Date(t + 'T12:00:00').getDay()];
   const ayGunSayisi = (ay) => new Date(+ay.slice(0, 4), +ay.slice(5, 7), 0).getDate();
   const ayGunleri = (ay) => Array.from({ length: ayGunSayisi(ay) }, (_, i) => `${ay}-${String(i + 1).padStart(2, '0')}`);
   const ayKaydir = (ay, n) => { const d = new Date(+ay.slice(0, 4), +ay.slice(5, 7) - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
@@ -192,21 +192,21 @@
     const eksik = tumEksikler(d).length;
     const gecen = ayOzet(d, ayKaydir(bugun().slice(0, 7), -1));
     const fark = d.kayitlar('fatura').filter((f) => ayOzet(d, f.ay).kontrol === 'fark').length;
-    return [eksik && { metin: `${eksik} günün yemek sayısı girilmedi`, sekme: 'takvim' },
-      gecen.kontrol === 'bekliyor' && { metin: `${ayAdi(gecen.ay)} yemek faturası girilmedi`, sekme: 'faturalar' },
-      fark && { metin: `${fark} ayda yemek faturası farkı`, sekme: 'faturalar' }].filter(Boolean);
+    return [eksik && { metin: (NT.dil?.m("{0} günün yemek sayısı girilmedi", eksik) ?? `${eksik} günün yemek sayısı girilmedi`), sekme: 'takvim' },
+      gecen.kontrol === 'bekliyor' && { metin: (NT.dil?.m("{0} yemek faturası girilmedi", ayAdi(gecen.ay)) ?? `${ayAdi(gecen.ay)} yemek faturası girilmedi`), sekme: 'faturalar' },
+      fark && { metin: (NT.dil?.m("{0} ayda yemek faturası farkı", fark) ?? `${fark} ayda yemek faturası farkı`), sekme: 'faturalar' }].filter(Boolean);
   }
 
   function ozet(d) {
     const bg = bugun();
     const g = etkin(d, bg);
-    const ilk = g && g.oto ? `Bugün ${sayi(g.ogle)} öğle (otomatik)` : !girildiMi(g) ? (T.isGunu(bg) ? 'Bugün henüz girilmedi' : `Bugün ${T.tatil(bg) || 'hafta sonu'}`)
-      : g.yemekYok ? 'Bugün yemek yok' : `Bugün ${OGUNLER.filter((o) => sayi(g[o.id]) > 0).map((o) => `${sayi(g[o.id])} ${o.ad.toLocaleLowerCase('tr')}`).join(' · ')}`;
+    const ilk = g && g.oto ? (NT.dil?.m("Bugün {0} öğle (otomatik)", sayi(g.ogle)) ?? `Bugün ${sayi(g.ogle)} öğle (otomatik)`) : !girildiMi(g) ? (T.isGunu(bg) ? (NT.dil?.t('Bugün henüz girilmedi') ?? 'Bugün henüz girilmedi') : (NT.dil?.m("Bugün {0}", T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`))
+      : g.yemekYok ? (NT.dil?.t('Bugün yemek yok') ?? 'Bugün yemek yok') : `Bugün ${OGUNLER.filter((o) => sayi(g[o.id]) > 0).map((o) => `${sayi(g[o.id])} ${o.ad.toLocaleLowerCase('tr')}`).join(' · ')}`;
     const ay = ayOzet(d, bg.slice(0, 7));
     const eksik = tumEksikler(d).length;
     const ogleMenu = yemekler(d, bg, 'ogle');
     const kafe = kafeler(d, bg.slice(0, 7)).length;
-    return [ilk, [`Bu ay ${ay.toplam} öğün`, kafe && `${kafe} kafe siparişi`, eksik && `${eksik} gün girilmedi`, ogleMenu.length && `Öğle: ${ogleMenu.slice(0, 2).join(', ')}`].filter(Boolean).join(' · ')];
+    return [ilk, [(NT.dil?.m("Bu ay {0} öğün", ay.toplam) ?? `Bu ay ${ay.toplam} öğün`), kafe && (NT.dil?.m("{0} kafe siparişi", kafe) ?? `${kafe} kafe siparişi`), eksik && (NT.dil?.m("{0} gün girilmedi", eksik) ?? `${eksik} gün girilmedi`), ogleMenu.length && (NT.dil?.m("Öğle: {0}", ogleMenu.slice(0, 2).join(', ')) ?? `Öğle: ${ogleMenu.slice(0, 2).join(', ')}`)].filter(Boolean).join(' · ')];
   }
 
   NT.yemek = { otoKurallar, otoKural, otoOgle, etkin, isGunuSonu, isGunuSay, OGUNLER, MENULU, AY_ADLARI, ayAdi, gunAdi, ayGunSayisi, ayGunleri, ayKaydir, menuAnahtari, menuGunAnahtari, faturaAnahtari, ayar, gun, girildiMi, toplam, eksikMi, eksikGunler, tumEksikler, ayOzet, aylar, oneri, menu, menuGun, yemekler, kesit, sonrakiIsGunu, kafeler, kafeOzet, kafeOnerileri, kafeBirimFiyat, ozet, dikkat };
