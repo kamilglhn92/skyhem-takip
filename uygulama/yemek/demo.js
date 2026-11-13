@@ -1,4 +1,4 @@
-/* Yemek — sunum modu (?demo): örnek günlük sayılar, yazılı menüler ve faturalar; hiçbir şey kaydedilmez. */
+/* Yemek — sunum modu (?demo): örnek kayıtlar aynı tarayıcıdaki görünümlerde paylaşılır. */
 (function () {
   'use strict';
   const NT = window.NT;
@@ -14,7 +14,7 @@
   const YAN = ['HAVUÇ TARATOR', 'ACILI EZME', 'KISIR', 'HAYDARİ', 'BİBER BORANİ', 'PATATES SALATASI'];
   const TATLI = ['MEYVE', 'MEYVE', 'SÜTLAÇ', 'REVANİ', 'TRİLEÇE', 'ISLAK KEK'];
 
-  K.demoTanimla(async (d, { kim, kaydet }) => {
+  const depoAc = K.demoTanimla(async (d, { kim, kaydet }) => {
     const bg = bugun();
     const bas = gunEkle(bg, -130);
     kim('Kamil Gülhan');
@@ -60,5 +60,6 @@
       if (!x.toplam) continue;
       await kaydet([{ c: 'fatura', k: Y.faturaAnahtari(a), v: { ay: a, ogle: x.adet.ogle + (n === aylar.length - 1 ? 2 : 0), kahvalti: x.adet.kahvalti, aksam: x.adet.aksam, faturaNo: `DSB${a.replace('-', '')}`, faturaTarihi: gunEkle(Y.ayKaydir(a, 1) + '-01', 2), notlar: '', ekler: [] } }], gunEkle(Y.ayKaydir(a, 1) + '-01', 3));
     }
-  });
+  }, { paylas: true });
+  NT.yemekDemo = { depoAc: (kullanici) => depoAc('yemek', kullanici) };
 })();

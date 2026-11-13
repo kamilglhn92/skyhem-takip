@@ -18,16 +18,13 @@
   const cm = (tr, en, ...a) => c(tr, en).replace(/\{(\d+)\}/g, (_, i) => String(a[i] ?? ''));
 
   const url = new URLSearchParams(location.search);
-  const YONETIM = url.get('gorunum') === 'yonetim';
-  const gorunumAdresi = (yonetim) => { const q = new URLSearchParams(location.search); q.delete('kullanici'); if (yonetim) q.set('gorunum', 'yonetim'); else q.delete('gorunum'); return '?' + q.toString().replace(/=(&|$)/g, '$1'); };
+  const YONETIM = url.get('gorunum') === 'yonetim' && !NT.personelDemo.personelMi(url.get('kullanici'));
   /* Onay yalnız Yönetici'de (Kamil, Farukcan). Canlıda rol tablosundan gelecek; şimdilik mevcut ad kuralı. */
   const yonetici = () => K.yetkili();
-
-  /* Sunum modunda telefon görünümü örnek personelle açılır. */
-  if (NT.demo && !YONETIM && !url.get('kullanici')) {
-    const asil = NT.demo.kur;
-    NT.demo.kur = async (bag) => { await asil.call(NT.demo, bag); bag.kullanici = NT.personelDemo.PERSONEL; bag.depo.kullanici = bag.kullanici; bag.bildir(); };
-  }
+  const anonimAnahtar = () => 'nt.sunum.anonim.' + b.kullanici;
+  const anonimKodlar = () => {
+    try { return JSON.parse(localStorage.getItem(anonimAnahtar()) || '[]'); } catch { return []; }
+  };
 
   /* ---------------- Ortak parçalar ---------------- */
   const Rozet = ({ durum, tablo = P.TALEP_DURUM }) => { const x = tablo[durum] || Object.values(tablo)[0]; return html`<span class=${'rozet ' + x.rozet}><${Ikon} ad=${x.ikon} />${adi(x)}</span>`; };
@@ -45,7 +42,7 @@
     return html`<${Modal} dar baslik=${baslik} kapat=${kapat} alt=${html`<button class="d ana-d" onClick=${kapat}>${c('Tamam', 'OK')}</button>`}>
       <div class="modal-ic pn-tesekkur"><span class="pn-tik"><${Ikon} ad="daire_tik" boyut=${40} /></span><p>${metin}</p>
         ${kod && html`<div class="pn-kod"><small>${c('Takip kodunuz', 'Your tracking code')}</small><b class="mono">${kod}</b>
-          <span>${c('Bu kodu not alın. Bildirim isimsiz olduğu için kodu kaybederseniz durumunu göremezsiniz.', 'Write this code down. The report is anonymous, so without the code you cannot see its status.')}</span></div>`}
+          <span>${c('Gerektiğinde kodu Bildirimler sekmesindeki sorguda kullanabilirsiniz.', 'You can also look up the report by code in the Reports tab.')}</span></div>`}
       </div><//>`;
   }
 
@@ -63,8 +60,7 @@
     async function gonder() {
       setDenendi(true);
       if (hata.bas || hata.bit || hata.gun) return;
-      const no = K.yeniNo(d, 'talep', 'TL');
-      await d.kaydet([{ c: 'talep', k: uid(), v: { no, tur: 'izin', sahip: b.kullanici, tarih: bugun(), durum: 'bekliyor', izinTur: f.izinTur, bas: f.bas, bit, gun, aciklama: f.aciklama.trim(), rapor: f.rapor } }]);
+      const no = await talepYaz(d, 'izin', { izinTur: f.izinTur, bas: f.bas, bit, gun, aciklama: f.aciklama.trim(), rapor: f.rapor });
       kapat();
       K.ac(Gonderildi, { baslik: c('Talebiniz gönderildi', 'Request sent'), metin: cm('{0} numaralı izin talebiniz yönetime iletildi. Onaylanınca burada ve yoklamada görünür.', 'Your leave request {0} has been sent. Once approved it shows here and in attendance.', no) });
     }
@@ -89,33 +85,45 @@
 
   function MalzemeFormu({ kapat }) {
     const d = depo();
-    const [kalemler, setKalemler] = useState([{ ad: '', adet: '1' }]);
-    const [neden, setNeden] = useState('');
+    const yeni = () => ({ id: uid(), ad: '', adet: '1', birim: 'adet', not: '' });
+    const [kalemler, setKalemler] = useState(() => [yeni()]);
+    const [notAcik, setNotAcik] = useState(null);
     const [acil, setAcil] = useState(false);
     const [denendi, setDenendi] = useState(false);
     const dolu = kalemler.filter((k) => k.ad.trim());
+    const miktarGecerli = (k) => Number(k.adet) > 0 && Number.isFinite(Number(k.adet)) &&
+      (['kg', 'm'].includes(k.birim) || Number.isSafeInteger(Number(k.adet)));
     const kalemDegis = (i, alan) => (e) => setKalemler((l) => l.map((k, j) => (j === i ? { ...k, [alan]: e.target.value } : k)));
     async function gonder() {
       setDenendi(true);
-      if (!dolu.length) return;
-      const no = K.yeniNo(d, 'talep', 'TL');
-      await d.kaydet([{ c: 'talep', k: uid(), v: { no, tur: 'malzeme', sahip: b.kullanici, tarih: bugun(), durum: 'bekliyor', kalemler: dolu.map((k) => ({ ad: k.ad.trim(), adet: Number(k.adet) || 1 })), neden: neden.trim(), acil } }]);
+      if (!dolu.length || !dolu.every(miktarGecerli)) return;
+      const no = await talepYaz(d, 'malzeme', { kalemler: dolu.map((k) => ({ ad: k.ad.trim(), adet: Number(k.adet), birim: k.birim, not: k.not.trim() })), acil });
       kapat();
       K.ac(Gonderildi, { baslik: c('İsteğiniz gönderildi', 'Request sent'), metin: cm('{0} numaralı malzeme isteğiniz yönetime iletildi.', 'Your material request {0} has been sent.', no) });
     }
     return html`<${Modal} baslik=${c('Malzeme isteği', 'Material request')} kapat=${kapat} sinif="pn-form"
       alt=${html`<button class="d hayalet" onClick=${kapat}>${c('Vazgeç', 'Cancel')}</button><button class="d ana-d pn-gonder" onClick=${gonder}><${Ikon} ad="tik" />${c('İsteği gönder', 'Send request')}</button>`}>
       <div class="modal-ic pn-alanlar">
-        <${Alan} etiket=${c('Neye ihtiyacınız var?', 'What do you need?')} hata=${denendi && !dolu.length && c('En az bir malzeme yazın', 'Add at least one item')}>
-          <div class="pn-kalemler">${kalemler.map((k, i) => html`<div class="pn-kalem" key=${i}>
+        <${Alan} etiket=${c('Neye ihtiyacınız var?', 'What do you need?')} hata=${denendi && (!dolu.length ? c('En az bir malzeme yazın', 'Add at least one item') : !dolu.every(miktarGecerli) && c('Her kalemin miktarını ve birimini kontrol edin.', 'Check the quantity and unit for each item.'))}>
+          <div class="pn-kalemler">${kalemler.map((k, i) => html`<div class="pn-kalem" key=${k.id}>
             <input class="girdi" value=${k.ad} onInput=${kalemDegis(i, 'ad')} placeholder=${c('Örn: Nitril eldiven (L)', 'e.g. Nitrile gloves (L)')} />
-            <input class="girdi sayi" type="number" min="1" inputmode="numeric" value=${k.adet} onInput=${kalemDegis(i, 'adet')} aria-label=${c('Adet', 'Qty')} />
+            <input class="girdi sayi" type="number" min="0" step=${['kg', 'm'].includes(k.birim) ? 'any' : '1'} inputmode="decimal" value=${k.adet} onInput=${kalemDegis(i, 'adet')} aria-label=${c('Miktar', 'Quantity')} />
+            <select class="girdi" aria-label=${c('Birim', 'Unit')} value=${k.birim} onChange=${kalemDegis(i, 'birim')}>${P.BIRIMLER.map((x) => html`<option value=${x.id}>${adi(x)}</option>`)}</select>
             ${kalemler.length > 1 && html`<button type="button" class="d hayalet ikon-d" aria-label=${c('Kaldır', 'Remove')} onClick=${() => setKalemler((l) => l.filter((_, j) => j !== i))}><${Ikon} ad="kapat" /></button>`}
+            <button type="button" class=${'d hayalet kucuk-d pn-not-ekle' + (k.not ? ' var' : '')} aria-expanded=${notAcik === k.id} onClick=${() => setNotAcik(notAcik === k.id ? null : k.id)}>${k.not ? c('Notu düzenle', 'Edit note') : c('Not ekle', 'Add note')}</button>
+            ${notAcik === k.id && html`<textarea class="girdi pn-kalem-notu" rows="2" value=${k.not} onInput=${kalemDegis(i, 'not')} aria-label=${c('Kalem notu', 'Item note')} />`}
           </div>`)}
-          <button type="button" class="d kucuk-d" onClick=${() => setKalemler((l) => [...l, { ad: '', adet: '1' }])}><${Ikon} ad="arti" boyut=${15} />${c('Bir malzeme daha', 'Add another item')}</button></div><//>
-        <${Alan} etiket=${c('Neden gerekli?', 'Why is it needed?')}><input class="girdi" value=${neden} onInput=${(e) => setNeden(e.target.value)} placeholder=${c('Örn: Eskisi yırtıldı', 'e.g. The old one is torn')} /><//>
+          <button type="button" class="d kucuk-d" onClick=${() => setKalemler((l) => [...l, yeni()])}><${Ikon} ad="arti" boyut=${15} />${c('Bir malzeme daha', 'Add another item')}</button></div><//>
         <${Anahtar} deger=${acil} degis=${setAcil}>${c('Acil — iş bunun yüzünden duruyor', 'Urgent — work is blocked without it')}<//>
       </div><//>`;
+  }
+
+  function MalzemeKalemleri({ t }) {
+    return html`<span class="pn-malzeme-ozet">${(t.kalemler || []).map((k) => html`<span class="pn-malzeme-kalem">
+      ${P.kalemYazi(k)}${k.not && html` <span class="pn-not">
+        <button type="button" class="pn-not-dugme" onClick=${(e) => { e.stopPropagation(); e.currentTarget.focus(); }}>${c('Not', 'Note')}</button>
+        <span class="pn-not-metin" role="tooltip">${k.not}</span>
+      </span>`}</span>`)}</span>`;
   }
 
   function ArizaFormu({ kapat }) {
@@ -127,8 +135,7 @@
     async function gonder() {
       setDenendi(true);
       if (hata.yer || hata.aciklama) return;
-      const no = K.yeniNo(d, 'talep', 'TL');
-      await d.kaydet([{ c: 'talep', k: uid(), v: { no, tur: 'ariza', sahip: b.kullanici, tarih: bugun(), durum: 'bekliyor', yer: f.yer.trim(), aciklama: f.aciklama.trim(), foto: f.foto, durdu: f.durdu } }]);
+      const no = await talepYaz(d, 'ariza', { yer: f.yer.trim(), aciklama: f.aciklama.trim(), foto: f.foto, durdu: f.durdu });
       kapat();
       K.ac(Gonderildi, { baslik: c('Arıza bildirildi', 'Fault reported'), metin: cm('{0} numaralı bildiriminiz yönetime iletildi.', 'Your report {0} has been sent to management.', no) });
     }
@@ -155,15 +162,16 @@
       setDenendi(true);
       if (kisa) return;
       const kod = P.takipKodu();
-      const no = K.yeniNo(d, 'bildirim', 'BD');
-      const asil = d.kullanici;
-      if (f.isimsiz) d.kullanici = 'İsimsiz'; // sunum modunda benzetim; canlıda olay sunucuda kimliksiz eklenir
-      try {
-        await d.kaydet([{ c: 'bildirim', k: uid(), v: { no, tur: f.tur, isimsiz: f.isimsiz, sahip: f.isimsiz ? '' : b.kullanici, takipKodu: kod, tarih: bugun(), metin: f.metin.trim(), yer: f.yer.trim(), foto: f.foto, durum: 'yeni' } }]);
-      } finally { d.kullanici = asil; }
+      await d.numuneIslem(() => [{ c: 'bildirim', k: uid(), u: f.isimsiz ? 'İsimsiz' : b.kullanici, v: {
+        no: K.yeniNo(d, 'bildirim', 'BD'), tur: f.tur, isimsiz: f.isimsiz, sahip: f.isimsiz ? '' : b.kullanici,
+        takipKodu: kod, tarih: bugun(), metin: f.metin.trim(), yer: f.yer.trim(), foto: f.foto, durum: 'yeni',
+      } }]);
+      if (f.isimsiz) {
+        try { localStorage.setItem(anonimAnahtar(), JSON.stringify([...anonimKodlar(), kod])); } catch { /* Takip kodu aşağıda gösterilir. */ }
+      }
       kapat();
       K.ac(Gonderildi, { baslik: c('Teşekkürler', 'Thank you'), kod: f.isimsiz ? kod : '',
-        metin: f.isimsiz ? c('Bildiriminiz isimsiz olarak iletildi. Kim gönderdiği hiçbir yere yazılmadı.', 'Your report was sent anonymously. Your identity was not recorded anywhere.')
+        metin: f.isimsiz ? c('Bildiriminiz yönetime isimsiz iletildi. Bildirimler sekmesinden takip edebilirsiniz.', 'Management received your report anonymously. Follow it in the Reports tab.')
           : c('Bildiriminiz yönetime iletildi. Cevabı “Bildirimlerim” sayfasında görürsünüz.', 'Your report was sent. You will see the reply under “My reports”.') });
     }
     return html`<${Modal} baslik=${ramak ? c('Ramak kala / tehlikeli durum', 'Near miss / hazard') : c('Öneri / şikâyet', 'Suggestion / complaint')} kapat=${kapat} sinif=${'pn-form' + (ramak ? ' pn-ramak-form' : '')}
@@ -176,19 +184,36 @@
         ${ramak && html`<${Alan} etiket=${c('Nerede?', 'Where?')}><input class="girdi" value=${f.yer} onInput=${(e) => s('yer')(e.target.value)} placeholder=${c('Örn: Depo girişi', 'e.g. Warehouse entrance')} /><//>`}
         ${ramak && html`<${BelgeKutusu} foto baslik=${c('Fotoğraf (isteğe bağlı)', 'Photo (optional)')} ekler=${f.foto} degis=${s('foto')} />`}
         <div class=${'pn-isimsiz' + (f.isimsiz ? ' acik' : '')}><${Anahtar} deger=${f.isimsiz} degis=${s('isimsiz')}><b>${c('İsimsiz gönder', 'Send anonymously')}</b>
-          <small>${f.isimsiz ? c('Adınız kaydedilmez. Size bir takip kodu verilir.', 'Your name is not recorded. You get a tracking code.') : c('Açarsanız adınız hiçbir yere yazılmaz.', 'Turn on and your name is not stored anywhere.')}</small><//></div>
+          <small>${c('Yönetim adınızı görmez.', 'Management will not see your name.')}</small><//></div>
       </div><//>`;
   }
 
-  function NumuneIsleri({ kapat }) {
-    const git = (hash) => { location.href = NT.c.adres('numune') + hash; };
-    return html`<${Modal} dar baslik=${c('Numune işleri', 'Sample tasks')} kapat=${kapat}>
+  function StokBildirimi({ kapat }) {
+    const [stokTur, setStokTur] = useState(P.STOK_TURLERI[0].id);
+    const [aciklama, setAciklama] = useState('');
+    const [bekliyor, setBekliyor] = useState(false);
+    async function gonder() {
+      if (!aciklama.trim() || bekliyor) return;
+      setBekliyor(true);
+      try {
+        await talepYaz(depo(), 'numune', { stokTur, aciklama: aciklama.trim() });
+        kapat();
+        K.ac(Gonderildi, { baslik: c('Bildirim gönderildi', 'Report sent'), metin: c('Stok bildiriminiz yönetime iletildi.', 'Your stock report has been sent to management.') });
+      } finally { setBekliyor(false); }
+    }
+    return html`<${Modal} dar baslik=${c('Numune stok bildirimi', 'Sample stock report')} kapat=${kapat}
+      alt=${html`<button class="d ana-d" disabled=${!aciklama.trim() || bekliyor} onClick=${gonder}>${c('Bildirimi gönder', 'Send report')}</button>`}>
       <div class="modal-ic pn-alanlar">
-        <p class="pn-aciklama">${c('Numune kayıtları yönetimle aynı kayıttır; girdiğiniz şişe ve dolum anında her iki tarafta görünür.', 'Sample records are shared with management; what you enter shows on both sides at once.')}</p>
-        <button class="pn-buyuk-sec" onClick=${() => git('#/genel')}><${Ikon} ad="alim" boyut=${24} /><span><b>${c('Şişe girişi', 'Bottle intake')}</b><small>${c('Gelen boş şişeleri kaydet', 'Record incoming empty bottles')}</small></span><${Ikon} ad="ok" /></button>
-        <button class="pn-buyuk-sec" onClick=${() => git('#/genel')}><${Ikon} ad="dolum" boyut=${24} /><span><b>${c('Dolum kaydı', 'Filling record')}</b><small>${c('Doldurduğun numuneleri kaydet', 'Record the samples you filled')}</small></span><${Ikon} ad="ok" /></button>
-        <p class="soluk kucuk">${c('Sunum: Numune sistemine geçer. Canlıda personel yalnız bu iki işlemi görecek.', 'Demo: opens the Sample system. Live, staff will only see these two actions.')}</p>
+        <${Secenekler} liste=${P.STOK_TURLERI} deger=${stokTur} degis=${setStokTur} />
+        <${Alan} etiket=${c('Açıklama', 'Description')}><textarea class="girdi" rows="3" aria-label=${c('Açıklama', 'Description')} value=${aciklama} onInput=${(e) => setAciklama(e.target.value)} /><//>
       </div><//>`;
+  }
+
+  async function talepYaz(d, tur, ayrinti) {
+    const [olay] = await d.numuneIslem(() => [{ c: 'talep', k: uid(), v: {
+      no: K.yeniNo(d, 'talep', 'TL'), tur, sahip: b.kullanici, tarih: bugun(), durum: 'bekliyor', ...ayrinti,
+    } }]);
+    return olay.v.no;
   }
 
   /* ---------------- Talep ve bildirim ayrıntısı (iki görünümde ortak) ---------------- */
@@ -199,7 +224,8 @@
     const yonetimde = YONETIM;
     const ozet = [[c('Numara', 'No'), t.no], [c('Tarih', 'Date'), tarihYaz(t.tarih)], yonetimde && [c('Kişi', 'Person'), t.sahip]].filter(Boolean);
     const alanlar = t.tur === 'izin' ? [[c('İzin türü', 'Leave type'), adi(P.izinTuru(t.izinTur))], [c('Tarihler', 'Dates'), t.bas === t.bit ? tarihYaz(t.bas) : `${tarihYaz(t.bas)} – ${tarihYaz(t.bit)}`], [c('Gün', 'Days'), t.gun], [c('Açıklama', 'Note'), t.aciklama]]
-      : t.tur === 'malzeme' ? [[c('Malzemeler', 'Items'), (t.kalemler || []).map((k) => `${k.ad} × ${k.adet}`).join(', ')], [c('Neden', 'Reason'), t.neden], [c('Acil', 'Urgent'), t.acil ? c('Evet', 'Yes') : '']]
+      : t.tur === 'malzeme' ? [[c('Malzemeler', 'Items'), html`<${MalzemeKalemleri} t=${t} />`, true], [c('Neden', 'Reason'), t.neden], [c('Acil', 'Urgent'), t.acil ? c('Evet', 'Yes') : '']]
+      : t.tur === 'numune' ? [[c('Stok durumu', 'Stock status'), adi(P.stokTuru(t.stokTur))], [c('Açıklama', 'Description'), t.aciklama, true]]
         : [[c('Yer', 'Location'), t.yer], [c('Açıklama', 'Description'), t.aciklama], [c('Makine durdu', 'Machine stopped'), t.durdu ? c('Evet', 'Yes') : '']];
     const izinDurum = yonetimde && t.tur === 'izin' && t.izinTur === 'yillik' ? P.izinDurumu(d, t.sahip) : null;
     return html`<${NT.ui.KayitDetay} baslik=${adi(tur)} durum=${html`<${Rozet} durum=${t.durum} />`} ozet=${ozet} kapat=${kapat}>
@@ -212,7 +238,11 @@
 
   async function karar(t, durum, not = '') {
     const d = depo();
-    await d.kaydet([{ c: 'talep', k: t.id, v: { durum, karar: { kim: b.kullanici, tarih: bugun(), not } } }]); // olay yalnız değişen alanları taşır
+    const olaylar = await d.numuneIslem(() => {
+      if (!yonetici() || d.kayit('talep', t.id)?.durum !== 'bekliyor') return [];
+      return [{ c: 'talep', k: t.id, v: { durum, karar: { kim: b.kullanici, tarih: bugun(), not } } }];
+    });
+    if (!olaylar.length) return;
     if (durum === 'onaylandi' && t.tur === 'izin') bildir(cm('{0} onaylandı. Canlıda Yoklama’ya “{1}” olarak kendiliğinden işlenecek.', '{0} approved. Live, it will be entered in Attendance as “{1}” automatically.', t.no, adi(P.izinTuru(t.izinTur))));
     else bildir(cm('{0}: {1}.', '{0}: {1}.', t.no, adi(P.TALEP_DURUM[durum])));
   }
@@ -259,7 +289,11 @@
     { id: 'ariza', ad: 'Arıza bildir', en: 'Report a fault', alt: 'Fotoğrafla, yerinden', altEn: 'With a photo, on the spot', ikon: 'ayar', ac: () => K.ac(ArizaFormu) },
     { id: 'ramak', ad: 'Ramak kala', en: 'Near miss', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'uyari', ac: () => K.ac(BildirimFormu, { ramak: true }) },
     { id: 'oneri', ad: 'Öneri / şikâyet', en: 'Suggestion / complaint', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'bilgi', ac: () => K.ac(BildirimFormu, {}) },
-    { id: 'numune', ad: 'Numune işleri', en: 'Sample tasks', alt: 'Şişe girişi, dolum', altEn: 'Bottle intake, filling', ikon: 'dolum', ac: () => K.ac(NumuneIsleri) },
+    { id: 'numune', ad: 'Numune Takip', en: 'Sample Tracking', alt: 'Stok, sayım, şişe girişi, dolum', altEn: 'Stock, stocktake, bottle intake, filling', ikon: 'dolum',
+      not: ['Sayım değişiklikleri yönetim stokuna da yansır.', 'Stocktake changes also appear in management’s stock view.'],
+      ac: () => { location.href = NT.c.adres('numune', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
+    { id: 'yemek', ad: 'Yemek menüsü', en: 'Meal menu', alt: 'Bugünün yemekleri ve aylık tablo', altEn: 'Today’s meals and monthly menu', ikon: 'yemek',
+      ac: () => { location.href = NT.c.adres('yemek', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
   ];
 
   function TalepSatiri({ t }) {
@@ -268,26 +302,61 @@
       <${Rozet} durum=${t.durum} /></li>`;
   }
 
+  function YemekKartiNotu() {
+    const [depo, setDepo] = useState(null);
+    const [, yenile] = useState(0);
+    useEffect(() => {
+      let aktif = true;
+      let kapat;
+      NT.yemekDemo.depoAc(b.kullanici).then((d) => {
+        if (!aktif) { d.kapat(); return; }
+        const guncelle = () => yenile((n) => n + 1);
+        const birak = d.abone(guncelle);
+        const zaman = setInterval(guncelle, 60000);
+        kapat = () => { clearInterval(zaman); birak(); d.kapat(); };
+        setDepo(d);
+      }).catch(console.error);
+      return () => { aktif = false; kapat?.(); };
+    }, []);
+    const bugunTarihi = bugun();
+    const yemekler = depo ? NT.yemek.yemekler(depo, bugunTarihi, 'ogle').slice(0, 3) : [];
+    const resimde = depo && NT.yemek.menu(depo, bugunTarihi.slice(0, 7), 'ogle')?.ek;
+    return html`<span class="pn-kart-not pn-kart-menu"><${Ikon} ad="yemek" boyut=${14} /><span>
+      <strong>${c('Bugün öğle', 'Lunch today')}</strong>
+      <span>${yemekler.length ? yemekler.join(' · ') : resimde ? c('Menüyü açıp görseli inceleyin.', 'Open the menu to see the image.') : c('Menü bilgisi yok', 'No menu listed')}</span>
+    </span></span>`;
+  }
+
+  function PersonelSelami() {
+    const ad = (b.kullanici || '').split(' ')[0];
+    const simdi = new Date();
+    const saat = simdi.getHours();
+    return html`<div class="pn-selam">
+      <h1>${saat < 11 ? c('Günaydın', 'Good morning') : saat < 18 ? c('İyi günler', 'Good afternoon') : c('İyi akşamlar', 'Good evening')}${ad ? ', ' + ad : ''}</h1>
+      <p>${simdi.toLocaleDateString(NT.dil.yerel(), { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+    </div>`;
+  }
+
   function AnaSayfa() {
     const d = depo();
-    const ad = (b.kullanici || '').split(' ')[0];
-    const saat = new Date().getHours();
     const benim = P.benimTaleplerim(d, b.kullanici);
     const acik = benim.filter((t) => t.durum === 'bekliyor').length;
     const izin = P.izinDurumu(d, b.kullanici);
     return html`
       <header class="pn-bant tz-selam tz-selam-bant"><${NT.ui.BantSus} /><div>
-        <span class="pn-logo">SKYHEM</span>
-        <h1>${saat < 11 ? c('Günaydın', 'Good morning') : saat < 18 ? c('İyi günler', 'Good afternoon') : c('İyi akşamlar', 'Good evening')}${ad ? ', ' + ad : ''}</h1>
-        <p>${new Date().toLocaleDateString(NT.dil.yerel(), { weekday: 'long', day: 'numeric', month: 'long' })}</p></div></header>
+        <span class="pn-logo">SKYHEM</span><${PersonelSelami} /></div></header>
       <div class="pn-serit">
         <a href="#/profil"><small>${c('Kalan yıllık izin', 'Annual leave left')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
         <a href="#/taleplerim"><small>${c('Açık taleplerim', 'Open requests')}</small><b>${acik}</b></a>
       </div>
-      <div class="pn-kartlar">${KARTLAR.map((k) => html`<button key=${k.id} class=${'pn-kart pn-k-' + k.id} onClick=${k.ac}>
-        <span class="pn-kart-gorsel" aria-hidden="true"><${Ikon} ad=${k.ikon} boyut=${30} /></span><b>${c(k.ad, k.en)}</b><small>${c(k.alt, k.altEn)}</small></button>`)}</div>
-      <section class="pn-bolum"><div class="pn-bolum-bas"><h2>${c('Taleplerim', 'My requests')}</h2>${benim.length > 3 && html`<a href="#/taleplerim">${c('Tümü →', 'All →')}</a>`}</div>
-        ${benim.length ? html`<ul class="pn-liste">${benim.slice(0, 3).map((t) => html`<${TalepSatiri} key=${t.id} t=${t} />`)}</ul>` : html`<p class="soluk">${c('Henüz talebiniz yok.', 'No requests yet.')}</p>`}</section>`;
+      <div class="pn-ana-izgara">
+      <div class="pn-kartlar">${KARTLAR.map((k) => html`<button key=${k.id} class=${'pn-kart pn-k-' + k.id + (k.not || k.id === 'yemek' ? ' pn-kart-notlu' : '')} onClick=${k.ac}>
+        <span class="pn-kart-gorsel" aria-hidden="true"><${Ikon} ad=${k.ikon} boyut=${30} /></span>
+        <span class="pn-kart-metin"><b>${c(k.ad, k.en)}</b><small>${c(k.alt, k.altEn)}</small>
+        ${k.id === 'yemek' ? html`<${YemekKartiNotu} />` : k.not && html`<span class="pn-kart-not"><${Ikon} ad="bilgi" boyut=${14} /><span>${c(...k.not)}</span></span>`}</span></button>`)}</div>
+      <section class="pn-bolum pn-ana-talepler"><div class="pn-bolum-bas"><h2>${c('Taleplerim', 'My requests')}</h2>${benim.length > 3 && html`<a href="#/taleplerim">${c('Tümü →', 'All →')}</a>`}</div>
+        ${benim.length ? html`<ul class="pn-liste">${benim.slice(0, 3).map((t) => html`<${TalepSatiri} key=${t.id} t=${t} />`)}</ul>` : html`<p class="soluk">${c('Henüz talebiniz yok.', 'No requests yet.')}</p>`}</section>
+      </div>`;
   }
 
   function Taleplerim() {
@@ -303,19 +372,21 @@
   function Bildirimlerim() {
     const d = depo();
     const [kod, setKod] = useState('');
-    const benim = P.bildirimler(d).filter((x) => !x.isimsiz && x.sahip === b.kullanici);
+    const kodlar = new Set(anonimKodlar());
+    const benim = P.bildirimler(d).filter((x) => x.isimsiz ? kodlar.has(x.takipKodu) : x.sahip === b.kullanici);
     const temiz = kod.trim().toUpperCase().replace(/\s/g, '');
     const bulunan = temiz.length >= 6 ? P.bildirimler(d).find((x) => x.isimsiz && x.takipKodu.replace('-', '') === temiz.replace('-', '')) : null;
     return html`<div class="pn-sayfa-bas"><h1>${c('Bildirimlerim', 'My reports')}</h1></div>
+      <div class="pn-bildirim-kartlar">${benim.length ? benim.map((x) => html`<button type="button" key=${x.id} class="pn-bildirim-karti" onClick=${() => K.ac(BildirimDetay, { bildirim: x })}>
+        <${TurSimge} tur=${x.tur} bildirim /><span><b>${adi(P.bildirimTuru(x.tur), 'kisa')}</b><span>${x.metin}</span>
+        ${x.cevap && html`<small>${x.cevap}</small>`}${x.isimsiz && html`<small>${c('İsimsiz', 'Anonymous')}</small>`}</span>
+        <${Rozet} durum=${x.durum} tablo=${P.BILDIRIM_DURUM} /></button>`)
+        : html`<p class="soluk">${c('Henüz bildiriminiz yok.', 'No reports yet.')}</p>`}</div>
       <section class="pn-bolum pn-kod-sor"><h2>${c('İsimsiz bildirimimi sorgula', 'Check my anonymous report')}</h2>
         <input class="girdi mono" value=${kod} onInput=${(e) => setKod(e.target.value)} placeholder="ABC-123" autocomplete="off" spellcheck="false" />
         ${temiz.length >= 6 && (bulunan ? html`<div class="pn-sonuc" onClick=${() => K.ac(BildirimDetay, { bildirim: bulunan })}><${TurSimge} tur=${bulunan.tur} bildirim /><span><b>${adi(P.bildirimTuru(bulunan.tur), 'kisa')}</b><small>${bulunan.cevap || c('Henüz cevap yok', 'No reply yet')}</small></span><${Rozet} durum=${bulunan.durum} tablo=${P.BILDIRIM_DURUM} /></div>`
           : html`<p class="soluk kucuk">${c('Bu kodla bildirim bulunamadı.', 'No report found with this code.')}</p>`)}
-      </section>
-      <section class="pn-bolum"><h2>${c('Adımla gönderdiklerim', 'Sent with my name')}</h2>
-        ${benim.length ? html`<ul class="pn-liste">${benim.map((x) => html`<li class="pn-satir" key=${x.id} onClick=${() => K.ac(BildirimDetay, { bildirim: x })}>
-          <${TurSimge} tur=${x.tur} bildirim /><span class="ne"><b>${adi(P.bildirimTuru(x.tur), 'kisa')}</b><small>${x.cevap || x.metin}</small></span><${Rozet} durum=${x.durum} tablo=${P.BILDIRIM_DURUM} /></li>`)}</ul>`
-          : html`<p class="soluk">${c('Adınızla gönderilmiş bildirim yok.', 'No reports sent with your name.')}</p>`}</section>`;
+      </section>`;
   }
 
   function Profil() {
@@ -330,7 +401,7 @@
           <div><small>${c('Onay bekleyen', 'Pending')}</small><b>${izin.bekleyen}</b></div><div class="vurgu"><small>${c('Kalan', 'Left')}</small><b>${izin.kalan}</b></div></div>
         <p class="soluk kucuk">${cm('İzin yılı {0} – {1} · kıdem {2} yıl. Devreden izinler İK kaydına göre ayrıca eklenir.', 'Leave year {0} – {1} · {2} years of service. Carried-over days are added from HR records.', tarihYaz(izin.bas), tarihYaz(izin.bit), izin.kidem)}</p></section>`}
       <section class="pn-bolum"><h2>${c('Görünüm', 'Display')}</h2><div class="pn-ayar"><${NT.dil.DilSecimi} /><${K.TemaDugmesi} /></div></section>
-      <section class="pn-bolum"><h2>${c('Gizlilik', 'Privacy')}</h2><p class="kucuk">${c('Bu panelde yalnız kendi taleplerinizi görürsünüz. Satış, maliyet ve diğer yönetim bilgileri telefonunuza hiç gelmez. Rapor fotoğraflarını yalnız yönetim görür.', 'You only see your own requests here. Sales, cost and other management data never reach your phone. Only management can see sick-note photos.')}</p></section>`;
+      <section class="pn-bolum"><h2>${c('Gizlilik', 'Privacy')}</h2><p class="kucuk">${c('Sunumda kendi talepleriniz gösterilir. Gerçek kayıtlara erişim kişisel hesaplarla tanımlanacak.', 'The demo shows your own requests. Access to live records will be set up with personal accounts.')}</p></section>`;
   }
 
   const SEKMELER = [
@@ -344,13 +415,28 @@
   function PersonelKabuk() {
     const [sekme, setSekme] = useState(sekmeAl());
     useEffect(() => { const f = () => { setSekme(sekmeAl()); window.scrollTo(0, 0); }; window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f); }, []);
+    useEffect(() => {
+      if (location.hash === '#/stok-bildir') {
+        history.replaceState(null, '', '#/ana');
+        K.ac(StokBildirimi);
+      }
+    }, []);
     const d = depo();
     const acik = P.benimTaleplerim(d, b.kullanici).filter((t) => t.durum === 'bekliyor').length;
     return html`<div class="pn-kok tz-m-personel">
-      ${b.mod === 'demo' && html`<div class="pn-sunum"><a class="pn-geri" href=${NT.c.adres('portal', { demo: false })}>← ${c('Tüm sistemler', 'All trackers')}</a><b>${c('SUNUM', 'DEMO')}</b><span>${cm('Personel görünümü · {0}', 'Staff view · {0}', b.kullanici)}</span><a href=${gorunumAdresi(true)}>${c('Yönetim görünümü →', 'Management view →')}</a></div>`}
-      <main class="pn-icerik"><${sekme.Sayfa} /></main>
-      <nav class="pn-alt" aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
-        <span class="ik"><${Ikon} ad=${s.ikon} boyut=${22} />${s.id === 'taleplerim' && acik > 0 && html`<i>${acik}</i>`}</span>${c(s.ad, s.en)}</a>`)}</nav>
+      ${b.mod === 'demo' && html`<div class="pn-sunum"><a class="pn-geri" href=${NT.c.adres('portal', { kullanici: url.get('kullanici') })}>← ${c('Paneller', 'Panels')}</a><b>${c('SUNUM', 'DEMO')}</b><span>${cm('Personel paneli · {0}', 'Staff panel · {0}', b.kullanici)}</span></div>`}
+      <header class="pn-masaustu-bant">
+        <div class="pn-masaustu-ic">
+          <div class="pn-masaustu-ust">
+            <span class="pn-marka"><span class="pn-marka-logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></span><b>SKYHEM Takip</b></span>
+            <span class="pn-masaustu-kisi"><${Avatar} ad=${b.kullanici} kucuk />${b.kullanici}</span>
+          </div>
+          ${sekme.id === 'ana' && html`<div class="pn-masaustu-selam"><${PersonelSelami} /></div>`}
+          <nav class="pn-alt" style=${{ '--pn-aktif-sekme': SEKMELER.indexOf(sekme), '--pn-sekme-sayisi': SEKMELER.length }} aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a key=${s.id} href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
+            <span class="ik"><${Ikon} ad=${s.ikon} boyut=${22} />${s.id === 'taleplerim' && acik > 0 && html`<i>${acik}</i>`}</span>${c(s.ad, s.en)}</a>`)}</nav>
+        </div>
+      </header>
+      <main class=${sekme.id === 'ana' ? 'pn-icerik pn-icerik-ana' : 'pn-icerik'}><${sekme.Sayfa} /></main>
     </div>`;
   }
 
@@ -364,12 +450,12 @@
       .sort((a, b2) => ((b2.t || b2.x)._olusturma - (a.t || a.x)._olusturma));
     const sayi = (id) => satirlar.filter((s) => s.tur === id).length;
     const liste = satirlar.filter((s) => suz === 'hepsi' || s.tur === suz);
-    return html`<${K.Selam} bant baslik=${c('Bekleyen onaylar', 'Pending approvals')} sag=${b.mod === 'demo' && html`<a class="d" href=${gorunumAdresi(false)}><${Ikon} ad="kisi" boyut=${15} />${c('Personel telefon görünümü', 'Staff phone view')}</a>`}>
+    return html`<${K.Selam} bant baslik=${c('Bekleyen onaylar', 'Pending approvals')} sag=${b.mod === 'demo' && html`<a class="d" href=${NT.c.adres('personel')}><${Ikon} ad="kisi" boyut=${15} />${c('Personel panelinde gör', 'See in staff panel')}</a>`}>
         ${satirlar.length ? cm('{0} talep karar, {1} bildirim okunmayı bekliyor.', '{0} requests need a decision, {1} reports are unread.', talepler.length, bildirimler.length) : c('Bekleyen bir şey yok.', 'Nothing pending.')}
         ${!yonetici() && c(' Siz görüntüleyebilirsiniz; kararı Yönetici verir.', ' You can view; managers decide.')}<//>
-      <${K.Cipler} secenekler=${[['hepsi', c('Tümü', 'All'), satirlar.length], ['izin', c('İzin', 'Leave'), sayi('izin')], ['malzeme', c('Malzeme', 'Material'), sayi('malzeme')], ['ariza', c('Arıza', 'Fault'), sayi('ariza')], ['ramak', c('Ramak kala', 'Near miss'), sayi('ramak')], ['oneri', c('Öneri / şikâyet', 'Suggestion'), sayi('oneri')]].filter(([id, , n]) => id === 'hepsi' || n)} deger=${suz} degis=${setSuz} />
+      <${K.Cipler} secenekler=${[['hepsi', c('Tümü', 'All'), satirlar.length], ...P.TALEP_TURLERI.map((x) => [x.id, adi(x, 'kisa'), sayi(x.id)]), ['ramak', c('Ramak kala', 'Near miss'), sayi('ramak')], ['oneri', c('Öneri / şikâyet', 'Suggestion'), sayi('oneri')]].filter(([id, , n]) => id === 'hepsi' || n)} deger=${suz} degis=${setSuz} />
       <${K.Kart}>${liste.length ? html`<ul class="pn-onay-liste">${liste.map((s) => s.t ? html`<li key=${s.t.id} onClick=${() => K.ac(TalepDetay, { talep: s.t })}>
-          <${TurSimge} tur=${s.t.tur} /><${Avatar} ad=${s.t.sahip} kucuk /><span class="ne"><b>${s.t.sahip} · ${adi(P.talepTuru(s.t.tur), 'kisa')}${s.t.acil || s.t.durdu ? html` <span class="rozet yok">${c('Acil', 'Urgent')}</span>` : ''}</b><small>${P.talepOzet(s.t)} · ${onceYaz(s.t._olusturma)}</small></span>
+          <${TurSimge} tur=${s.t.tur} /><${Avatar} ad=${s.t.sahip} kucuk /><span class="ne"><b>${s.t.sahip} · ${adi(P.talepTuru(s.t.tur), 'kisa')}${s.t.acil || s.t.durdu ? html` <span class="rozet yok">${c('Acil', 'Urgent')}</span>` : ''}</b>${s.t.tur === 'malzeme' ? html`<${MalzemeKalemleri} t=${s.t} />` : html`<small>${P.talepOzet(s.t)} · ${onceYaz(s.t._olusturma)}</small>`}</span>
           <${KararDugmeleri} talep=${s.t} kompakt /></li>`
         : html`<li key=${s.x.id} class="pn-bildirim-satir" onClick=${() => K.ac(BildirimDetay, { bildirim: s.x })}>
           <${TurSimge} tur=${s.x.tur} bildirim />${s.x.isimsiz ? html`<span class="avatar kucuk-av pn-isimsiz-av" title=${c('İsimsiz', 'Anonymous')}>?</span>` : html`<${Avatar} ad=${s.x.sahip} kucuk />`}
@@ -389,7 +475,7 @@
         <input class="girdi" style="max-width:240px;margin-left:8px;border-radius:99px" placeholder=${c('Kişi, no, malzeme…', 'Person, no, item…')} value=${q} onInput=${(e) => setQ(e.target.value)} /><//>
       <${K.Kart}>${liste.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>No</th><th>${c('Kişi', 'Person')}</th><th>${c('Tür', 'Type')}</th><th>${c('Özet', 'Summary')}</th><th>${c('Tarih', 'Date')}</th><th>${c('Durum', 'Status')}</th><th>${c('Karar veren', 'Decided by')}</th></tr></thead><tbody>
         ${liste.map((t) => html`<tr class="tik" key=${t.id} onClick=${() => K.ac(TalepDetay, { talep: t })}><td><span class="etiket-kod">${t.no}</span></td><td><b>${t.sahip}</b></td><td>${adi(P.talepTuru(t.tur), 'kisa')}</td>
-          <td class="kucuk">${P.talepOzet(t)}</td><td class="kucuk">${tarihYaz(t.tarih)}</td><td><${Rozet} durum=${t.durum} /></td><td class="kucuk">${t.karar ? t.karar.kim : ''}</td></tr>`)}</tbody></table></div>`
+          <td class="kucuk">${t.tur === 'malzeme' ? html`<${MalzemeKalemleri} t=${t} />` : P.talepOzet(t)}</td><td class="kucuk">${tarihYaz(t.tarih)}</td><td><${Rozet} durum=${t.durum} /></td><td class="kucuk">${t.karar ? t.karar.kim : ''}</td></tr>`)}</tbody></table></div>`
         : html`<${BosDurum} ikon="liste" baslik=${c('Talep yok', 'No requests')} />`}<//>`;
   }
 
@@ -425,6 +511,7 @@
     return;
   }
   if (YONETIM) {
+    b.modul.ad = 'Personel talepleri'; // yönetim panelinin modülü; personel tarafı ayrı paneldir
     K.calistir({
       sekmeler: [
         { id: 'onaylar', ad: 'Bekleyen onaylar', ikon: 'saat', sayac: (d) => P.dikkatSayisi(d) },
@@ -434,7 +521,6 @@
         { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
       ],
       sayfalar: { onaylar: Onaylar, talepler: TumTalepler, bildirimler: TumBildirimler, izin: IzinDurumu, ayarlar: () => html`<${K.AyarlarSayfasi} />` },
-      uzakKoleksiyonlar: ['talep', 'bildirim'],
     });
     return;
   }

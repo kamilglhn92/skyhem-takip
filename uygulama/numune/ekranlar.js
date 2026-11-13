@@ -36,7 +36,8 @@
   function DefterPenceresi({ hedef, kapat }) {
     const d = depo();
     const bosMu = !!hedef.bos;
-    const satirlar = H.defter(d, hedef);
+    const personel = NT.numunePersonel;
+    const satirlar = H.defter(d, hedef).filter((x) => !personel || (x.c !== 'isemri' && (x.c !== 'sevk' || x.adet < 0)));
     const st = H.stok(d);
     const kalem = bosMu ? st.bos.get(hedef.ambalaj) : st.dolu.get(H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj));
     const mevcut = kalem?.mevcut ?? 0;
@@ -53,8 +54,8 @@
       })()}
       alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />${cevir("Sayım düzelt")}</button></div>
         ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${cevir("Şişe geldi")}</button>`
-          : H.emirAcabilir(d.kullanici) && html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Hazırlama iş emri", "Preparation work order")}</button>`}
-        ${H.emirAcabilir(d.kullanici) && html`<button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${cevir("Dolum iş emri", "Fill work order")}</button>`}`}>
+          : !personel && H.emirAcabilir(d.kullanici) && html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Hazırlama iş emri", "Preparation work order")}</button>`}
+        ${(personel || H.emirAcabilir(d.kullanici)) && html`<button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${personel ? cevir("Dolum yaptım", "Record a filling") : cevir("Dolum iş emri", "Fill work order")}</button>`}`}>
       <div class="modal-ic">
         <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${cevir(ad)}</span><b>${n}</b></div>`)}</div>
         ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
@@ -67,12 +68,13 @@
               <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />${cevir("Atığa ayır")}</button>
             </span></span></div>`}
         ${satirlar.length ? html`<ul class="tz-akis defter-akis">${satirlar.map((x) => {
-          const acilir = ['dolum', 'sevk', 'alim'].includes(x.c);
+          const acilir = ['dolum', 'sevk', 'alim'].includes(x.c) && !(personel && x.c === 'sevk');
+          const stokCikisi = personel && x.c === 'sevk';
           const tur = x.adet > 0 ? 'arti' : x.adet < 0 ? 'eksi' : 'notr';
           return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(x.c, x.r)}>
             <span class=${'ik ' + x.c}><${Ikon} ad=${IKON[x.c] || x.c} /></span>
-            <span class="ne">${x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ${cevir("ayrıldı")}</span>` : ''}
-              <small>${tarihYaz(x.tarih)} · ${cevir(TUR[x.c], x.c === 'isemri' ? 'Work order' : undefined)}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
+            <span class="ne">${stokCikisi ? cevir('Gönderim kaynaklı stok çıkışı', 'Stock deducted for shipment') : personel && x.c === 'alim' ? cevir('Şişe girişi') : x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ${cevir("ayrıldı")}</span>` : ''}
+              <small>${tarihYaz(x.tarih)}${!stokCikisi && html` · ${cevir(TUR[x.c], x.c === 'isemri' ? 'Work order' : undefined)}${x.r.no ? ' · ' + x.r.no : ''}`}</small></span>
             <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>${cevir("bakiye")} ${x.bakiye}</small></span>
           </li>`;
         })}</ul>`
@@ -168,7 +170,7 @@
       const d = depo();
       tabloIndir('sise-girisleri', 'Şişe girişleri', d.kayitlar('alim').sort(yeniden), [
         { baslik: 'No', deger: (r) => r.no, genislik: 15 }, { baslik: 'Tarih', deger: (r) => r.tarih, tur: 'tarih', genislik: 12 }, { baslik: 'Ambalaj', deger: (r) => H.ambalajAdi(d, r.ambalaj), genislik: 10 },
-        { baslik: 'Adet', deger: (r) => r.adet, tur: 'sayi', genislik: 8 }, { baslik: 'Tedarikçi', deger: (r) => r.tedarikci, genislik: 22 }, { baslik: 'Fatura no', deger: (r) => r.faturaNo, tur: 'kod' },
+        { baslik: 'Adet', deger: (r) => r.adet, tur: 'sayi', genislik: 8 }, ...(!NT.numunePersonel ? [{ baslik: 'Tedarikçi', deger: (r) => r.tedarikci, genislik: 22 }] : []), { baslik: 'Fatura no', deger: (r) => r.faturaNo, tur: 'kod' },
         { baslik: 'Birim fiyat', deger: (r) => r.birimFiyat, tur: 'sayi', genislik: 11 }, { baslik: 'Not', deger: (r) => r.notlar, genislik: 36, hiza: 'sol' }]);
     },
   };

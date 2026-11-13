@@ -32,8 +32,8 @@
     const [t, setT] = useState(tema());
     return html`<${Kart} baslik=${cevir("Profil")} aciklama=${cevir("Adınız her kaydın geçmişinde “kim yaptı” olarak görünür.")}>
       <div class="form-izgara">
-        <${Alan} etiket=${cevir("Adınız")} sinif="s6"><div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
-          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div><//>
+        <${Alan} etiket=${cevir("Adınız")} sinif="s6">${NT.numunePersonel ? html`<b>${b.kullanici}</b>` : html`<div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
+          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div>`}<//>
         <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><${Segment} secenekler=${[['oto', 'Sistem'], ['acik', 'Açık'], ['koyu', 'Koyu']]} deger=${t} degis=${(v) => { setT(v); try { localStorage.setItem('nt.tema', v); } catch { /* yoksay */ } temaUygula(v); }} /><//>
       </div>
     <//>`;
@@ -176,7 +176,7 @@
 
   function CopKutusu() {
     const d = depo();
-    const silinen = ['dolum', 'sevk', 'alim', 'sayim'].flatMap((c) => d.kayitlar(c, { silinenler: true }).filter((r) => r._silindi).map((r) => ({ c, r })))
+    const silinen = (NT.numunePersonel ? ['dolum', 'alim', 'sayim'] : ['dolum', 'sevk', 'alim', 'sayim']).flatMap((c) => d.kayitlar(c, { silinenler: true }).filter((r) => r._silindi).map((r) => ({ c, r })))
       .sort((a, b) => b.r._degisim - a.r._degisim);
     const AD = { dolum: 'Dolum', sevk: 'Sevkiyat', alim: 'Alım', sayim: 'Sayım' };
     return html`<${Kart} ic=${false} baslik=${cevir("Çöp kutusu")} aciklama=${cevir("Silinen kayıtlar kalıcı olarak kaybolmaz; buradan geri alınabilir.")}>
@@ -191,7 +191,7 @@
 
   function Ayarlar() {
     return html`<${SayfaBasi} baslik=${cevir("Ayarlar")} aciklama=${cevir("Buradaki ürün, ambalaj ve etiket ayarları tüm kullanıcılar için ortaktır.")} />
-      <${Profil} /><${VeriKlasoru} /><${Urunler} /><${Ambalajlar} /><${FirmaBilgisi} /><${Yedek} /><${CopKutusu} />`;
+      <${Profil} /><${VeriKlasoru} /><${Urunler} /><${Ambalajlar} />${!NT.numunePersonel && html`<${FirmaBilgisi} /><${Yedek} />`}<${CopKutusu} />`;
   }
 
   NT.ekran.Ayarlar = Ayarlar;

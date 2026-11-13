@@ -3,7 +3,7 @@
   'use strict';
   const NT = window.NT;
   const { t: cevir } = NT.dil;
-  const { html, useState, useEffect, useRef } = window.htmPreact;
+  const { html, useState, useEffect, useLayoutEffect, useRef } = window.htmPreact;
   const { basHarfler } = NT.c;
 
   /* --- İkonlar (1.8px çizgi, 24'lük kutu) --- */
@@ -107,7 +107,7 @@
 
   function Modal({ baslik, kapat, genis, dar, sag, alt, children, sinif = '' }) {
     const perde = useRef();
-    useEffect(() => {
+    useLayoutEffect(() => {
       const f = (e) => {
         if (e.key !== 'Escape') return;
         const gorunen = [...document.querySelectorAll('.perde')].filter((p) => p.getClientRects().length);
@@ -409,7 +409,7 @@
 
   /* Her modülün sol menüsünde: karşılama ekranına (tüm sistemler) dönüş. Sunum modunda sunum modunda kalır. */
   function AnaEkranLinki() {
-    return html`<a class="tz-anaekran" href=${NT.c.adres('portal')} title=${cevir("Karşılama ekranına dön")}><${Ikon} ad="geri" boyut=${15} />${cevir("Tüm sistemler")}</a>`;
+    return html`<a class="tz-anaekran" href=${NT.c.adres('portal', { panel: 'yonetim', kullanici: new URLSearchParams(location.search).get('kullanici') })} title=${cevir("Karşılama ekranına dön")}><${Ikon} ad="geri" boyut=${15} />${cevir("Tüm sistemler")}</a>`;
   }
 
   /* Adım adım kurulum hatası: başlık + ne yapmalı + teknik ayrıntı (bize iletmek için) */

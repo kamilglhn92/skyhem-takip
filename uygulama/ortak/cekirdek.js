@@ -84,10 +84,13 @@
   }
 
   /* Sistemler arası geçiş: hepsi tek giriş dosyasından açılır (SKYHEM Takip.html?modul=satis). Sunum modu korunur. */
-  function adres(modul, { demo = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo') } = {}) {
+  /* panel: karşılama ekranında hangi panel ('yonetim' | boş = panel seçimi). Modüllerden dönüş yönetim karşılamasına gider. */
+  function adres(modul, { demo = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo'), panel, kullanici } = {}) {
     const p = [];
     if (modul && modul !== 'portal') p.push('modul=' + encodeURIComponent(modul));
+    if (panel) p.push('panel=' + encodeURIComponent(panel));
     if (demo) p.push('demo');
+    if (demo && kullanici) p.push('kullanici=' + encodeURIComponent(kullanici));
     return 'SKYHEM Takip.html' + (p.length ? '?' + p.join('&') : '');
   }
 

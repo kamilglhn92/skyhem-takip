@@ -572,26 +572,42 @@
   }
 
   /* ---------------- Menü (ayın menüsü) ---------------- */
-  function MenuSayfasi() {
+  function MenuSayfasi({ personel = false } = {}) {
     const d = depo();
-    const [ay, setAy] = useState(() => { const bg = bugun().slice(0, 7); const sonraki = Y.ayKaydir(bg, 1); return Y.menu(d, sonraki, 'ogle') && !Y.menu(d, bg, 'ogle') ? sonraki : bg; });
+    const [ay, setAy] = useState(() => { const bg = bugun().slice(0, 7); const sonraki = Y.ayKaydir(bg, 1); return !personel && Y.menu(d, sonraki, 'ogle') && !Y.menu(d, bg, 'ogle') ? sonraki : bg; });
     const bg = bugun();
     const gunler = Y.ayGunleri(ay);
     const varMi = gunler.some((t) => Y.MENULU.some((o) => Y.yemekler(d, t, o.id).length || Y.kesit(d, t, o.id)));
-    return html`<${K.Selam} baslik=${cevir("Menü")} sag=${html`${yaz() && html`<button class="d ana-d tz-buyuk" onClick=${() => menuYukle(setAy)}><${Ikon} ad="yukle" />${cevir("Menü yükle")}</button>`}`}>
-        ${cevir("Desbaş’ın her ay gönderdiği menü resmini yükleyin; her günün menüsü kendiliğinden o güne yerleşir. Yazı tanıma hatası varsa güne tıklayıp düzeltin.")}<//>
+    return html`<${K.Selam} baslik=${personel ? cevir('Aylık menü', 'Monthly menu') : cevir("Menü")} sag=${!personel && yaz() && html`<button class="d ana-d tz-buyuk" onClick=${() => menuYukle(setAy)}><${Ikon} ad="yukle" />${cevir("Menü yükle")}</button>`}>
+        ${!personel && cevir("Desbaş’ın her ay gönderdiği menü resmini yükleyin; her günün menüsü kendiliğinden o güne yerleşir. Yazı tanıma hatası varsa güne tıklayıp düzeltin.")}<//>
       <${AySecici} ay=${ay} setAy=${setAy} />
       <div class="ym-menu-resimler">${Y.MENULU.map((o) => { const m = Y.menu(d, ay, o.id); return html`<div class="ym-menu-resim">
-        <${Ikon} ad=${o.id === 'aksam' ? 'ay' : 'gunes'} /><span><b>${cevir(o.ad)} ${cevir("menüsü")}</b><small>${m ? `${NT.dil.m('{0} güne yerleşti', Object.keys(m.kesitler || {}).length)} · ${m._degistiren}, ${NT.c.onceYaz(m._degisim)}` : cevir("Resim yüklenmedi")}</small></span>
-        ${m && html`<button class="d kucuk-d" onClick=${() => ekAc(m.ek)}><${Ikon} ad="goz" boyut=${15} />${cevir("Resmi aç")}</button>`}</div>`; })}</div>
+        <${Ikon} ad=${o.id === 'aksam' ? 'ay' : 'gunes'} /><span><b>${cevir(o.ad)} ${cevir("menüsü")}</b>${!personel && html`<small>${m ? `${NT.dil.m('{0} güne yerleşti', Object.keys(m.kesitler || {}).length)} · ${m._degistiren}, ${NT.c.onceYaz(m._degisim)}` : cevir("Resim yüklenmedi")}</small>`}</span>
+        ${m?.ek && html`<button class="d kucuk-d" onClick=${() => ekAc(m.ek)}><${Ikon} ad="goz" boyut=${15} />${cevir("Resmi aç")}</button>`}</div>`; })}</div>
       ${varMi ? html`<div class="ym-menu-izgara">${gunler.map((t) => {
           const kapali = !T.isGunu(t);
-          return html`<button class=${'ym-menu-gun' + (t === bg ? ' bugun' : '') + (kapali ? ' kapali' : '')} onClick=${() => gunAc(t)}>
+          return html`<button class=${'ym-menu-gun' + (t === bg ? ' bugun' : '') + (kapali ? ' kapali' : '')} onClick=${() => personel ? K.ac(PersonelGunMenusu, { tarih: t }) : gunAc(t)}>
             <span class="bas"><b>${+t.slice(8)} ${cevir(AYLAR[+t.slice(5, 7) - 1])}</b> ${Y.gunAdi(t)}${(T.tatil(t) || T.yarimGun(t)) && html` · <span class="soluk">${T.tatil(t) || T.yarimGun(t)}</span>`}</span>
             ${Y.MENULU.map((o) => { const l = Y.yemekler(d, t, o.id); return html`<span class="ogun"><small>${cevir(o.ad)}</small>${l.length ? l.join(' · ') : html`<span class="soluk">${Y.kesit(d, t, o.id) ? cevir("resimde") : '—'}</span>`}</span>`; })}
           </button>`;
         })}</div>`
-        : html`<${BosDurum} ikon="yemek" baslik=${NT.dil.m("{0} menüsü yok", Y.ayAdi(ay))} aciklama=${cevir("“Menü yükle” ile Desbaş’ın gönderdiği resmi seçin.")} />`}`;
+        : html`<${BosDurum} ikon="yemek" baslik=${NT.dil.m("{0} menüsü yok", Y.ayAdi(ay))} aciklama=${!personel && cevir("“Menü yükle” ile Desbaş’ın gönderdiği resmi seçin.")} />`}`;
+  }
+
+  function PersonelGunMenusu({ tarih, kapat }) {
+    return html`<${Modal} baslik=${tarihYaz(tarih) + ' · ' + Y.gunAdi(tarih)} kapat=${kapat}>
+      <div class="modal-ic form-izgara">${Y.MENULU.map((o) => html`<div class="s6"><${MenuKutusu} tarih=${tarih} ogun=${o.id} /></div>`)}</div><//>`;
+  }
+
+  function PersonelMenusu() {
+    const bg = bugun();
+    return html`<main class="tz-icerik" style="max-width:1050px;margin:auto">
+      <a class="d kucuk-d" href=${NT.c.adres('personel', { kullanici: b.kullanici })}>← ${cevir('Personel paneli', 'Staff panel')}</a>
+      <${K.Selam} baslik=${cevir('Bugünün yemek menüsü', 'Today’s meal menu')} sag=${html`<a class="d" href="#aylik-menu">${cevir('Aylık menü', 'Monthly menu')} ↓</a>`}>
+        ${tarihYaz(bg)} · ${Y.gunAdi(bg)} · ${cevir('Sunum', 'Demo')}<//>
+      <div class="form-izgara">${Y.MENULU.map((o) => html`<div class="s6"><${MenuKutusu} tarih=${bg} ogun=${o.id} /></div>`)}</div>
+      <section id="aylik-menu"><${MenuSayfasi} personel /></section>
+    </main><${K.Katman} /><${NT.ui.GlobalKatman} />`;
   }
 
   /* ---------------- Faturalar ---------------- */
@@ -682,6 +698,22 @@
   }
 
   NT.yemekUI = { GunPenceresi, MenuYukle, FaturaPenceresi, Kesit, KafePenceresi, KafeFaturaPenceresi };
+  const q = new URLSearchParams(location.search);
+  if (q.has('demo') && (q.get('gorunum') === 'personel' || /^(ahmet|ali|hasan|mehmet)(\s|$)/i.test((q.get('kullanici') || '').trim()))) {
+    const { render } = window.htmPreact;
+    function Kok() {
+      const [, yenile] = useState(0);
+      const guncelle = () => yenile((n) => n + 1);
+      useEffect(() => { const birak = b.abone(guncelle); guncelle(); return birak; }, []);
+      useEffect(() => { if (b.depo) return b.depo.abone(guncelle); }, [b.depo]);
+      return b.durum === 'hazir' ? html`<${PersonelMenusu} />`
+        : b.durum === 'hata' ? html`<${NT.ui.HataKutusu} hata=${b.hataMesaji} />` : html`<p>${cevir('Yükleniyor…')}</p>`;
+    }
+    document.documentElement.classList.add('tezgah');
+    render(html`<${Kok} />`, document.getElementById('uygulama'));
+    b.baslat();
+    return;
+  }
   K.calistir({
     sekmeler: [
       { id: 'genel', ad: 'Genel Bakış', ikon: 'ozet' },

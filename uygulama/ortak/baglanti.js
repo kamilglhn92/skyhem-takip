@@ -18,13 +18,14 @@
     return new Promise((ok, hata) => {
       const tx = db.transaction('kv', mod);
       const r = fn(tx.objectStore('kv'));
-      tx.oncomplete = () => ok(r && r.result);
-      tx.onerror = () => hata(tx.error);
+      tx.oncomplete = () => { db.close(); ok(r && r.result); };
+      tx.onabort = () => { db.close(); hata(tx.error); };
     });
   }
   const idbAl = (k) => idbIslem('readonly', (s) => s.get(k));
   const idbYaz = (k, v) => idbIslem('readwrite', (s) => s.put(v, k));
   const idbSil = (k) => idbIslem('readwrite', (s) => s.delete(k));
+  NT.idb = { al: idbAl, yaz: idbYaz };
 
   const ls = {
     al(k) { try { return localStorage.getItem(k); } catch { return null; } },

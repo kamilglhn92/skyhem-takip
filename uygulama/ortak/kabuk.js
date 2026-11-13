@@ -299,7 +299,7 @@
         </div>
       </aside>
       <div class="tz-ana">
-        ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${cevir("· Örnek veriler. Burada girdiğiniz hiçbir şey kaydedilmez; sayfa kapanınca silinir.")}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
+        ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${d instanceof NT.SunumDepo ? cevir('· Örnek kayıtlar bu tarayıcıda paylaşılır.', '· Sample records are shared in this browser.') : cevir("· Örnek veriler. Burada girdiğiniz hiçbir şey kaydedilmez; sayfa kapanınca silinir.")}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
         <header class="tz-ust">${arama ? html`<${Arama} kaynak=${arama} />` : ''}<span style="flex:1" /><${DilSecimi} /><${TemaDugmesi} /></header>
         <main class=${'tz-icerik' + (sekme === 'ayarlar' ? ' tz-klasik' : '')}>${!yazabilir() && sekme !== 'ayarlar' && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>${cevir("Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir; siz görüntüleyebilirsiniz")}${NT.dil.yerel() === "tr-TR" ? kisit.ek : ""}.</span></div>`}<${Sayfa} /></main>
       </div>
@@ -358,30 +358,47 @@
     async *entries() { yield* this.c.entries(); }
   }
   /* senaryo(depo, { kim, zamanla }) — kim(ad): kaydı yapan kişi; zamanla(evs, tarih): olayları o güne taşır. */
-  function demoTanimla(senaryo) {
+  function demoTanimla(senaryo, { paylas = false } = {}) {
+    async function doldur(d) {
+      const zamanli = [];
+      await senaryo(d, {
+        kim: (ad) => { d.kullanici = ad; },
+        kaydet: async (ops, tarih) => { const evs = await d.kaydet(ops); if (tarih) zamanli.push(...evs.map((e) => [e, tarih])); return evs; },
+      });
+      const bg = bugun();
+      for (const [e, t] of zamanli) {
+        const z = Date.parse(t + 'T09:00:00') + ((e.id.charCodeAt(0) * 7919) % (8 * 3600e3));
+        e.t = t >= bg ? Math.min(z, Date.now() - 60e3) : z;
+      }
+      d.yenidenHesapla();
+    }
+    async function depoAc(modul, kullanici) {
+      const d = new NT.SunumDepo(modul, kullanici);
+      try { await d.baslat(doldur); }
+      catch (e) { d.kapat(); throw e; }
+      d.kullanici = kullanici;
+      return d;
+    }
     NT.demo = {
       aktif: new URLSearchParams(location.search).has('demo'),
       async kur(bag) {
         bag.kullanici = new URLSearchParams(location.search).get('kullanici') || 'Farukcan Bey';
-        const d = new NT.Depo({ dizin: new BellekDizin('Demo'), cihaz: bag.cihaz, kullanici: bag.kullanici });
-        await bag.ac(d, 'demo', { hazirYap: false });
-        const zamanli = [];
-        await senaryo(d, {
-          kim: (ad) => { d.kullanici = ad; },
-          kaydet: async (ops, tarih) => { const evs = await d.kaydet(ops); if (tarih) zamanli.push(...evs.map((e) => [e, tarih])); return evs; },
-        });
-        const bg = bugun();
-        for (const [e, t] of zamanli) {
-          const z = Date.parse(t + 'T09:00:00') + ((e.id.charCodeAt(0) * 7919) % (8 * 3600e3));
-          e.t = t >= bg ? Math.min(z, Date.now() - 60e3) : z;
+        const d = paylas ? await depoAc(bag.modul.id, bag.kullanici)
+          : new NT.Depo({ dizin: new BellekDizin('Demo'), cihaz: bag.cihaz, kullanici: bag.kullanici });
+        if (paylas) {
+          bag.depo = d;
+          bag.mod = 'demo';
+        } else {
+          await bag.ac(d, 'demo', { hazirYap: false });
+          await doldur(d);
         }
-        d.yenidenHesapla();
         d.kullanici = bag.kullanici;
         d.kisiler = [{ cihaz: 'demo-k', ad: 'Kamil Gülhan', t: Date.now() }, { cihaz: bag.cihaz, ad: bag.kullanici, t: Date.now() }];
         bag.durdur();
         bag.durumYap('hazir');
       },
     };
+    return depoAc;
   }
 
   /* ---------------- Başlat ---------------- */

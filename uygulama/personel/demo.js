@@ -6,9 +6,15 @@
   const K = NT.kabuk;
   const P = NT.personel;
 
-  NT.personelDemo = { PERSONEL: 'Ahmet Kaya' };
-
-  K.demoTanimla(async (d, { kim, kaydet }) => {
+  const PERSONEL = 'Ahmet Kaya';
+  const personelMi = (ad) => ['ahmet', 'mehmet', 'ali', 'hasan'].includes(NT.c.kucuk(String(ad || '').trim().split(/\s+/)[0]));
+  async function senaryo(d) {
+    const kim = (ad) => { d.kullanici = ad; };
+    const zamanli = [];
+    const kaydet = async (ops, tarih) => {
+      const olaylar = await d.kaydet(ops);
+      zamanli.push(...olaylar.map((e) => [e, tarih]));
+    };
     const bg = bugun();
     const g = (n) => P.gunEkle(bg, n);
     /* Bir sonraki iş günü (n'inci) — izin aralıkları hafta sonuna düşmesin. */
@@ -33,7 +39,7 @@
 
     /* Ahmet Kaya (telefon görünümündeki kişi): bir onaylı, bir bekleyen izin; onaylı ve bekleyen malzeme. */
     await talep('Ahmet Kaya', -35, izin('yillik', g(-30), g(-26), 'Memleket ziyareti'), { kim: 'Farukcan Bey', durum: 'onaylandi' });
-    await talep('Ahmet Kaya', -9, { tur: 'malzeme', kalemler: [{ ad: 'Nitril eldiven (L)', adet: 2 }, { ad: 'Koruyucu gözlük', adet: 1 }], neden: 'Eldivenler yırtıldı', acil: false }, { kim: 'Kamil Gülhan', durum: 'onaylandi', not: 'Depodan alınabilir' });
+    await talep('Ahmet Kaya', -9, { tur: 'malzeme', kalemler: [{ ad: 'Nitril eldiven (L)', adet: 2, birim: 'kutu', not: 'Eldivenler yırtıldı' }, { ad: 'Koruyucu gözlük', adet: 1, birim: 'adet' }], acil: false }, { kim: 'Kamil Gülhan', durum: 'onaylandi', not: 'Depodan alınabilir' });
     await talep('Ahmet Kaya', -1, izin('yillik', isg(6), isg(8), 'Düğün'));
 
     /* Diğerleri: yönetim ekranında bekleyenler. */
@@ -50,5 +56,29 @@
     kim('Ali Şahin');
     await kaydet([{ c: 'bildirim', k: uid(), v: { no: K.yeniNo(d, 'bildirim', 'BD', g(-12)), tur: 'oneri', isimsiz: false, sahip: 'Ali Şahin', takipKodu: P.takipKodu(), tarih: g(-12),
       metin: 'Dolum alanına ikinci bir göz duşu konulabilir; mevcut olan uzak kalıyor.', yer: 'Dolum alanı', foto: [], durum: 'onlem', cevap: 'Sipariş verildi, ay sonuna kadar takılacak.' } }], g(-12));
-  });
+    for (const [e, tarih] of zamanli) {
+      const z = Date.parse(tarih + 'T09:00:00') + ((e.id.charCodeAt(0) * 7919) % (8 * 3600e3));
+      e.t = tarih >= bg ? Math.min(z, Date.now() - 60e3) : z;
+    }
+    d.yenidenHesapla();
+  }
+
+  async function depoAc(kullanici) {
+    const d = new NT.SunumDepo('personel', kullanici);
+    await d.baslat(senaryo);
+    d.kullanici = kullanici;
+    return d;
+  }
+
+  NT.personelDemo = { PERSONEL, personelMi, depoAc };
+  NT.demo = {
+    aktif: new URLSearchParams(location.search).has('demo'),
+    async kur(bag) {
+      const q = new URLSearchParams(location.search);
+      bag.kullanici = q.get('kullanici') || (q.get('gorunum') === 'yonetim' ? 'Farukcan Bey' : PERSONEL);
+      bag.depo = await depoAc(bag.kullanici);
+      bag.mod = 'demo';
+      bag.durumYap('hazir');
+    },
+  };
 })();

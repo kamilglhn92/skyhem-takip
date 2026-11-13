@@ -22,6 +22,7 @@
   }
 
   async function kayitDurumu(c, kayit, op) {
+    if (NT.numunePersonel && c === 'sevk') return false;
     const d = depo();
     try {
       if (c === 'sevk') await H.sevkYaz(d, kayit.id, {}, { mevcut: true, op, eskiEksigeIzin: true });
@@ -167,8 +168,13 @@
         catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return; }
         bildir(NT.dil.m("{0} güncellendi.", kayit.no));
       } else {
-        const no = H.yeniNo(d, 'dolum', f.tarih);
-        await d.kaydet([{ c: 'dolum', k: uid(), v: { no, ...v } }]);
+        let no;
+        const hazirla = () => {
+          no = H.yeniNo(d, 'dolum', f.tarih);
+          return [{ c: 'dolum', k: uid(), v: { no, ...v } }];
+        };
+        if (d instanceof NT.SunumDepo) await d.numuneIslem(hazirla);
+        else await d.kaydet(hazirla());
         bildir(NT.dil.m("{0} kaydedildi · {1} × {2} {3}", no, v.adet, f.urun, H.ambalajAdi(d, f.ambalaj)));
       }
       kapat();
@@ -496,7 +502,7 @@
         <${Alan} etiket=${cevir("Tarih")} sinif="s4" hata=${denendi && !f.tarih && 'Tarih girin'}><input class="girdi" type="date" value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
         <${Alan} etiket=${cevir("Birim fiyat (₺)")} sinif="s4"><input class="girdi" inputmode="decimal" value=${f.birimFiyat} onInput=${(e) => s('birimFiyat')(e.target.value)} placeholder=${cevir("İsteğe bağlı")} /><//>
         <${Alan} etiket=${cevir("Teslim alan")} hata=${denendi && kisiHata}><${NT.ui.KisiSec} etiket=${cevir("Teslim alan")} deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('alim').map((r) => r.kisi))} /><//>
-        <${Alan} etiket=${cevir("Tedarikçi")} sinif="s6"><input class="girdi" list="ted-dl" value=${f.tedarikci} onInput=${(e) => s('tedarikci')(e.target.value)} /><${Oneri} id="ted-dl" liste=${tedarikciler} /><//>
+        ${!NT.numunePersonel && html`<${Alan} etiket=${cevir("Tedarikçi")} sinif="s6"><input class="girdi" list="ted-dl" value=${f.tedarikci} onInput=${(e) => s('tedarikci')(e.target.value)} /><${Oneri} id="ted-dl" liste=${tedarikciler} /><//>`}
         <${Alan} etiket=${cevir("Fatura / irsaliye no")} sinif="s6"><input class="girdi mono" value=${f.faturaNo} onInput=${(e) => s('faturaNo')(e.target.value)} /><//>
         <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>
         <${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Fatura PDF’i vb.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
@@ -610,7 +616,10 @@
     yeniDolum: (on) => NT.eylem?.dolum(on),
     yeniSevk: (on) => NT.eylem?.sevk(on),
     yeniAlim: (on) => ac(AlimFormu, { on }),
-    kayitAc: (c, kayit) => ac({ dolum: DolumFormu, sevk: SevkFormu, alim: AlimFormu }[c], { kayit, key: kayit.id }),
+    kayitAc: (c, kayit) => {
+      if (NT.numunePersonel && c === 'sevk') return;
+      ac({ dolum: DolumFormu, sevk: SevkFormu, alim: AlimFormu }[c], { kayit, key: kayit.id });
+    },
     sayim: (hedef) => ac(SayimFormu, { hedef }),
     acikIslem: (hedef, islem) => ac(AcikKapFormu, { hedef, islem }),
   };

@@ -1,12 +1,12 @@
 window.NT_SURUM = {
-  "surum": 14,
+  "surum": 15,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
       "modul": { "id": "portal", "ad": "SKYHEM Takip", "depoYok": true },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/portal/portal.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/klips/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/enerji/hesap.js", "uygulama/portal/portal.js"]
+        "uygulama/numune/hesap.js", "uygulama/satis/hesap.js", "uygulama/klips/hesap.js", "uygulama/su/hesap.js", "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yoklama/hesap.js", "uygulama/enerji/hesap.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/portal/portal.js"]
     },
     "numune": {
       "baslik": "Numune Takip · SKYHEM",
@@ -62,7 +62,7 @@ window.NT_SURUM = {
       "modul": { "id": "personel" },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/personel/personel.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/ortak/tatiller.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/personel/arayuz.js"]
+        "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yemek/demo.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/personel/arayuz.js"]
     }
   }
 };

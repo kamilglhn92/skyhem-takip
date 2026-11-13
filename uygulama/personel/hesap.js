@@ -5,7 +5,7 @@
  *   talep     { no: TL-YYYY-NNNN, tur: 'izin' | 'malzeme' | 'ariza', sahip (ad), tarih (oluşturma günü),
  *               durum: 'bekliyor' | 'onaylandi' | 'reddedildi' | 'tamamlandi', karar: { kim, tarih, not },
  *               izin:    izinTur ('yillik' | 'mazeret' | 'raporlu' | 'ucretsiz'), bas, bit, gun, aciklama, rapor: [ek]
- *               malzeme: kalemler: [{ ad, adet }], neden, acil
+ *               malzeme: kalemler: [{ ad, adet, birim, not }], acil (eski kayıtlarda neden)
  *               ariza:   yer, aciklama, foto: [ek], durdu }
  *   bildirim  { no: BD-YYYY-NNNN, tur: 'ramak' | 'oneri' | 'sikayet', isimsiz, sahip (isimsizde ''), takipKodu, tarih,
  *               metin, yer, foto: [ek], durum: 'yeni' | 'okundu' | 'onlem' | 'kapandi', cevap }
@@ -26,6 +26,17 @@
     { id: 'izin', ad: 'İzin talebi', adEn: 'Leave request', kisa: 'İzin', kisaEn: 'Leave', ikon: 'takvim' },
     { id: 'malzeme', ad: 'Malzeme isteği', adEn: 'Material request', kisa: 'Malzeme', kisaEn: 'Material', ikon: 'kutu' },
     { id: 'ariza', ad: 'Arıza bildirimi', adEn: 'Fault report', kisa: 'Arıza', kisaEn: 'Fault', ikon: 'ayar' },
+    { id: 'numune', ad: 'Numune stok bildirimi', adEn: 'Sample stock report', kisa: 'Numune stoku', kisaEn: 'Sample stock', ikon: 'dolum' },
+  ];
+  const BIRIMLER = [
+    { id: 'adet', ad: 'Adet', adEn: 'Piece' }, { id: 'kutu', ad: 'Kutu', adEn: 'Box' },
+    { id: 'paket', ad: 'Paket', adEn: 'Pack' }, { id: 'kg', ad: 'Kilogram', adEn: 'Kilogram' },
+    { id: 'm', ad: 'Metre', adEn: 'Metre' },
+  ];
+  const STOK_TURLERI = [
+    { id: 'sise', ad: 'Eksik şişe', adEn: 'Missing bottles' },
+    { id: 'numune', ad: 'Eksik numune', adEn: 'Missing samples' },
+    { id: 'az', ad: 'Az stok', adEn: 'Low stock' },
   ];
   const BILDIRIM_TURLERI = [
     { id: 'ramak', ad: 'Ramak kala / tehlikeli durum', adEn: 'Near miss / hazard', kisa: 'Ramak kala', kisaEn: 'Near miss', ikon: 'uyari' },
@@ -54,6 +65,8 @@
   const talepTuru = (id) => bul(TALEP_TURLERI, id);
   const bildirimTuru = (id) => bul(BILDIRIM_TURLERI, id);
   const izinTuru = (id) => bul(IZIN_TURLERI, id);
+  const stokTuru = (id) => bul(STOK_TURLERI, id);
+  const kalemYazi = (k) => [k.ad, k.adet ? '× ' + k.adet : '', k.birim ? adi(bul(BIRIMLER, k.birim)).toLocaleLowerCase(NT.dil?.yerel()) : ''].filter(Boolean).join(' ');
 
   /* --- tarih yardımcıları --- */
   const iki = (n) => String(n).padStart(2, '0');
@@ -119,7 +132,8 @@
       const tarih = ayni ? NT.c.tarihYaz(t.bas) : `${NT.c.tarihYaz(t.bas)} – ${NT.c.tarihYaz(t.bit)}`;
       return `${adi(izinTuru(t.izinTur))} · ${tarih} · ${t.gun || 0} ${c('gün', t.gun === 1 ? 'day' : 'days')}`;
     }
-    if (t.tur === 'malzeme') return (t.kalemler || []).map((k) => `${k.ad}${k.adet ? ` × ${k.adet}` : ''}`).join(', ') || c('Malzeme', 'Material');
+    if (t.tur === 'malzeme') return (t.kalemler || []).map(kalemYazi).join(', ') || c('Malzeme', 'Material');
+    if (t.tur === 'numune') return [adi(stokTuru(t.stokTur)), t.aciklama].filter(Boolean).join(' · ');
     return [t.yer, t.aciklama].filter(Boolean).join(' · ');
   }
 
@@ -127,7 +141,7 @@
   const dikkatSayisi = (d) => bekleyenler(d).length + yeniBildirimler(d).length;
 
   NT.personel = {
-    c, adi, TALEP_TURLERI, BILDIRIM_TURLERI, IZIN_TURLERI, TALEP_DURUM, BILDIRIM_DURUM, talepTuru, bildirimTuru, izinTuru,
+    c, adi, TALEP_TURLERI, BILDIRIM_TURLERI, IZIN_TURLERI, TALEP_DURUM, BILDIRIM_DURUM, BIRIMLER, STOK_TURLERI, talepTuru, bildirimTuru, izinTuru, stokTuru, kalemYazi,
     gunEkle, gunSay, kidemYili, yillikHak, izinYili, kisiler, kisiBul, talepler, bildirimler, benimTaleplerim, bekleyenler, yeniBildirimler,
     izinDurumu, takipKodu, talepOzet, dikkatSayisi,
   };

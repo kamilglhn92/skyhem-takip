@@ -275,6 +275,82 @@
     }
   }
 
+  /* Sunum olayları canlı önbellekten ayrı tutulur. Aynı tarayıcıda rol ve sekme değişince korunur. */
+  class SunumDepo extends Depo {
+    constructor(modul, kullanici) {
+      super({ cihaz: uid(8), kullanici });
+      this.anahtar = 'nt.sunum.v1.' + modul;
+      this.kanal = new BroadcastChannel(this.anahtar);
+      this.kanal.onmessage = () => this.tara().catch(console.error);
+      this.ekler = new Map();
+      this.sayfaAcildi = (e) => { if (e.persisted) this.tara().catch(console.error); };
+      window.addEventListener('pageshow', this.sayfaAcildi);
+    }
+
+    async baslat(senaryo) {
+      await navigator.locks.request(this.anahtar, async () => {
+        const olaylar = await NT.idb.al(this.anahtar);
+        if (olaylar) this.uygula(olaylar);
+        else {
+          this.kuruluyor = true;
+          try {
+            await senaryo(this);
+            for (const [ad, dosya] of this.ekler) await NT.idb.yaz(this.anahtar + '.' + ad, dosya);
+            await NT.idb.yaz(this.anahtar, [...this.olaylar.values()]);
+          } finally {
+            this.kuruluyor = false;
+            this.bekleyen = [];
+            this.ekler.clear();
+          }
+        }
+      });
+    }
+
+    uygula(olaylar) {
+      const yeni = olaylar.filter((e) => this.ekle(e));
+      if (yeni.length) {
+        this.yenidenHesapla();
+        this.bildir({ yeni });
+      }
+      return yeni;
+    }
+
+    async tara() {
+      return this.uygula(await NT.idb.al(this.anahtar) || []);
+    }
+
+    kapat() {
+      window.removeEventListener('pageshow', this.sayfaAcildi);
+      this.kanal.close();
+    }
+
+    async numuneIslem(hazirla) {
+      if (this.kuruluyor) return super.kaydet(hazirla(this));
+      return navigator.locks.request(this.anahtar, async () => {
+        await this.tara();
+        const ops = hazirla(this);
+        const olaylar = this.olayOlustur(ops).map((e, i) => ({ ...e, u: ops[i].u ?? e.u }));
+        if (!olaylar.length) return olaylar;
+        await NT.idb.yaz(this.anahtar, [...this.olaylar.values(), ...olaylar]);
+        this.uygula(olaylar);
+        this.kanal.postMessage('guncellendi');
+        return olaylar;
+      });
+    }
+
+    kaydet(ops) { return this.numuneIslem(() => ops); }
+
+    async ekYaz(dosya) {
+      const uzanti = (dosya.name.match(/\.[a-z0-9]{1,5}$/i) || [''])[0].toLowerCase();
+      const ad = uid(12) + uzanti;
+      if (this.kuruluyor) this.ekler.set(ad, dosya);
+      else await NT.idb.yaz(this.anahtar + '.' + ad, dosya);
+      return { dosya: ad, ad: dosya.name, tur: dosya.type || '', boyut: dosya.size };
+    }
+
+    ekOku(ad) { return NT.idb.al(this.anahtar + '.' + ad); }
+  }
+
   /* Seçilen klasörden veri klasörünü bul ya da oluştur. */
   async function veriDizini(secilen) {
     try { await secilen.getFileHandle(ISARET); return secilen; } catch { /* değil */ }
@@ -285,4 +361,5 @@
 
   NT.Depo = Depo;
   NT.depoAraclari = { veriDizini, siraKarsilastir, VERI_KLASORU, FORMAT };
+  NT.SunumDepo = SunumDepo;
 })(typeof window !== 'undefined' ? window : globalThis);

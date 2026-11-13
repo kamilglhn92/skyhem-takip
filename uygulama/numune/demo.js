@@ -1,37 +1,10 @@
-/* Sunum/demo modu: ?demo ile açılır. Hiçbir dosyaya yazmaz; veriler bellekte, sayfa kapanınca silinir.
+/* Sunum/demo modu: ?demo ile açılır. Örnek veriler aynı tarayıcıdaki sekmeler arasında paylaşılır.
    İçinde gerçekçi bir senaryo kurulur: örnek sayım + birkaç kullanıcının sevkiyat ve alımları. */
 (function () {
   'use strict';
   const NT = window.NT;
   const H = NT.hesap;
   const { uid } = NT.c;
-
-  /* --- Bellek içi klasör (File System Access API'nin küçük bir taklidi) --- */
-  class BellekDosya {
-    constructor(ad) { this.kind = 'file'; this.name = ad; this.veri = new Blob([]); this.zaman = Date.now(); }
-    async getFile() { return new File([this.veri], this.name, { lastModified: this.zaman }); }
-    async createWritable({ keepExistingData = false } = {}) {
-      let parcalar = keepExistingData ? [this.veri] : [];
-      return {
-        seek: async () => {},
-        write: async (v) => { parcalar.push(v); },
-        close: async () => { this.veri = new Blob(parcalar); this.zaman = Date.now(); },
-      };
-    }
-  }
-  class BellekDizin {
-    constructor(ad) { this.kind = 'directory'; this.name = ad; this.c = new Map(); }
-    async getDirectoryHandle(ad, { create } = {}) { return this.al(ad, create, () => new BellekDizin(ad)); }
-    async getFileHandle(ad, { create } = {}) { return this.al(ad, create, () => new BellekDosya(ad)); }
-    al(ad, create, yeni) {
-      if (!this.c.has(ad)) {
-        if (!create) throw Object.assign(new Error('Bulunamadı: ' + ad), { name: 'NotFoundError' });
-        this.c.set(ad, yeni());
-      }
-      return this.c.get(ad);
-    }
-    async *entries() { yield* this.c.entries(); }
-  }
 
   const FIRMALAR = [
     ['Anadolu Yol Yapı A.Ş.', 'Selin Aydın (Ar-Ge Müdürü)', 'OSB 3. Cad. No:14, Konya'],
@@ -112,21 +85,24 @@
     async kur(baglanti) {
       // Sunumda kayıtlı kullanıcı adı yerine sunulan kişinin adı görünsün (kalıcı olarak kaydedilmez).
       const parametreler = new URLSearchParams(location.search);
-      baglanti.kullanici = parametreler.get('kullanici') || 'Farukcan Bey';
+      baglanti.kullanici = parametreler.get('kullanici') || (NT.numunePersonel ? 'Ahmet Kaya' : 'Farukcan Bey');
       // Senaryo tamamen kurulmadan arayüz açılmasın; yoksa yarım raf görünebilir.
-      const depo = new NT.Depo({ dizin: new BellekDizin('Demo (örnek veri)'), cihaz: baglanti.cihaz, kullanici: baglanti.kullanici });
-      await baglanti.ac(depo, 'demo', { hazirYap: false });
-      await senaryoKur(baglanti.depo, baglanti.kullanici);
+      const depo = new NT.SunumDepo('numune', baglanti.kullanici);
+      await depo.baslat(async (d) => {
+        await H.varsayilanlariYaz(d);
+        await senaryoKur(d, baglanti.kullanici);
+      });
       if (parametreler.has('ornek-is-emirleri')) {
         depo.kullanici = 'Farukcan Bey';
         try {
-          await H.emirYaz(depo, uid(), 'ac', { tur: 'hazirla', urun: 'Ecosky 3103', parti: 'Batch #21', ambalaj: '1L', adet: 4 });
-          await H.emirYaz(depo, uid(), 'ac', { tur: 'dolum', urun: 'TOFA', parti: '', ambalaj: '1L', adet: 1 });
+          await H.emirYaz(depo, 'ornek-hazirla', 'ac', { tur: 'hazirla', urun: 'Ecosky 3103', parti: 'Batch #21', ambalaj: '1L', adet: 4 });
+          await H.emirYaz(depo, 'ornek-dolum', 'ac', { tur: 'dolum', urun: 'TOFA', parti: '', ambalaj: '1L', adet: 1 });
         } finally {
           depo.kullanici = baglanti.kullanici;
         }
       }
-      baglanti.durdur();
+      baglanti.depo = depo;
+      baglanti.mod = 'demo';
       baglanti.durumYap('hazir');
     },
   };
