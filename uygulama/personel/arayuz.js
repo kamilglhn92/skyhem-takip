@@ -343,8 +343,6 @@
     const acik = benim.filter((t) => t.durum === 'bekliyor').length;
     const izin = P.izinDurumu(d, b.kullanici);
     return html`
-      <header class="pn-bant tz-selam tz-selam-bant"><${NT.ui.BantSus} /><div>
-        <span class="pn-logo">SKYHEM</span><${PersonelSelami} /></div></header>
       <div class="pn-serit">
         <a href="#/profil"><small>${c('Kalan yıllık izin', 'Annual leave left')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
         <a href="#/taleplerim"><small>${c('Açık taleplerim', 'Open requests')}</small><b>${acik}</b></a>
@@ -353,7 +351,7 @@
       <div class="pn-kartlar">${KARTLAR.map((k) => html`<button key=${k.id} class=${'pn-kart pn-k-' + k.id + (k.not || k.id === 'yemek' ? ' pn-kart-notlu' : '')} onClick=${k.ac}>
         <span class="pn-kart-gorsel" aria-hidden="true"><${Ikon} ad=${k.ikon} boyut=${30} /></span>
         <span class="pn-kart-metin"><b>${c(k.ad, k.en)}</b><small>${c(k.alt, k.altEn)}</small>
-        ${k.id === 'yemek' ? html`<${YemekKartiNotu} />` : k.not && html`<span class="pn-kart-not"><${Ikon} ad="bilgi" boyut=${14} /><span>${c(...k.not)}</span></span>`}</span></button>`)}</div>
+        ${k.id === 'yemek' ? html`<${YemekKartiNotu} />` : k.not && html`<span class="pn-kart-not"><${Ikon} ad="bilgi" boyut=${14} /><span>${c(...k.not)}</span></span>`}</span><span class="pn-kart-ac" aria-hidden="true">${c('Aç', 'Open')} <${Ikon} ad="ok" boyut=${16} /></span></button>`)}</div>
       <section class="pn-bolum pn-ana-talepler"><div class="pn-bolum-bas"><h2>${c('Taleplerim', 'My requests')}</h2>${benim.length > 3 && html`<a href="#/taleplerim">${c('Tümü →', 'All →')}</a>`}</div>
         ${benim.length ? html`<ul class="pn-liste">${benim.slice(0, 3).map((t) => html`<${TalepSatiri} key=${t.id} t=${t} />`)}</ul>` : html`<p class="soluk">${c('Henüz talebiniz yok.', 'No requests yet.')}</p>`}</section>
       </div>`;
@@ -425,14 +423,14 @@
     const acik = P.benimTaleplerim(d, b.kullanici).filter((t) => t.durum === 'bekliyor').length;
     return html`<div class="pn-kok tz-m-personel">
       ${b.mod === 'demo' && html`<div class="pn-sunum"><a class="pn-geri" href=${NT.c.adres('portal', { kullanici: url.get('kullanici') })}>← ${c('Paneller', 'Panels')}</a><b>${c('SUNUM', 'DEMO')}</b><span>${cm('Personel paneli · {0}', 'Staff panel · {0}', b.kullanici)}</span></div>`}
-      <header class="pn-masaustu-bant">
-        <div class="pn-masaustu-ic">
-          <div class="pn-masaustu-ust">
+      <header class="pn-panel-bant">
+        <div class="pn-panel-ic">
+          <div class="pn-panel-ust">
             <span class="pn-marka"><span class="pn-marka-logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></span><b>SKYHEM Takip</b></span>
-            <span class="pn-masaustu-kisi"><${Avatar} ad=${b.kullanici} kucuk />${b.kullanici}</span>
+            <span class="pn-panel-kisi"><${Avatar} ad=${b.kullanici} kucuk />${b.kullanici}</span>
           </div>
-          ${sekme.id === 'ana' && html`<div class="pn-masaustu-selam"><${PersonelSelami} /></div>`}
-          <nav class="pn-alt" style=${{ '--pn-aktif-sekme': SEKMELER.indexOf(sekme), '--pn-sekme-sayisi': SEKMELER.length }} aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a key=${s.id} href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
+          ${sekme.id === 'ana' && html`<div class="pn-panel-selam"><${PersonelSelami} /></div>`}
+          <nav class="pn-alt" aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a key=${s.id} href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
             <span class="ik"><${Ikon} ad=${s.ikon} boyut=${22} />${s.id === 'taleplerim' && acik > 0 && html`<i>${acik}</i>`}</span>${c(s.ad, s.en)}</a>`)}</nav>
         </div>
       </header>

@@ -152,7 +152,10 @@
 .pt-personel-ozet { display:grid; margin:4px 0; overflow-wrap:anywhere; }
 .pt-personel-bekleyen small { color:var(--soluk); }
 .pt-personel-bekleyen:hover > b, .pt-personel-bekleyen:focus-visible > b { text-decoration:underline; }
-@media (max-width:540px) { .pt-personel-bekleyen { flex-wrap:wrap; } }
+@media (max-width:540px) {
+  .pt-personel-bekleyen { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:start; }
+  .pt-personel-bekleyen > b { grid-column:2; justify-self:end; }
+}
 
 /* Panel seçiminde fotoğraf CSS paketinin parçası olarak güncellenir. */
 .pt-sayfa.pt-paneller {
