@@ -34,6 +34,9 @@
     { id: 'yemek', ad: 'Yemek', aciklama: 'Günlük öğün sayısı, Desbaş menüsü ve ay sonu fatura kontrolü', ikon: 'yemek', hazir: true, ozet: (d) => NT.yemek.ozet(d), dikkat: (d) => NT.yemek.dikkat(d) },
     { id: 'yoklama', ad: 'Yoklama', aciklama: 'Raporlu, izinli günler ve fazla mesai; İK için aylık çizelge', ikon: 'takvim', hazir: true, ozet: (d) => NT.yoklama.ozet(d), dikkat: (d) => NT.yoklama.dikkat(d) },
     { id: 'enerji', ad: 'Enerji', aciklama: 'Elektrik ve doğalgaz: tüketim, maliyet ve birim fiyat karşılaştırması', ikon: 'simsek', hazir: true, ozel: true, ozet: (d) => NT.enerji.ozet(d), dikkat: (d) => NT.enerji.dikkat(d) },
+    /* sunum: bulut tablosu yok; kart doğrudan sunum modunu açar, özet sabittir (context/personel-paneli.md). */
+    { id: 'personel', ad: 'Personel paneli', aciklama: 'İzin, malzeme, arıza, ramak kala ve öneri talepleri; yönetim onayları', ikon: 'kisi', hazir: true, ozel: true, sunum: true,
+      ozet: () => [cevir('Sunum · örnek verilerle açılır', 'Demo · opens with sample data'), cevir('Onaydan sonra kişisel hesaplarla canlıya geçer', 'Goes live with personal accounts after approval')] },
   ];
 
   /* ozel: yalnız yetkililerin (Kamil, Farukcan) gördüğü sistem; diğerlerinde kartı, özeti ve uyarıları hiç yüklenmez. */
@@ -81,7 +84,7 @@
       if (demo || !b.kod) return undefined;
       let bitti = false;
       const yaz = (id, v) => !bitti && setOzet((o) => ({ ...o, [id]: v }));
-      for (const m of gorunen().filter((x) => x.hazir && x.ozet)) {
+      for (const m of gorunen().filter((x) => x.hazir && x.ozet && !x.sunum)) {
         (async () => {
           const d = b.depoOlustur(m.id, b.kod, b.kullanici);
           try {
@@ -123,7 +126,7 @@
     const acik = gorunen();
     const listeler = demo ? demoDikkat() : Object.fromEntries(acik.map((m) => [m.id, ozet[m.id]?.d ? dikkatAl(m, ozet[m.id].d) : []]));
     const isler = acik.flatMap((m) => (listeler[m.id] || []).map((x) => ({ ...x, m })));
-    const hepsiGeldi = demo || acik.every((m) => ozet[m.id] && !ozet[m.id].hata);
+    const hepsiGeldi = demo || acik.every((m) => m.sunum || (ozet[m.id] && !ozet[m.id].hata));
     if (!isler.length && !hepsiGeldi) return null;
     return html`<div class="pt-dikkat" role="status">
       ${isler.length ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />${cevir("Dikkat bekleyen")} ${isler.length}</span>
@@ -139,7 +142,7 @@
     const saat = simdi.getHours();
     const ad = (b.kullanici || '').split(' ')[0];
     const ozel = ozelGun(bugun());
-    const git = (m) => { if (m.hazir) location.href = NT.c.adres(m.id); };
+    const git = (m) => { if (m.hazir) location.href = NT.c.adres(m.id, m.sunum ? { demo: true } : undefined); };
     const tarih = simdi.toLocaleDateString(NT.dil.yerel(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const saatYazi = simdi.toLocaleTimeString(NT.dil.yerel(), { hour: '2-digit', minute: '2-digit' });
     return html`<div class="pt-sayfa">
@@ -172,7 +175,7 @@
             <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>
             <span class="pt-baslik">${cevir(m.ad)}${!m.hazir && html`<span class="rozet">${cevir("Hazırlanıyor")}</span>`}</span>
             <span class="pt-aciklama">${cevir(m.aciklama)}</span>
-            <span class="pt-ozet">${!m.hazir ? '' : demo ? html`<span class="soluk">${cevir("Örnek verilerle açılır")}</span>`
+            <span class="pt-ozet">${!m.hazir ? '' : demo || m.sunum ? html`<span class="soluk">${m.sunum ? m.ozet()[0] : cevir("Örnek verilerle açılır")}</span>`
               : !o ? html`<span class="soluk">${cevir("Yükleniyor…")}</span>` : o.hata ? html`<span class="pt-hata">${o.hata}</span>`
               : ozetAl(m, o.d).map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}</span>
             ${m.hazir && html`<span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span>`}

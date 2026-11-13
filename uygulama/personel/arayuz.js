@@ -347,7 +347,7 @@
     const d = depo();
     const acik = P.benimTaleplerim(d, b.kullanici).filter((t) => t.durum === 'bekliyor').length;
     return html`<div class="pn-kok tz-m-personel">
-      ${b.mod === 'demo' && html`<div class="pn-sunum"><b>${c('SUNUM', 'DEMO')}</b><span>${cm('Personel görünümü · {0}', 'Staff view · {0}', b.kullanici)}</span><a href=${gorunumAdresi(true)}>${c('Yönetim görünümü →', 'Management view →')}</a></div>`}
+      ${b.mod === 'demo' && html`<div class="pn-sunum"><a class="pn-geri" href=${NT.c.adres('portal', { demo: false })}>← ${c('Tüm sistemler', 'All trackers')}</a><b>${c('SUNUM', 'DEMO')}</b><span>${cm('Personel görünümü · {0}', 'Staff view · {0}', b.kullanici)}</span><a href=${gorunumAdresi(true)}>${c('Yönetim görünümü →', 'Management view →')}</a></div>`}
       <main class="pn-icerik"><${sekme.Sayfa} /></main>
       <nav class="pn-alt" aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
         <span class="ik"><${Ikon} ad=${s.ikon} boyut=${22} />${s.id === 'taleplerim' && acik > 0 && html`<i>${acik}</i>`}</span>${c(s.ad, s.en)}</a>`)}</nav>

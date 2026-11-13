@@ -8,6 +8,7 @@
 .pn-sunum { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 8px 16px; font-size: 13px; background: #fff7d6; color: #6b4e00; border-bottom: 1px solid #f0dc8a; }
 .pn-sunum b { letter-spacing: .06em; }
 .pn-sunum a { margin-left: auto; color: var(--ana-koyu); font-weight: 600; }
+.pn-sunum a.pn-geri { margin-left: 0; flex-basis: 100%; font-weight: 500; }
 
 .pn-bant.tz-selam-bant { margin: 0 0 12px; padding: 22px 20px 20px; border-radius: 20px; }
 .pn-bant h1 { font-size: 24px; margin: 6px 0 2px; }

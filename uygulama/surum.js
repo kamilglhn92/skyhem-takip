@@ -1,5 +1,5 @@
 window.NT_SURUM = {
-  "surum": 13,
+  "surum": 14,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
