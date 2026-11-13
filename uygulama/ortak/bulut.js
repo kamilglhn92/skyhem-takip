@@ -127,6 +127,32 @@
       }
     }
 
+    // İş emri ve stok işlemleri sunucu doğrulamadan yerel günlüğe eklenmez.
+    async numuneIslem(hazirla) {
+      for (let deneme = 0; deneme < 3; deneme++) {
+        await this.tara();
+        if (!this.cevrimici || this.bekleyen.length) {
+          throw new Error('İşlem için sunucu bağlantısı ve güncel stok gerekir.');
+        }
+        // Paralel tarama yeni satırları almış ama henüz birleştirmemiş olabilir.
+        if (this.sirali.length !== this.olaylar.size) this.yenidenHesapla();
+        const sira = this.sonSira;
+        const olaylar = this.olayOlustur(hazirla(this));
+        if (!olaylar.length) return olaylar;
+        const yazildi = await istek(this.kod, 'rpc/numune_kosullu_kaydet', {
+          method: 'POST', govde: { beklenen_sira: sira, hareketler: olaylar },
+        });
+        if (yazildi === true) {
+          for (const e of olaylar) this.ekle(e);
+          this.yenidenHesapla();
+          this.bildir({ yerel: olaylar });
+          return olaylar;
+        }
+      }
+      await this.tara();
+      throw new Error('Kayıtlar değişti. Güncel bilgileri kontrol edip tekrar deneyin.');
+    }
+
     async tara() {
       const yeni = [];
       const oncekiSira = this.sonSira;

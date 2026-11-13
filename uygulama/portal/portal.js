@@ -178,7 +178,7 @@
             ${m.hazir && html`<span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span>`}
           </button>`;
         })}</div>
-        <p class="pt-not">${cevir('Sistemler birbirinden bağımsızdır; her birinin kayıtları ayrı tutulur. Ad ve erişim kodu hepsinde ortaktır.', 'Each tracker has its own records. Your name and access code are shared across trackers.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${window.NT_SURUM_AKTIF.surum}` : ''}</p>
+        <p class="pt-not">${cevir('Sistemler birbirinden bağımsızdır; her birinin kayıtları ayrı tutulur. Ad ve erişim kodu hepsinde ortaktır.', 'Each tracker has its own records. Your name and access code are shared across trackers.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)}` : ''}</p>
       </main>
     </div>`;
   }

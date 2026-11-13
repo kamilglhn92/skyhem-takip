@@ -107,9 +107,18 @@
       }
     }
 
+    olayOlustur(ops) {
+      return ops.map((o) => ({ id: uid(12), t: this.saat(), d: this.cihaz, u: this.kullanici, op: o.op || 'put', c: o.c, k: o.k, v: o.v }));
+    }
+
+    // Sunum modunda tek bellek deposu kullanılır. Kontrol ve yerel yazma aynı JS adımında yapılır.
+    async numuneIslem(hazirla) {
+      return this.kaydet(hazirla(this));
+    }
+
     /* ops: [{op:'put'|'del'|'undel', c:koleksiyon, k:anahtar, v:{alan:değer}}] */
     async kaydet(ops) {
-      const evs = ops.map((o) => ({ id: uid(12), t: this.saat(), d: this.cihaz, u: this.kullanici, op: o.op || 'put', c: o.c, k: o.k, v: o.v }));
+      const evs = this.olayOlustur(ops);
       for (const e of evs) this.ekle(e);
       this.bekleyen.push(...evs);
       this.bekleyenKaydet(this.bekleyen);

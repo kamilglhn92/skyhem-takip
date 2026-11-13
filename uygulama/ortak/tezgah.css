@@ -178,6 +178,19 @@
 .tz-cizgi.gecti { background: var(--vurgu); }
 .tz-gonderi .alt { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tz-gonderi .alt .bosluk { flex: 1; }
+.tz-genel-is-emirleri {
+  margin-bottom: 22px;
+  padding: clamp(14px, 2vw, 22px);
+  border: 1px solid var(--ana);
+  border-inline-start: 5px solid var(--ana);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ana) 8%, var(--yuzey));
+}
+.tz-genel-is-emirleri .tz-kart-bas { gap: 10px; flex-wrap: wrap; }
+.tz-genel-is-emirleri h2 { display: flex; align-items: center; gap: 8px; }
+.tz-genel-is-emirleri h2 span { background: var(--ana); color: var(--ana-ustu, #fff); border-radius: 99px; padding: 2px 9px; font-size: .75em; }
+.tz-genel-is-emri-kartlari { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+.tz-genel-is-emri-kartlari .tz-gonderi { margin: 0; }
 
 /* ---------- Akış / geçmiş ---------- */
 .tz-akis { list-style: none; margin: 0; padding: 0; }

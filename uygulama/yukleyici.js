@@ -75,8 +75,8 @@
     return { surum: yerel.surum, sayfalar: yerel.sayfalar, dosyalar: {}, notlar: '' };
   }
 
-  /* Kullanıcıya gösterilen sürüm: iç sayaç 12 = 1.0 (ilk genel dağıtım); sonrakiler 1.1, 1.2 … */
-  function gorunen(n) { return n >= 12 ? '1.' + (n - 12) : '0.' + n; }
+  /* Kullanıcıya gösterilen sürüm: iç sayaç 12 ve 13 = 1.0 (ilk genel dağıtım ve düzeltmesi); 14 = 1.1, 15 = 1.2 … */
+  function gorunen(n) { return n >= 12 ? '1.' + Math.max(0, n - 13) : '0.' + n; }
   function ingilizce() { try { return localStorage.getItem('nt.dil') === 'en'; } catch (e) { return false; } }
 
   /* --- sayfayı kur --- */

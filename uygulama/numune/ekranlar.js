@@ -31,8 +31,8 @@
     return html`<div class="segment" role="tablist">${secenekler.map(([id, ad, n]) => html`<button role="tab" aria-selected=${deger === id} class=${deger === id ? 'secili' : ''} onClick=${() => degis(id)}>${cevir(ad)}${n != null && html`<span class="n">${n}</span>`}</button>`)}</div>`;
   }
   /* ---------------- Defter: bir kalemin hareketleri, yürüyen bakiyeyle (tablo değil, zaman çizgisi) ---------------- */
-  const TUR = { alim: 'Şişe girişi', dolum: 'Dolum', sevk: 'Gönderi', sayim: 'Sayım', acik: 'Açık kap' };
-  const IKON = { acik: 'kutu' };
+  const TUR = { alim: 'Şişe girişi', dolum: 'Dolum', sevk: 'Gönderi', sayim: 'Sayım', acik: 'Açık kap', isemri: 'İş emri' };
+  const IKON = { acik: 'kutu', isemri: 'dolum' };
   function DefterPenceresi({ hedef, kapat }) {
     const d = depo();
     const bosMu = !!hedef.bos;
@@ -44,7 +44,7 @@
     const ozet = bosMu
       ? [['Rafta', mevcut], ['Toplam gelen', kalem?.alinan ?? 0], ['Dolumda kullanılan', kalem?.kullanilan ?? 0]]
       : [['Rafta (tam kap)', mevcut], ...(kalem?.acikL > 0 || kalem?.acilan ? [['Açık kap', H.litreYazi(kalem.acikL || 0)]] : []),
-        ['Doldurulan', kalem?.doldurulan ?? 0], ['Gönderilen', kalem?.gonderilen ?? 0], ['Ayrılmış (bekleyen gönderi)', kalem?.rezerve ?? 0]];
+        ['Doldurulan', kalem?.doldurulan ?? 0], ['Gönderilen', kalem?.gonderilen ?? 0], ['Ayrılmış', kalem?.rezerve ?? 0]];
     const acikVar = !bosMu && kalem?.acikL > 0;
     return html`<${Modal} genis baslik=${baslik} kapat=${kapat}
       sag=${bosMu ? kalem && html`<${StokRozeti} durum=${kalem.durum} />` : (() => {
@@ -53,8 +53,8 @@
       })()}
       alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />${cevir("Sayım düzelt")}</button></div>
         ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${cevir("Şişe geldi")}</button>`
-          : html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ anahtar: H.anahtar(hedef.urun, hedef.parti, hedef.ambalaj), urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Numune gönder")}</button>`}
-        <button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${cevir("Dolum yaptım")}</button>`}>
+          : H.emirAcabilir(d.kullanici) && html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Hazırlama iş emri", "Preparation work order")}</button>`}
+        ${H.emirAcabilir(d.kullanici) && html`<button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${cevir("Dolum iş emri", "Fill work order")}</button>`}`}>
       <div class="modal-ic">
         <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${cevir(ad)}</span><b>${n}</b></div>`)}</div>
         ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
@@ -72,7 +72,7 @@
           return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(x.c, x.r)}>
             <span class=${'ik ' + x.c}><${Ikon} ad=${IKON[x.c] || x.c} /></span>
             <span class="ne">${x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ${cevir("ayrıldı")}</span>` : ''}
-              <small>${tarihYaz(x.tarih)} · ${cevir(TUR[x.c])}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
+              <small>${tarihYaz(x.tarih)} · ${cevir(TUR[x.c], x.c === 'isemri' ? 'Work order' : undefined)}${x.r.no ? ' · ' + x.r.no : ''}</small></span>
             <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>${cevir("bakiye")} ${x.bakiye}</small></span>
           </li>`;
         })}</ul>`

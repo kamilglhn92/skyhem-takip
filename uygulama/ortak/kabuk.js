@@ -98,8 +98,6 @@
     return true;
   }
   /* Gelişmiş Excel: NT.xlsx üzerine dosya adı + indirme. */
-  /* Kullanıcıya gösterilen sürüm. İç sayaç (surum.js) güncelleme sırası için sürer; 12 = 1.0 (2026-11-11, ilk genel dağıtım). */
-  const gorunenSurum = (n) => (n >= 12 ? `1.${n - 12}` : `0.${n}`);
   function excel(dosyaAdi, secenek) {
     indir(dosyaAdi, NT.xlsx(secenek));
     bildir(cevir("Excel dosyası indirildi."));
@@ -219,7 +217,7 @@
         <div class="s6"><div class="alt-satir">${cevir("Bağlantı")}</div><div class="ust-satir">${b.mod === 'demo' ? cevir("Sunum modu (kaydedilmez)") : d.cevrimici ? cevir("Bulut · bağlı") : cevir("Bulut · bağlantı yok")}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Toplam hareket")}</div><div class="ust-satir sayi">${adetYaz(d.olaylar.size)}</div></div>
         <div class="s3"><div class="alt-satir">${cevir("Son eşitleme")}</div><div class="ust-satir">${d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—'}</div></div>
-        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${gorunenSurum(window.NT_SURUM_AKTIF.surum)} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
+        ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
         ${d.bekleyen.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${d.bekleyen.length} ${cevir("değişiklik bu bilgisayarda bekliyor; internete ulaşılınca otomatik gönderilecek.")}</span></div>`}
         ${d.hata && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="uyari" /><span>${d.hata}</span></div>`}
         ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayardaki erişim kodu silinir (bütün sistemler için); bir dahaki açılışta kod yeniden sorulur. Buluttaki kayıtlara dokunulmaz."), { baslik: cevir("Bağlantıyı kes"), evet: cevir("Bağlantıyı kes") })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button></div>`}

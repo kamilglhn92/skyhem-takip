@@ -52,6 +52,9 @@
 
     kim('Ahmet Kaya');
     await H.eskiVeriyiAktar(depo, NT.ORNEK);
+    if (!H.urunBul(depo, 'TOFA')) {
+      await depo.kaydet([{ c: 'urun', k: H.kisaAd('TOFA'), v: { ad: 'TOFA', partili: false, alarm: false, aktif: true, sira: 99 } }]);
+    }
     for (const e of depo.olaylar.values()) if (e.v?.tarih) olaylar.push([e, e.v.tarih]);
 
     // Geçmiş aylardan dolum + sevkiyat, grafik ve akış dolu görünsün.
@@ -108,11 +111,21 @@
     aktif: new URLSearchParams(location.search).has('demo'),
     async kur(baglanti) {
       // Sunumda kayıtlı kullanıcı adı yerine sunulan kişinin adı görünsün (kalıcı olarak kaydedilmez).
-      baglanti.kullanici = new URLSearchParams(location.search).get('kullanici') || 'Farukcan Bey';
+      const parametreler = new URLSearchParams(location.search);
+      baglanti.kullanici = parametreler.get('kullanici') || 'Farukcan Bey';
       // Senaryo tamamen kurulmadan arayüz açılmasın; yoksa yarım raf görünebilir.
       const depo = new NT.Depo({ dizin: new BellekDizin('Demo (örnek veri)'), cihaz: baglanti.cihaz, kullanici: baglanti.kullanici });
       await baglanti.ac(depo, 'demo', { hazirYap: false });
       await senaryoKur(baglanti.depo, baglanti.kullanici);
+      if (parametreler.has('ornek-is-emirleri')) {
+        depo.kullanici = 'Farukcan Bey';
+        try {
+          await H.emirYaz(depo, uid(), 'ac', { tur: 'hazirla', urun: 'Ecosky 3103', parti: 'Batch #21', ambalaj: '1L', adet: 4 });
+          await H.emirYaz(depo, uid(), 'ac', { tur: 'dolum', urun: 'TOFA', parti: '', ambalaj: '1L', adet: 1 });
+        } finally {
+          depo.kullanici = baglanti.kullanici;
+        }
+      }
       baglanti.durdur();
       baglanti.durumYap('hazir');
     },

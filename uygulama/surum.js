@@ -1,5 +1,5 @@
 window.NT_SURUM = {
-  "surum": 12,
+  "surum": 13,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
@@ -56,6 +56,13 @@ window.NT_SURUM = {
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/enerji/enerji.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
         "uygulama/enerji/hesap.js", "uygulama/enerji/demo.js", "uygulama/enerji/arayuz.js"]
+    },
+    "personel": {
+      "baslik": "Personel · SKYHEM",
+      "modul": { "id": "personel" },
+      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/personel/personel.css"],
+      "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
+        "uygulama/ortak/tatiller.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/personel/arayuz.js"]
     }
   }
 };

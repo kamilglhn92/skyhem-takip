@@ -17,6 +17,7 @@
 
   const SEKMELER = [
     { id: 'genel', ad: 'Genel Bakış', ikon: 'ozet' },
+    { id: 'isemirleri', ad: 'İş Emirleri', en: 'Work Orders', ikon: 'dolum' },
     { id: 'gonderiler', ad: 'Gönderiler', ikon: 'sevk' },
     { id: 'gecmis', ad: 'Geçmiş', ikon: 'saat' },
     { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
@@ -34,7 +35,7 @@
     useEffect(() => { const f = () => y((x) => x + 1); sihirbaz.dinle.add(f); return () => sihirbaz.dinle.delete(f); }, []);
     if (!sihirbaz.aktif) return null;
     const { B, props } = sihirbaz.aktif;
-    return html`<${B} ...${props} kapat=${sihirbazKapat} />`;
+    return html`<${B} key=${props.emir?.id || B.name} ...${props} kapat=${sihirbazKapat} />`;
   }
 
   function Sihirbaz({ baslik, adimlar, kapat, kaydet, kaydetYazi = 'Kaydet' }) {
@@ -47,7 +48,9 @@
       if (!gecerli || mesgul) return;
       if (!son) return setI(i + 1);
       setMesgul(true);
-      try { if ((await kaydet()) !== false) kapat(); } finally { setMesgul(false); }
+      try { if ((await kaydet()) !== false) kapat(); }
+      catch (e) { bildir(cevir(e.message), { tur: 'hata' }); }
+      finally { setMesgul(false); }
     };
     useEffect(() => {
       const f = (e) => {
@@ -105,14 +108,13 @@
   /* ---------------- Dolum sihirbazı ---------------- */
   const KAYNAK_IKON = { IBC: 'kutu', Varil: 'stok', İsotank: 'sevk', Numune: 'dolum', Diğer: 'bilgi' };
   const KAYNAK_ALT = { IBC: 'IBC tankından', Varil: 'Varilden', İsotank: 'İsotanktan', Numune: 'Büyük şişeyi küçüklere böldük', Diğer: 'Reaktör, tank…' };
-  function DolumSihirbazi({ kapat, on = {} }) {
+  function DolumSihirbazi({ kapat, emir }) {
     const d = depo();
-    const urunler = H.urunler(d);
-    const [f, setF] = useState({ urun: '', parti: '', ambalaj: '', adet: 1, tarih: bugun(), hazirlayan: b.kullanici, dolduranlar: [], kaynakTur: '', kaynakNo: '', notlar: '', karisim: null, kaynakKap: null, kaynakElle: false, acikAciklama: '', ...on });
+    const [f, setF] = useState({ ...emir, tarih: bugun(), hazirlayan: b.kullanici, dolduranlar: [],
+      kaynakTur: '', kaynakNo: '', notlar: '', kaynakKap: null, kaynakElle: false, acikAciklama: '' });
     const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
     const u = H.urunBul(d, f.urun);
     const partili = !!u?.partili;
-    const st = H.stok(d);
     const bos = H.bosMevcut(d, f.ambalaj);
     // Büyük numuneden dolum: kaynak kap listeden seçilir; kalan litre "açık kap" olarak izlenir.
     const hedefLitre = sayi(H.ambalajlar(d, { hepsi: true }).find((a) => a.id === f.ambalaj)?.litre);
@@ -120,47 +122,12 @@
     const kaynakKap = f.kaynakTur === 'Numune' && !f.kaynakElle ? kaynaklar.find((x) => f.kaynakKap && x.anahtar === H.anahtar(f.kaynakKap.urun, f.kaynakKap.parti, f.kaynakKap.ambalaj)) || null : null;
     const alinanLitre = sayi(f.adet) * hedefLitre;
     const oniz = kaynakKap ? H.acikOnizleme(d, kaynakKap, alinanLitre) : null;
-    const kaynakGecerli = f.kaynakTur !== 'Numune' || f.kaynakElle || !kaynaklar.length || !!kaynakKap;
-    const OnizYazi = () => oniz && html`<div class=${'uyari-kutu ' + (oniz.tamSonra < 0 ? 'kritik' : 'bilgi')} style="margin-top:18px"><${Ikon} ad=${oniz.tamSonra < 0 ? 'uyari' : 'bilgi'} /><span>
+    const kaynakYetersiz = oniz && oniz.acilan > oniz.ayrilabilir;
+    const kaynakGecerli = !kaynakYetersiz && (f.kaynakTur !== 'Numune' || f.kaynakElle || !kaynaklar.length || !!kaynakKap);
+    const OnizYazi = () => oniz && html`<div class=${'uyari-kutu ' + (kaynakYetersiz ? 'kritik' : 'bilgi')} style="margin-top:18px"><${Ikon} ad=${kaynakYetersiz ? 'uyari' : 'bilgi'} /><span>
       ${cevir("Kaynak")} <b>${kaynakKap.parti ? kaynakKap.parti + ' · ' : ''}${amb(kaynakKap.ambalaj)}</b> ${cevir("kaptan")} <b>${H.litreYazi(alinanLitre)}</b> ${cevir("alınıyor.\r\n      Açık kap:")} ${H.litreYazi(oniz.oncekiAcik)} → <b>${H.litreYazi(oniz.sonrakiAcik)}</b>${oniz.acilan ? NT.dil.m(' · {0} tam kap açılacak (tam: {1} → {2})', oniz.acilan, oniz.tam, oniz.tamSonra) : ''}${oniz.biten ? NT.dil.m(" · {0} kap biter (atık)", oniz.biten) : ''}.
-      ${oniz.tamSonra < 0 ? cevir(" Rafta yeterli tam kap görünmüyor; önce sayımla düzeltin.") : ''}</span></div>`;
+      ${kaynakYetersiz ? cevir(' Kaynakta kullanılabilir kap yetersiz. Ayrılmış kaplar kullanılamaz.', ' There are not enough available source containers. Reserved bottles cannot be used.') : ''}</span></div>`;
     const adimlar = [
-      {
-        soru: 'Hangi ürünü doldurdunuz?', gecerli: () => !!f.urun,
-        icerik: ({ ileri }) => html`<div class="tz-secimler">${urunler.map((x) => {
-          const toplam = [...st.dolu.values()].filter((k) => k.urun === x.ad).reduce((t, k) => t + Math.max(0, k.mevcut), 0);
-          return html`<${Secim} secili=${f.urun === x.ad} baslik=${x.ad} alt=${`${x.partili ? 'Parti takipli · ' : ''}rafta ${toplam} dolu`} onClick=${() => { setF((p) => ({ ...p, urun: x.ad, parti: '' })); ileri(); }} />`;
-        })}</div>`,
-      },
-      partili && {
-        soru: 'Hangi parti?', ipucu: 'Yeni üretim ise önerilen sıradaki parti numarasını seçin.', gecerli: () => !!f.parti.trim() && (!f.karisim || f.karisim.length > 1),
-        icerik: ({ ileri }) => {
-          const sonraki = H.sonrakiParti(d, f.urun);
-          const partiler = H.partiler(d, f.urun).slice(0, 7);
-          // Karışım: birden fazla partiden doldurulduysa partiler seçilir, parti adı "Batch #3 + Batch #20" olur.
-          if (f.karisim) {
-            const tum = H.partiler(d, f.urun).filter((p) => !p.includes('+')).slice(0, 14);
-            const sec = (p) => setF((x) => { const l = x.karisim.includes(p) ? x.karisim.filter((y) => y !== p) : [...x.karisim, p]; return { ...x, karisim: l, parti: l.join(' + ') }; });
-            return html`<p class="tz-ipucu" style="margin-top:0">${cevir("Karışımdaki partilere dokunun (en az iki).")}</p>
-              <div class="tz-hizli">${tum.map((p) => html`<button type="button" class=${'tz-cip' + (f.karisim.includes(p) ? ' secili' : '')} onClick=${() => sec(p)}>${p}</button>`)}</div>
-              <div style="margin-top:16px;max-width:420px"><input class="girdi" placeholder=${cevir("Batch #3 + Batch #20")} value=${f.parti} onInput=${(e) => setF((x) => ({ ...x, parti: e.target.value, karisim: e.target.value.split('+').map((y) => y.trim()).filter(Boolean) }))} /></div>
-              <button type="button" class="d hayalet kucuk-d" style="margin-top:12px" onClick=${() => setF((x) => ({ ...x, karisim: null, parti: '' }))}>${cevir("← Tek parti")}</button>`;
-          }
-          return html`<div class="tz-secimler">
-            <${Secim} oneri secili=${f.parti === sonraki} baslik=${sonraki} alt=${cevir("Yeni parti")} onClick=${() => { s('parti', sonraki); ileri(); }} />
-            ${partiler.map((p) => html`<${Secim} secili=${f.parti === p} baslik=${p} alt=${NT.dil.m("rafta {0}", [...st.dolu.values()].filter((k) => k.urun === f.urun && k.parti === p).reduce((t, k) => t + k.mevcut, 0))} onClick=${() => { s('parti', p); ileri(); }} />`)}
-          </div>
-          <div style="margin-top:16px;max-width:320px"><input class="girdi" placeholder=${cevir("Başka parti no yazın…")} value=${partiler.includes(f.parti) || f.parti === sonraki ? '' : f.parti} onInput=${(e) => s('parti', e.target.value)} /></div>
-          <button type="button" class="d kucuk-d" style="margin-top:12px" onClick=${() => setF((x) => ({ ...x, karisim: [], parti: '' }))}><${Ikon} ad="arti" boyut=${14} />${cevir("Birden fazla partinin karışımı")}</button>`;
-        },
-      },
-      {
-        soru: 'Hangi ambalaja?', ipucu: 'Altındaki sayı: raftaki boş şişe.', gecerli: () => !!f.ambalaj,
-        icerik: ({ ileri }) => html`<div class="tz-secimler">${H.ambalajlar(d).map((a) => {
-          const n = H.bosMevcut(d, a.id);
-          return html`<${Secim} sise litre=${a.litre} secili=${f.ambalaj === a.id} baslik=${a.ad} alt=${NT.dil.m("{0} boş şişe", n)} uyari=${n <= 0} onClick=${() => { s('ambalaj', a.id); ileri(); }} />`;
-        })}</div>`,
-      },
       {
         soru: 'Nereden doldurdunuz?', ipucu: 'İsotanktan dolduysa isotank numarasını yazın. Büyük numuneden dolduysa kaynak kabı seçin; kalan miktar açık kap olarak izlenir.', gecerli: () => !!f.kaynakTur && kaynakGecerli,
         icerik: () => {
@@ -169,7 +136,9 @@
           const kapSecimi = f.kaynakTur === 'Numune' && !f.kaynakElle && (kaynaklar.length
             ? html`<p class="tz-ipucu" style="margin:20px 0 8px">${cevir("Hangi kaptan aldınız?")}</p>
               <div class="tz-secimler">${kaynaklar.map((x) => html`<${Secim} sise litre=${H.ambalajlar(d, { hepsi: true }).find((a) => a.id === x.ambalaj)?.litre} secili=${kaynakKap?.anahtar === x.anahtar}
-                baslik=${`${x.parti ? x.parti + ' · ' : ''}${amb(x.ambalaj)}`} alt=${[x.mevcut > 0 && NT.dil.m('{0} tam', x.mevcut), x.acikL > 0 && `${cevir('açık kap')} ${H.litreYazi(x.acikL)}`].filter(Boolean).join(' + ')}
+                baslik=${`${x.parti ? x.parti + ' · ' : ''}${amb(x.ambalaj)}`} alt=${[
+                  x.mevcut > 0 && NT.dil.m('{0} tam', Math.max(0, x.kullanilabilir)), x.acikL > 0 && `${cevir('açık kap')} ${H.litreYazi(x.acikL)}`,
+                  x.rezerve > 0 && `${x.rezerve} ${cevir('ayrıldı')}`].filter(Boolean).join(' · ')}
                 onClick=${() => setF((p) => ({ ...p, kaynakKap: { urun: x.urun, parti: x.parti || '', ambalaj: x.ambalaj }, kaynakNo: `${amb(x.ambalaj)} kap${x.parti ? ' · ' + x.parti : ''}` }))} />`)}</div>
               <div class="alan" style="margin-top:16px;max-width:520px"><label>${cevir("Açık kap açıklaması (isteğe bağlı)")}</label>
                 <input class="girdi" placeholder=${cevir("Örn: alt rafta, kapağı kırık")} value=${f.acikAciklama} onInput=${(e) => s('acikAciklama', e.target.value)} /></div>
@@ -177,17 +146,11 @@
             : html`<div class="uyari-kutu bilgi" style="margin-top:20px"><${Ikon} ad="bilgi" /><span>${cevir("Rafta bu ürün")}${partili ? cevir(" ve partiden") : cevir("den")} ${cevir("daha büyük bir kap görünmüyor. Kaynağı aşağıya yazabilirsiniz; açık kap izlenmez. Kap rafta varsa önce Raf sayımı ile ekleyin.")}</span></div>`);
           return html`<div class="tz-secimler">${H.DOLUM_KAYNAKLARI.map((x) => html`<${Secim} ikon=${KAYNAK_IKON[x.id]} secili=${f.kaynakTur === x.id} baslik=${cevir(x.ad)} alt=${cevir(KAYNAK_ALT[x.id])}
               onClick=${() => setF((p) => ({ ...p, kaynakTur: x.id, kaynakNo: p.kaynakTur === x.id ? p.kaynakNo : '', kaynakKap: p.kaynakTur === x.id ? p.kaynakKap : null, kaynakElle: p.kaynakTur === x.id ? p.kaynakElle : false }))} />`)}</div>
-            ${kapSecimi}
+            ${kapSecimi}<${OnizYazi} />
             ${k && (f.kaynakTur !== 'Numune' || f.kaynakElle || !kaynaklar.length) && html`<div class="alan" style="margin-top:20px;max-width:440px"><label>${k.no}${f.kaynakTur === 'İsotank' ? '' : cevir(" (isteğe bağlı)")}</label>
               <input class="girdi mono" style="font-size:18px;padding:12px 14px" key=${f.kaynakTur} ref=${(el) => { if (el && !el.dataset.odak) { el.dataset.odak = '1'; setTimeout(() => el.focus(), 0); } }} list="tz-kaynakno" value=${f.kaynakNo} onInput=${(e) => s('kaynakNo', e.target.value)} />
               <datalist id="tz-kaynakno">${onceki.map((x) => html`<option value=${x} />`)}</datalist></div>`}`;
         },
-      },
-      {
-        soru: 'Kaç şişe doldurdunuz?', gecerli: () => sayi(f.adet) > 0,
-        icerik: () => html`<${SayiSecici} deger=${f.adet} degis=${(v) => s('adet', v)} />
-          ${sayi(f.adet) > bos && html`<div class="uyari-kutu kritik" style="margin-top:18px"><${Ikon} ad="uyari" /><span>${cevir("Rafta")} ${bos} ${cevir("boş")} ${amb(f.ambalaj)} ${cevir("şişe görünüyor. Kaydederseniz boş şişe stoku eksiye düşer; bir sayım farkı olabilir.")}</span></div>`}
-          <${OnizYazi} />`,
       },
       {
         soru: 'Dolumu kimler yaptı?', ipucu: 'Dolumu yapan herkese dokunun; birden fazla kişi seçilebilir.', gecerli: () => f.dolduranlar.length > 0,
@@ -204,38 +167,63 @@
             <div class="alan s12"><label>${cevir("Not (isteğe bağlı)")}</label><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar', e.target.value)} /></div>
           </div>`,
       },
-    ].filter(Boolean);
+    ];
     async function kaydet() {
       if (sayi(f.adet) > bos && !(await onayla(NT.dil.m("Boş {0} şişe stoku eksiye düşecek. Yine de kaydedilsin mi?", amb(f.ambalaj)), { baslik: cevir("Boş şişe yetersiz"), evet: cevir("Kaydet") }))) return false;
-      const no = H.yeniNo(d, 'dolum', f.tarih);
-      const v = { no, tarih: f.tarih, urun: f.urun, parti: partili ? f.parti.trim() : '', ...(partili && f.karisim?.length > 1 ? { karisim: f.karisim } : {}), ambalaj: f.ambalaj, adet: sayi(f.adet), hazirlayan: f.hazirlayan.trim(), dolduranlar: f.dolduranlar, kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim(), notlar: f.notlar.trim(), ekler: [],
+      const karisim = f.parti.split('+').map((p) => p.trim()).filter(Boolean);
+      const v = { tarih: f.tarih, ...(partili && karisim.length > 1 ? { karisim } : {}), hazirlayan: f.hazirlayan.trim(),
+        kaynakTur: f.kaynakTur, kaynakNo: f.kaynakNo.trim(), notlar: f.notlar.trim(), ekler: [],
         ...(kaynakKap ? { kaynakKap: { urun: kaynakKap.urun, parti: kaynakKap.parti || '', ambalaj: kaynakKap.ambalaj }, alinanLitre, acikAciklama: f.acikAciklama.trim() } : {}) };
-      await d.kaydet([{ c: 'dolum', k: uid(), v }]);
-      bildir(NT.dil.m('{0} rafa eklendi.', `${no} · ${v.adet} × ${v.urun} ${amb(v.ambalaj)}`));
+      await H.emirYaz(d, emir.id, 'tamamla', { dolum: v, yapanlar: f.dolduranlar, bosStokOnayi: f.adet > bos });
+      bildir(NT.dil.m('{0} rafa eklendi.', `${f.adet} × ${kalemYazi(f)}`));
     }
-    return html`<${Sihirbaz} baslik=${cevir("Dolum yaptım")} adimlar=${adimlar} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${cevir("Rafa ekle")} />`;
+    return html`<${Sihirbaz} baslik=${`${emir.no} · ${emir.adet} × ${kalemYazi(emir)}`} adimlar=${adimlar} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${cevir("Dolumu tamamla", "Complete filling")} />`;
   }
 
   /* ---------------- Gönderi sihirbazı ---------------- */
-  function GonderSihirbazi({ kapat, on = {} }) {
+  function GonderSihirbazi({ kapat, emir }) {
     const d = depo();
+    const id = useRef(uid()).current;
     const onceki = d.kayitlar('sevk');
     const sonFirmalar = [...new Map([...onceki].sort((a, x) => (a.tarih < x.tarih ? 1 : -1)).map((r) => [r.firma, r])).values()].slice(0, 8);
-    const [f, setF] = useState({ firma: '', yetkili: '', telefon: '', irtibatDetay: '', talepTarihi: bugun(), sorumlu: '', adres: '', sebep: '', sekil: 'Kargo', kargoFirma: '', takipNo: '', kargoBelge: [], ulke: 'Türkiye', durum: 'Beklemede', tarih: bugun(), sepet: [], siseler: [], ...on });
+    const kalemeDonustur = ({ urun, parti, ambalaj, adet }) => ({ urun, parti, ambalaj, adet, anahtar: H.anahtar(urun, parti, ambalaj) });
+    const [f, setF] = useState(() => {
+      const firma = emir?.firma || '';
+      const son = firma ? H.firmaBilgisi(d, firma) : {};
+      return { firma, yetkili: son.yetkili || '', telefon: son.telefon || '', irtibatDetay: son.irtibatDetay || '',
+        talepTarihi: bugun(), sorumlu: b.kullanici || '', adres: son.adres || '', sebep: '', sekil: 'Kargo', kargoFirma: '',
+        kargoBelge: [], ulke: son.ulke || 'Türkiye', durum: 'Etiket Bekliyor', tarih: bugun(), siseler: [],
+        emirIds: emir ? [emir.id] : [], sepet: emir ? [kalemeDonustur(emir)] : [] };
+    });
     const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
-    const [filtre, setFiltre] = useState('');
-    const st = H.stok(d);
+    const firmaUyar = (e, firma) => !e.firma || NT.c.kucuk(e.firma) === NT.c.kucuk(firma.trim());
+    const emirler = d.kayitlar('isemri').filter((e) => H.emirSevkeHazir(e) && firmaUyar(e, f.firma));
+    const kalemleriTopla = (ids, oncekiKalemler) => {
+      const kalemler = new Map();
+      for (const emirId of ids) {
+        const e = d.kayit('isemri', emirId);
+        if (!e) continue;
+        const k = kalemeDonustur(e);
+        const varOlan = kalemler.get(k.anahtar);
+        if (varOlan) varOlan.adet += k.adet;
+        else kalemler.set(k.anahtar, { ...oncekiKalemler.find((x) => x.anahtar === k.anahtar), ...k });
+      }
+      return [...kalemler.values()];
+    };
     const firmaSec = (ad) => setF((p) => {
       const son = H.firmaBilgisi(d, ad);
-      return { ...p, firma: ad, yetkili: son.yetkili || p.yetkili, telefon: son.telefon || p.telefon, irtibatDetay: son.irtibatDetay || p.irtibatDetay, adres: son.adres || p.adres, ulke: son.ulke || p.ulke };
+      const emirIds = p.emirIds.filter((id) => {
+        const e = d.kayit('isemri', id);
+        return e && firmaUyar(e, ad);
+      });
+      return { ...p, firma: ad, yetkili: son.yetkili || p.yetkili, telefon: son.telefon || p.telefon,
+        irtibatDetay: son.irtibatDetay || p.irtibatDetay, adres: son.adres || p.adres, ulke: son.ulke || p.ulke,
+        emirIds, sepet: kalemleriTopla(emirIds, p.sepet) };
     });
-    const stokListesi = [...st.dolu.values()].filter((x) => x.mevcut > 0 && ara(`${x.urun} ${x.parti} ${amb(x.ambalaj)}`, filtre))
-      .sort((a, x) => trSirala(a.urun, x.urun) || H.partiNo(x.parti) - H.partiNo(a.parti));
-    const sepeteEkle = (x) => setF((p) => {
-      const var_ = p.sepet.find((k) => k.anahtar === x.anahtar);
-      return { ...p, sepet: var_ ? p.sepet.map((k) => (k === var_ ? { ...k, adet: k.adet + 1 } : k)) : [...p.sepet, { anahtar: x.anahtar, urun: x.urun, parti: x.parti, ambalaj: x.ambalaj, adet: 1 }] };
+    const emirSec = (id) => setF((p) => {
+      const emirIds = p.emirIds.includes(id) ? p.emirIds.filter((x) => x !== id) : [...p.emirIds, id];
+      return { ...p, emirIds, sepet: kalemleriTopla(emirIds, p.sepet) };
     });
-    const sepetAdet = (k, n) => setF((p) => ({ ...p, sepet: n <= 0 ? p.sepet.filter((x) => x !== k) : p.sepet.map((x) => (x === k ? { ...x, adet: n } : x)) }));
     const kalemler = f.sepet.map(({ anahtar, ...k }) => k);
     const eksikler = H.sevkKontrol(d, kalemler);
     const toplam = kalemler.reduce((t, k) => t + k.adet, 0);
@@ -255,23 +243,18 @@
           </div>`,
       },
       {
-        soru: 'Neleri gönderiyorsunuz?', ipucu: 'Raftan dokunarak ekleyin; her dokunuş bir şişe ekler.', gecerli: () => kalemler.length > 0,
+        soru: 'Neleri gönderiyorsunuz?', ipucu: cevir('Bu gönderiye girecek tamamlanmış iş emirlerini seçin.', 'Select the completed work orders for this shipment.'),
+        gecerli: () => f.emirIds.length > 0 && f.emirIds.every((id) => emirler.some((e) => e.id === id)),
         icerik: () => html`<div class="tz-sepet">
-          <div>
-            <input class="girdi" placeholder=${cevir("Ürün, parti veya ambalaj ara…")} value=${filtre} onInput=${(e) => setFiltre(e.target.value)} style="margin-bottom:10px" />
-            <div class="tz-stok-listesi">${stokListesi.map((x) => {
-              const sepette = f.sepet.find((k) => k.anahtar === x.anahtar);
-              return html`<button type="button" class=${'tz-stok-satir' + (sepette ? ' sepette' : '')} onClick=${() => sepeteEkle(x)}>
-                <${Sise} litre=${H.ambalajlar(d, { hepsi: true }).find((a) => a.id === x.ambalaj)?.litre} boyut=${0.7} />
-                <span class="bilgi"><b>${x.urun}${x.parti ? ' · ' + x.parti : ''}</b><small>${amb(x.ambalaj)}${x.rezerve ? NT.dil.m(" · {0} rezerve", x.rezerve) : ''}</small></span>
-                <span class="n">${x.mevcut}${sepette ? html` <span style="color:var(--ana)">−${sepette.adet}</span>` : ''}</span>
-              </button>`;
-            })}${!stokListesi.length && html`<p class="soluk">${cevir("Rafta eşleşen dolu numune yok.")}</p>`}</div>
-          </div>
+          <div class="tz-stok-listesi">${emirler.map((e) => html`<button type="button" class=${'tz-stok-satir' + (f.emirIds.includes(e.id) ? ' sepette' : '')}
+              aria-pressed=${f.emirIds.includes(e.id)} onClick=${() => emirSec(e.id)}>
+              <span class="bilgi"><b>${kalemYazi(e)}</b><small>${e.no}</small></span><span class="n">${e.adet}</span>
+            </button>`)}
+            ${!emirler.length && html`<p class="soluk">${cevir('Bu firma için hazır iş emri yok.', 'No work orders are ready for this company.')}</p>`}</div>
           <div class="tz-sepet-kutu"><h4>${cevir("Gönderilecekler")} ${toplam ? NT.dil.m("· {0} şişe · {1} L", toplam, litreYaz(H.sevkLitre(d, kalemler))) : ''}</h4>
             ${f.sepet.length ? f.sepet.map((k) => html`<div class="tz-sepet-kalem">
               <span class="ad">${k.urun}<small>${k.parti || cevir("Partisiz")} · ${amb(k.ambalaj)}</small></span>
-              <span class="tz-mini-sayac"><button type="button" onClick=${() => sepetAdet(k, k.adet - 1)}>−</button><span>${k.adet}</span><button type="button" onClick=${() => sepetAdet(k, k.adet + 1)}>+</button></span>
+              <b>${k.adet}</b>
             </div>`) : html`<p class="soluk kucuk">${cevir("Henüz bir şey eklenmedi.")}</p>`}
           </div>
         </div>`,
@@ -313,11 +296,10 @@
       },
     ];
     async function kaydet() {
-      if (f.durum === 'Gönderildi' && eksikler.length && !(await onayla(cevir("Bazı kalemlerde rafta yeterli şişe görünmüyor. Kaydederseniz stok eksiye düşer."), { baslik: cevir("Stok yetersiz"), evet: cevir("Yine de kaydet") }))) return false;
-      const no = H.yeniNo(d, 'sevk', f.tarih);
-      const v = { no, tarih: f.tarih, firma: f.firma.trim(), yetkili: f.yetkili.trim(), telefon: f.telefon.trim(), irtibatDetay: f.irtibatDetay.trim(), talepTarihi: f.talepTarihi, sorumlu: f.sorumlu.trim(), sekil: f.sekil, sebep: f.sebep.trim(), durum: f.durum, kargoFirma: f.kargoFirma.trim(), takipNo: '', kargoBelge: f.kargoBelge, ulke: f.ulke, adres: f.adres.trim(), notlar: '', ekler: [], kalemler, siseler: H.siseTemizle(kalemler, f.siseler) };
-      await d.kaydet([{ c: 'sevk', k: uid(), v }]);
-      bildir(NT.dil.m("{0} · {1} kaydedildi.", no, v.firma), { eylem: { yazi: 'Gönderi etiketi', fn: () => NT.etiket.ac({ tur: 'sevk', kayit: v }) }, sure: 8000 });
+      const v = { tarih: f.tarih, firma: f.firma.trim(), yetkili: f.yetkili.trim(), telefon: f.telefon.trim(), irtibatDetay: f.irtibatDetay.trim(), talepTarihi: f.talepTarihi, sorumlu: f.sorumlu.trim(), sekil: f.sekil, sebep: f.sebep.trim(), durum: f.durum, kargoFirma: f.kargoFirma.trim(), takipNo: '', kargoBelge: f.kargoBelge, ulke: f.ulke, adres: f.adres.trim(), notlar: '', ekler: [], kalemler, siseler: H.siseTemizle(kalemler, f.siseler) };
+      await H.sevkYaz(d, id, v, { emirIds: f.emirIds });
+      const kayit = d.kayit('sevk', id);
+      bildir(NT.dil.m("{0} · {1} kaydedildi.", kayit.no, kayit.firma), { eylem: { yazi: 'Gönderi etiketi', fn: () => NT.etiket.ac({ tur: 'sevk', kayit }) }, sure: 8000 });
     }
     return html`<${Sihirbaz} baslik=${cevir("Numune gönder")} adimlar=${adimlar} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${cevir("Gönderiyi kaydet")} />`;
   }
@@ -444,16 +426,179 @@
     return html`<${Sihirbaz} baslik=${cevir("Raf sayımı")} adimlar=${adimlar} kapat=${kapat} kaydet=${kaydet} kaydetYazi=${cevir(degisenSayisi ? 'Düzeltmeleri kaydet' : 'Bitir')} />`;
   }
 
-  // Ortak parçalar (hareket defteri vb.) "Dolum yaptım / Numune gönder / Şişe geldi"yi bu sihirbazlarla açar.
+  const isEmirlerineGit = () => { location.hash = '#/isemirleri'; };
+  const emirTuru = (tur) => tur === 'dolum' ? cevir('Dolum', 'Filling') : cevir('Stoktan hazırlama', 'Prepare from stock');
+  async function emirIsle(id, islem, veri) {
+    try { await H.emirYaz(depo(), id, islem, veri); return true; }
+    catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return false; }
+  }
+
+  function IsEmriFormu({ kapat, on = {} }) {
+    const d = depo();
+    const id = useRef(uid()).current;
+    const mesgul = useRef(false);
+    const [bekliyor, setBekliyor] = useState(false);
+    const [f, setF] = useState({ tur: 'dolum', urun: '', parti: '', ambalaj: '', adet: 1, firma: '', notlar: '', ...on });
+    const s = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+    const urun = H.urunBul(d, f.urun);
+    const sevk = f.sevkId && d.kayit('sevk', f.sevkId);
+    const st = H.stok(d).dolu.get(H.kalemAnahtari(f));
+    const kendi = sevk ? H.kalemAdedi(sevk.kalemler, H.kalemAnahtari(f)) : 0;
+    const ayrilabilir = Math.max(0, (st?.kullanilabilir || 0) + kendi);
+    const gecerli = urun && (!urun.partili || f.parti.trim()) && f.ambalaj && Number.isSafeInteger(Number(f.adet)) && Number(f.adet) > 0;
+    const kaydet = async (ev) => {
+      ev.preventDefault();
+      if (!gecerli || mesgul.current) return;
+      mesgul.current = true;
+      setBekliyor(true);
+      try {
+        if (await emirIsle(id, 'ac', { ...f, parti: f.parti.trim(), adet: Number(f.adet), firma: f.firma.trim(), notlar: f.notlar.trim() })) {
+          kapat();
+          isEmirlerineGit();
+        }
+      } finally { mesgul.current = false; setBekliyor(false); }
+    };
+    return html`<${NT.ui.Modal} dar baslik=${cevir('Yeni iş emri', 'New work order')} kapat=${kapat}
+      alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir('Vazgeç')}</button>
+        <button type="submit" form=${'emir-' + id} class="d ana-d" disabled=${!gecerli || bekliyor}>${cevir('İş emrini aç', 'Create work order')}</button>`}>
+      <form id=${'emir-' + id} class="modal-ic form-izgara" onSubmit=${kaydet}>
+        <label class="alan s12">${cevir('Yapılacak iş', 'Task')}
+          <select class="girdi" aria-label=${cevir('Yapılacak iş', 'Task')} value=${f.tur} onChange=${s('tur')}>
+            <option value="dolum">${emirTuru('dolum')}</option><option value="hazirla">${emirTuru('hazirla')}</option>
+          </select>
+        </label>
+        ${sevk ? html`<p class="s12" style="margin:0"><b>${sevk.no} · ${sevk.firma}</b><br />${kalemYazi(f)}</p>` : html`
+          <label class="alan s6">${cevir('Ürün')}
+            <select class="girdi" aria-label=${cevir('Ürün')} value=${f.urun} onChange=${(e) => setF((p) => ({ ...p, urun: e.target.value, parti: '' }))}>
+              <option value="">${cevir('Seçin', 'Select')}</option>
+              ${H.urunler(d, { hepsi: !!on.urun }).map((u) => html`<option value=${u.ad}>${u.ad}</option>`)}
+            </select>
+          </label>
+          ${urun?.partili && html`<label class="alan s6">${cevir('Parti')}
+            <input class="girdi" value=${f.parti} onInput=${s('parti')} list=${'emir-parti-' + id} placeholder="Batch #21" required />
+            <datalist id=${'emir-parti-' + id}>${H.partiler(d, f.urun).map((p) => html`<option value=${p} />`)}</datalist>
+          </label>`}
+          <label class="alan s6">${cevir('Ambalaj')}
+            <select class="girdi" aria-label=${cevir('Ambalaj')} value=${f.ambalaj} onChange=${s('ambalaj')}>
+              <option value="">${cevir('Seçin', 'Select')}</option>
+              ${H.ambalajlar(d, { hepsi: !!on.ambalaj }).map((a) => html`<option value=${a.id}>${a.ad}</option>`)}
+            </select>
+          </label>`}
+        <label class="alan s6">${cevir('Adet')}<input class="girdi" type="number" min="1" max=${sevk ? kendi : null} step="1" value=${f.adet} onInput=${s('adet')} required /></label>
+        ${f.tur === 'hazirla' && f.urun && f.ambalaj && html`<p class="s12 soluk kucuk" style="margin:0">${cevir('Ayrılabilir stok', 'Available stock')} · ${ayrilabilir}</p>`}
+        ${!sevk && html`<label class="alan s12">${cevir('Alıcı firma (isteğe bağlı)', 'Recipient company (optional)')}
+          <input class="girdi" value=${f.firma} onInput=${s('firma')} />
+        </label>`}
+        <label class="alan s12">${cevir('Not (isteğe bağlı)')}<textarea class="girdi" rows="2" value=${f.notlar} onInput=${s('notlar')} /></label>
+      </form>
+    <//>`;
+  }
+
+  function stokHazirlaFormu({ kapat }) {
+    return html`<${IsEmriFormu} kapat=${kapat} on=${{ tur: 'hazirla' }} />`;
+  }
+
+  function HazirlamaTamamla({ id, kapat }) {
+    const [yapanlar, setYapanlar] = useState([]);
+    const [bekliyor, setBekliyor] = useState(false);
+    return html`<${NT.ui.Modal} dar baslik=${cevir('Hazırlamayı kimler yaptı?', 'Who prepared the samples?')} kapat=${kapat}
+      alt=${html`<button class="d ana-d" disabled=${!yapanlar.length || bekliyor} onClick=${async () => {
+        setBekliyor(true);
+        try { if (await emirIsle(id, 'tamamla', { yapanlar })) kapat(); }
+        finally { setBekliyor(false); }
+      }}>${cevir('Hazırlamayı tamamla', 'Complete preparation')}</button>`}>
+      <div class="modal-ic"><${NT.ui.DolduranSecimi} secili=${yapanlar} degis=${setYapanlar} /></div>
+    <//>`;
+  }
+
+  function IsEmriKarti({ emir: e }) {
+    const d = depo();
+    const sevk = e.sevkId && d.kayit('sevk', e.sevkId);
+    const dolum = e.dolumId && d.kayit('dolum', e.dolumId);
+    const [mesgul, setMesgul] = useState(false);
+    const durum = {
+      bekliyor: cevir('Üstlenilmeyi bekliyor', 'Awaiting pickup'),
+      ustlenildi: cevir('Üstlenildi', 'Claimed'),
+      tamamlandi: e.dolumSilindi ? cevir('Dolum kaydı silindi', 'Fill record deleted')
+        : e.ayirmaKaldirildi ? cevir('Ayırma kaldırıldı', 'Stock released')
+        : sevk?.iptal || sevk?._silindi ? cevir('Gönderi iptal edildi', 'Shipment cancelled')
+        : sevk?.durum === 'Gönderildi' ? cevir('Gönderildi', 'Shipped')
+        : e.tur === 'dolum' && !e.firma ? cevir('Dolduruldu', 'Filled') : cevir('Gönderime hazır', 'Ready to ship'),
+      iptal: cevir('İptal edildi', 'Cancelled'),
+    }[e.durum];
+    const isle = async (islem) => {
+      setMesgul(true);
+      try { await emirIsle(e.id, islem); } finally { setMesgul(false); }
+    };
+    return html`<article class="tz-gonderi tz-detay-kart">
+      <div class="bas"><span class="etiket-kod">${e.no}</span><b>${emirTuru(e.tur)}</b><span class="gun">${tarihYaz(e.tarih)}</span></div>
+      <div class="tz-sise-cipler"><span class="tz-sise-cip"><b>${e.adet}</b>${kalemYazi(e)}</span><span class="rozet">${durum}</span></div>
+      <p class="soluk kucuk" style="margin:8px 0">
+        ${cevir('Açan', 'Opened by')} · ${e._olusturan}
+        ${e.ustlenen && html`<br />${cevir('Üstlenen', 'Claimed by')} · ${e.ustlenen}`}
+        ${e.yapanlar?.length && html`<br />${cevir('İşi yapanlar', 'Completed by')} · ${e.yapanlar.join(', ')}`}
+        ${e.firma && html`<br />${cevir('Firma')} · ${e.firma}`}
+        ${e.notlar && html`<br />${e.notlar}`}
+      </p>
+      <div class="alt">
+        ${e.durum === 'bekliyor' && html`<button class="d ana-d kucuk-d" disabled=${mesgul} onClick=${() => isle('ustlen')}>${cevir('Üstlen', 'Claim')}</button>`}
+        ${e.durum === 'ustlenildi' && html`<button class="d ana-d kucuk-d" onClick=${() => e.tur === 'dolum'
+          ? sihirbazAc(DolumSihirbazi, { emir: e }) : F.ac(HazirlamaTamamla, { id: e.id })}>${cevir('Tamamla', 'Complete')}</button>`}
+        ${H.emirSevkeHazir(e) && html`<button class="d ana-d kucuk-d" onClick=${() => sihirbazAc(GonderSihirbazi, { emir: e })}>${cevir('Gönderi oluştur', 'Create shipment')}</button>`}
+        ${sevk && !sevk._silindi && html`<button class="d kucuk-d" onClick=${() => F.ac(GonderiDetayi, { s: sevk })}>${sevk.no}${sevk.iptal ? ' · ' + cevir('İptal edildi') : ''}</button>`}
+        ${dolum && !dolum._silindi && html`<button class="d kucuk-d" onClick=${() => F.kayitAc('dolum', dolum)}>${dolum.no}</button>`}
+        ${(H.emirAcik(e) || H.emirSevkeHazir(e)) && html`<button class="d hayalet kucuk-d" disabled=${mesgul} onClick=${async () => {
+          const acik = H.emirAcik(e);
+          const yazi = acik ? cevir('Bu iş emri iptal edilsin mi?', 'Cancel this work order?')
+            : cevir('Bu iş emri için ayrılan şişeler serbest bırakılsın mı?', 'Release the bottles reserved for this work order?');
+          if (await onayla(yazi)) await isle(acik ? 'iptal' : 'ayirmayiKaldir');
+        }}>${H.emirAcik(e) ? cevir('İptal et') : cevir('Ayırmayı kaldır', 'Release stock')}</button>`}
+      </div>
+    </article>`;
+  }
+
+  function IsEmirleri() {
+    const d = depo();
+    const [filtre, setFiltre] = useState('hepsi');
+    const tum = d.kayitlar('isemri').sort((a, b) => Number(H.emirAcik(b)) - Number(H.emirAcik(a)) || b._olusturma - a._olusturma);
+    const gruplar = {
+      acik: tum.filter(H.emirAcik), hazir: tum.filter(H.emirSevkeHazir), hepsi: tum,
+    };
+    return html`<div class="tz-selam"><div><h1>${cevir('İş Emirleri', 'Work Orders')}</h1></div>
+      ${H.emirAcabilir(b.kullanici) && html`<button class="d ana-d tz-buyuk" onClick=${() => F.ac(IsEmriFormu)}><${Ikon} ad="arti" />${cevir('Yeni iş emri', 'New work order')}</button>`}</div>
+      <div class="tz-cipler">
+        ${[['acik', cevir('Açık', 'Open')], ['hazir', cevir('Gönderime hazır', 'Ready to ship')], ['hepsi', cevir('Hepsi')]].map(([id, yazi]) =>
+          html`<button class=${'tz-cip' + (filtre === id ? ' secili' : '')} onClick=${() => setFiltre(id)}>${yazi}<span class="n">${gruplar[id].length}</span></button>`)}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:14px">${gruplar[filtre].map((e) => html`<${IsEmriKarti} key=${e.id} emir=${e} />`)}</div>
+      ${!gruplar[filtre].length && html`<div class="tz-kart soluk">${cevir('Bu görünümde iş emri yok.', 'No work orders in this view.')}</div>`}`;
+  }
+
+  function GenelBakisIsEmirleri() {
+    const acik = depo().kayitlar('isemri').filter(H.emirAcik)
+      .sort((a, b) => Number(a.durum !== 'bekliyor') - Number(b.durum !== 'bekliyor') || b._olusturma - a._olusturma);
+    if (!acik.length) return null;
+
+    return html`<section class="tz-genel-is-emirleri" aria-labelledby="genel-is-emirleri">
+      <div class="tz-kart-bas">
+        <h2 id="genel-is-emirleri"><${Ikon} ad="dolum" boyut=${22} />${cevir('Açık iş emirleri', 'Open work orders')} <span>${acik.length}</span></h2>
+        <a class="d kucuk-d" href="#/isemirleri">${cevir('Tüm iş emirleri', 'All work orders')} →</a>
+      </div>
+      <div class="tz-genel-is-emri-kartlari">${acik.slice(0, 3).map((e) => html`<${IsEmriKarti} key=${e.id} emir=${e} />`)}</div>
+    </section>`;
+  }
+
+  const yeniEmirAc = (on) => H.emirAcabilir(b.kullanici) ? F.ac(IsEmriFormu, { on }) : isEmirlerineGit();
+  // Hareket defteri dolum ve hazırlama işlerini aynı kart üzerinden başlatır.
   NT.eylem = {
-    dolum: (on) => sihirbazAc(DolumSihirbazi, { on }),
-    sevk: (on) => sihirbazAc(GonderSihirbazi, { on }),
+    dolum: (on) => yeniEmirAc({ ...on, tur: 'dolum' }),
+    sevk: (on) => yeniEmirAc({ ...on?.sepet?.[0], tur: 'hazirla' }),
     alim: (on) => sihirbazAc(AlimSihirbazi, { on }),
   };
 
   const EYLEMLER = [
-    { ad: 'Dolum yaptım', alt: 'Şişeye numune doldurdum', ikon: 'dolum', tus: 'N', B: DolumSihirbazi, birincil: true },
-    { ad: 'Numune gönder', alt: 'Firmaya gönderi hazırla', ikon: 'sevk', tus: 'S', B: GonderSihirbazi },
+    { ad: 'Dolum iş emri', en: 'Fill work order', alt: 'Dolum iş emri', ikon: 'dolum', tus: 'N', B: IsEmriFormu, birincil: true, emir: true },
+    { ad: 'Hazırlama iş emri', en: 'Preparation work order', alt: 'Hazırlama iş emri', ikon: 'sevk', tus: 'S', B: stokHazirlaFormu, emir: true },
     { ad: 'Şişe geldi', alt: 'Boş ambalaj alımı', ikon: 'alim', tus: 'A', B: AlimSihirbazi },
     { ad: 'Raf sayımı', alt: 'Say, farkları düzelt', ikon: 'sayim', tus: 'R', B: SayimSihirbazi },
   ];
@@ -471,8 +616,13 @@
       if (eksik.length && !(await onayla(NT.dil.m("Rafta yetersiz: {0}. Yine de yola çıktı olarak işaretlensin mi?", eksik.map((e) => `${e.urun} ${e.parti} ${amb(e.ambalaj)}`).join(', ')), { baslik: cevir("Stok yetersiz"), evet: cevir("Evet") }))) return;
       if (s.tarih < bugun()) v.tarih = bugun();
     }
-    await d.kaydet([{ c: 'sevk', k: s.id, v }]);
-    bildir(`${s.no} · ${s.firma}: ${cevir(DURUM_ADI[sonraki])}`, { eylem: { yazi: 'Geri al', fn: () => d.kaydet([{ c: 'sevk', k: s.id, v: { durum: s.durum, tarih: s.tarih } }]) } });
+    try {
+      await H.sevkYaz(d, s.id, v, { mevcut: true, beklenenDurum: s.durum, eskiEksigeIzin: true });
+      bildir(`${s.no} · ${s.firma}: ${cevir(DURUM_ADI[sonraki])}`, { eylem: { yazi: 'Geri al', fn: async () => {
+        try { await H.sevkYaz(d, s.id, { durum: s.durum, tarih: s.tarih }, { mevcut: true, beklenenDurum: sonraki }); }
+        catch (e) { bildir(cevir(e.message), { tur: 'hata' }); }
+      } } });
+    } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); }
   }
   function GonderiDetayi({ s, kapat }) {
     const { KayitDetay, DetayBolumu, SevkRozeti, DetayEkleri } = NT.ui;
@@ -524,6 +674,12 @@
   }
 
   function GonderiKarti({ s }) {
+    const d = depo();
+    const emirler = H.sevkEmirleri(d, s.id);
+    const acikEmir = emirler.some(H.emirAcik);
+    const emirAcilabilir = H.emirAcabilir(b.kullanici) && H.sevkEtkili(s) && s.durum !== 'Gönderildi';
+    const yeniEmirKalemleri = [...new Map((s.kalemler || []).map((k) => [H.kalemAnahtari(k), k])).values()]
+      .filter((k) => !emirler.some((e) => H.kalemAnahtari(e) === H.kalemAnahtari(k)));
     const yer = DURUMLAR.indexOf(s.durum);
     const gun = gunFarki(s.tarih || bugun(), bugun());
     const sonraki = s.iptal ? null : DURUMLAR[yer + 1];
@@ -540,9 +696,15 @@
         <span class=${'tz-adim' + (i < yer || (i === yer && x === 'Gönderildi') ? ' gecti' : i === yer ? ' simdi' : '')}><span class="o">${i < yer || x === s.durum && x === 'Gönderildi' ? html`<${Ikon} ad="tik" boyut=${12} />` : ''}</span><span class="yazi">${cevir(DURUM_ADI[x])}</span></span>`)}</div>
       <div class="alt">
         ${s.iptal ? html`<span class="soluk kucuk">${s.iptalNeden || cevir("Neden yazılmamış")}${s.iptalTarihi ? ` · ${tarihYaz(s.iptalTarihi)}` : ''}</span>`
-        : sonraki ? html`<button class="d ana-d kucuk-d" onClick=${() => ilerlet(s)}>→ ${cevir(DURUM_ADI[sonraki])}</button>` : s.sekil === 'Kargo' && !s.takipNo && !(s.kargoBelge || []).length ? html`<button class="tz-alarm" style="border:0;cursor:pointer" title=${cevir("Kargo firmasından gelen gönderi belgesini yükleyin")} onClick=${() => F.kayitAc('sevk', s)}><${Ikon} ad="bilgi" />${cevir("Kargo belgesi yok")}</button>`
+        : sonraki ? html`<button class="d ana-d kucuk-d" disabled=${acikEmir && sonraki !== 'Beklemede'} onClick=${() => ilerlet(s)}>→ ${cevir(DURUM_ADI[sonraki])}</button>` : s.sekil === 'Kargo' && !s.takipNo && !(s.kargoBelge || []).length ? html`<button class="tz-alarm" style="border:0;cursor:pointer" title=${cevir("Kargo firmasından gelen gönderi belgesini yükleyin")} onClick=${() => F.kayitAc('sevk', s)}><${Ikon} ad="bilgi" />${cevir("Kargo belgesi yok")}</button>`
           : html`<span class="soluk kucuk">${[s.kargoFirma, s.takipNo, (s.kargoBelge || []).length && 'kargo belgesi var'].filter(Boolean).join(' · ') || s.sekil}</span>`}
         <span class="bosluk" />
+        ${emirler.length > 0 && html`<a class="d kucuk-d" href="#/isemirleri">${cevir('İş Emirleri', 'Work Orders')} · ${emirler.length}</a>`}
+        ${emirAcilabilir && yeniEmirKalemleri.map((k) => html`<button class="d hayalet kucuk-d" title=${kalemYazi(k)} onClick=${() => {
+          const adet = H.kalemAdedi(s.kalemler, H.kalemAnahtari(k));
+          const eksik = Math.min(adet, Math.max(0, -(H.stok(d).dolu.get(H.kalemAnahtari(k))?.kullanilabilir || 0)));
+          yeniEmirAc({ ...k, sevkId: s.id, adet: eksik || adet, tur: eksik ? 'dolum' : 'hazirla' });
+        }}>${cevir('İş emri aç', 'Open work order')}${yeniEmirKalemleri.length > 1 ? ` · ${kalemYazi(k)}` : ''}</button>`)}
         ${s.iptal ? html`<button class="d hayalet kucuk-d" onClick=${() => F.iptalGeriAl(s)}><${Ikon} ad="geri" boyut=${15} />${cevir("İptali geri al")}</button>`
           : s.durum !== 'Gönderildi' && html`<button class="d hayalet kucuk-d" title=${cevir("Vazgeçildi: kayıt kalır, şişeler rafa döner")} onClick=${() => F.iptalEt(s)}><${Ikon} ad="kapat" boyut=${15} />${cevir("İptal et")}</button>`}
         <button class="d hayalet kucuk-d" onClick=${() => NT.etiket.ac({ tur: 'sevk', kayit: s })}><${Ikon} ad="yazici" boyut=${15} />${cevir("Gönderi etiketi")}</button>
@@ -622,6 +784,7 @@
           ${uyarilar.length + bosUyari.length ? html` <b class="u">${uyarilar.length + bosUyari.length} ${cevir("kalem")}</b> ${cevir("azalıyor.")}` : ''}</p>
       </div></div>
 
+      <${GenelBakisIsEmirleri} />
       <div class="tz-izgara">
         <section class="tz-kart">
           <div class="tz-kart-bas"><h2>${cevir("Boş şişe stok")}</h2><div class="sag"><span class="raf-ipucu">${cevir("rozetteki sayı: rafta · şişeye tıklayınca geçmişi açılır")}</span>
@@ -671,7 +834,7 @@
     const liste = [...gruplar[f]].sort((a, x) => (f === 'yolda' ? (a.tarih < x.tarih ? -1 : 1) : a.tarih < x.tarih ? 1 : -1));
     return html`<div class="tz-selam"><div><h1>${cevir("Gönderiler")}</h1><p>${cevir("Her kartta bir sonraki adıma tek dokunuşla geçin. Yalnızca “Yola çıktı” stoktan düşer.")}</p></div>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center"><button class="d" onClick=${E.disaAktar.sevk} title=${cevir("Farukcan’ın SAMPLES tablosu düzeninde Excel dosyası")}><${Ikon} ad="indir" boyut=${15} />Excel</button>
-          <button class="d ana-d tz-buyuk" onClick=${() => sihirbazAc(GonderSihirbazi)}><${Ikon} ad="arti" />${cevir("Numune gönder")}</button></div></div>
+          <button class="d ana-d tz-buyuk" onClick=${() => d.kayitlar('isemri').some(H.emirSevkeHazir) ? sihirbazAc(GonderSihirbazi) : isEmirlerineGit()}><${Ikon} ad="arti" />${cevir("Numune gönder")}</button></div></div>
       <div class="tz-cipler">
         ${[['yolda', 'Yolda'], ['gitti', 'Gönderildi'], ['iptal', 'İptal'], ['hepsi', 'Tümü']].map(([id, ad]) => html`<button class=${'tz-cip' + (f === id ? ' secili' : '')} onClick=${() => setF(id)}>${cevir(ad)}<span class="n">${gruplar[id].length}</span></button>`)}
         <input class="girdi" style="max-width:320px;margin-left:8px;border-radius:99px" placeholder=${cevir("Firma, ürün, takip no…")} value=${q} onInput=${(e) => setQ(e.target.value)} />
@@ -800,7 +963,7 @@
         clearTimeout(bekleyen);
         if (hizli) return;
         const x = EYLEMLER.find((a) => a.tus.toLowerCase() === e.key.toLowerCase());
-        if (x) { e.preventDefault(); bekleyen = setTimeout(() => tampon.length === 1 && sihirbazAc(x.B), 120); }
+        if (x && (!x.emir || H.emirAcabilir(b.kullanici))) { e.preventDefault(); bekleyen = setTimeout(() => tampon.length === 1 && sihirbazAc(x.B), 120); }
       };
       window.addEventListener('keydown', f);
       return () => { window.removeEventListener('keydown', f); clearTimeout(bekleyen); };
@@ -809,16 +972,18 @@
     const yolda = d.kayitlar('sevk').filter((s) => s.durum !== 'Gönderildi' && H.sevkEtkili(s)).length;
     const cevrimici = (d.kisiler || []).filter((k) => Date.now() - k.t < 90000);
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
-    const Sayfa = { genel: GenelBakis, gonderiler: Gonderiler, gecmis: Gecmis, ayarlar: E.Ayarlar }[sekme] || GenelBakis;
+    const acikEmirler = d.kayitlar('isemri').filter(H.emirAcik).length;
+    const Sayfa = { genel: GenelBakis, isemirleri: IsEmirleri, gonderiler: Gonderiler, gecmis: Gecmis, ayarlar: E.Ayarlar }[sekme] || GenelBakis;
     return html`<div class="tz-iskelet tz-m-numune">
       <aside class="tz-yan">
         <a class="tz-marka" href="#/genel"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><span>${cevir("Numune Takip")}</span></a>
         <${NT.ui.AnaEkranLinki} />
         <nav class="tz-menu" aria-label=${cevir("Sayfalar")}>${SEKMELER.map((s) => html`<a href=${'#/' + s.id} class=${sekme === s.id ? 'aktif' : ''}>
-          <${Ikon} ad=${s.ikon} />${cevir(s.ad)}${s.id === 'gonderiler' && yolda > 0 ? html`<span class="n" title=${cevir("Yoldaki gönderi")}>${yolda}</span>` : ''}</a>`)}</nav>
+          <${Ikon} ad=${s.ikon} />${cevir(s.ad, s.en)}${s.id === 'gonderiler' && yolda > 0 ? html`<span class="n" title=${cevir("Yoldaki gönderi")}>${yolda}</span>` : ''}
+          ${s.id === 'isemirleri' && acikEmirler > 0 && html`<span class="n">${acikEmirler}</span>`}</a>`)}</nav>
         <div class="tz-menu-baslik">${cevir("Hızlı işlem")}</div>
-        <nav class="tz-menu tz-hizli-menu" aria-label=${cevir("Hızlı işlem")}>${EYLEMLER.map((x) => html`<button type="button" onClick=${() => sihirbazAc(x.B)} title=${cevir(x.alt)}>
-          <${Ikon} ad=${x.ikon} />${cevir(x.ad)}<kbd>${x.tus}</kbd></button>`)}</nav>
+        <nav class="tz-menu tz-hizli-menu" aria-label=${cevir("Hızlı işlem")}>${EYLEMLER.filter((x) => !x.emir || H.emirAcabilir(b.kullanici)).map((x) => html`<button type="button" onClick=${() => sihirbazAc(x.B)} title=${cevir(x.alt, x.en)}>
+          <${Ikon} ad=${x.ikon} />${cevir(x.ad, x.en)}<kbd>${x.tus}</kbd></button>`)}</nav>
         <div class="tz-yan-alt">
           ${b.mod === 'bulut' && html`<div class="kisiler" title=${cevrimici.map((k) => k.ad).join(', ')}>
             ${cevrimici.slice(0, 5).map((k) => html`<${Avatar} key=${k.cihaz} ad=${k.ad} kucuk />`)}

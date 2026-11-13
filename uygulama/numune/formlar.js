@@ -21,10 +21,20 @@
     return [...new Set(liste.filter(Boolean).map((x) => String(x).trim()).filter(Boolean))].sort(trSirala);
   }
 
+  async function kayitDurumu(c, kayit, op) {
+    const d = depo();
+    try {
+      if (c === 'sevk') await H.sevkYaz(d, kayit.id, {}, { mevcut: true, op, eskiEksigeIzin: true });
+      else if (c === 'dolum') await H.dolumYaz(d, kayit, op);
+      else await d.kaydet([{ op, c, k: kayit.id }]);
+      return true;
+    } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return false; }
+  }
+
   async function sil(c, kayit, ad) {
     if (!(await onayla(NT.dil.m("{0} silinsin mi? Stok hesabı buna göre güncellenir. Silinen kayıt Ayarlar › Çöp kutusundan geri alınabilir.", kayit.no || ad), { baslik: cevir("Kaydı sil"), evet: cevir("Sil"), tehlike: true }))) return false;
-    await depo().kaydet([{ op: 'del', c, k: kayit.id }]);
-    bildir(NT.dil.m("{0} silindi.", kayit.no || ad), { eylem: { yazi: 'Geri al', fn: () => depo().kaydet([{ op: 'undel', c, k: kayit.id }]) } });
+    if (!await kayitDurumu(c, kayit, 'del')) return false;
+    bildir(NT.dil.m("{0} silindi.", kayit.no || ad), { eylem: { yazi: 'Geri al', fn: () => kayitDurumu(c, kayit, 'undel') } });
     return true;
   }
 
@@ -34,13 +44,18 @@
     let neden = '';
     const detay = html`<input class="girdi" style="margin-top:12px" placeholder=${cevir("Neden? (isteğe bağlı, örn. müşteri vazgeçti)")} onInput=${(e) => { neden = e.target.value; }} />`;
     if (!(await onayla(NT.dil.m("{0} · {1} iptal edilsin mi? Kayıt silinmez; Gönderiler › İptal altında kalır ve şişeler rafa geri sayılır.", s.no, s.firma), { baslik: cevir("Gönderiyi iptal et"), evet: cevir("İptal et"), tehlike: true, detay }))) return false;
-    await depo().kaydet([{ c: 'sevk', k: s.id, v: { iptal: true, iptalNeden: neden.trim(), iptalTarihi: bugun() } }]);
+    try {
+      await H.sevkYaz(depo(), s.id, { iptal: true, iptalNeden: neden.trim(), iptalTarihi: bugun() }, { mevcut: true });
+    } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return false; }
     bildir(NT.dil.m("{0} iptal edildi.", s.no), { eylem: { yazi: 'Geri al', fn: () => iptalGeriAl(s, true) } });
     return true;
   }
   async function iptalGeriAl(s, sessiz) {
-    await depo().kaydet([{ c: 'sevk', k: s.id, v: { iptal: false, iptalNeden: '', iptalTarihi: '' } }]);
+    try {
+      await H.sevkYaz(depo(), s.id, { iptal: false, iptalNeden: '', iptalTarihi: '' }, { mevcut: true, eskiEksigeIzin: true });
+    } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return false; }
     if (!sessiz) bildir(NT.dil.m("{0} yeniden etkin.", s.no));
+    return true;
   }
 
   /* Ülke açılır listesi: Türkiye ve daha önce gönderilen ülkeler üstte. */
@@ -148,7 +163,8 @@
       }
       if (kayit) {
         const fark = farklar(kayit, v);
-        if (Object.keys(fark).length) await d.kaydet([{ c: 'dolum', k: kayit.id, v: fark }]);
+        try { if (Object.keys(fark).length) await H.dolumYaz(d, kayit, 'put', fark); }
+        catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return; }
         bildir(NT.dil.m("{0} güncellendi.", kayit.no));
       } else {
         const no = H.yeniNo(d, 'dolum', f.tarih);
@@ -354,7 +370,9 @@
       const v = { tarih: f.tarih, firma: f.firma.trim(), yetkili: f.yetkili.trim(), telefon: f.telefon.trim(), irtibatDetay: f.irtibatDetay.trim(), talepTarihi: f.talepTarihi, sorumlu: f.sorumlu.trim(), geriBildirim: f.geriBildirim.trim(), numuneYeri: f.numuneYeri.trim(), sekil: f.sekil, sebep: f.sebep.trim(), durum: f.durum, kargoFirma: f.kargoFirma.trim(), takipNo: f.takipNo.trim(), kargoBelge: f.kargoBelge, ulke: f.ulke, adres: f.adres.trim(), notlar: f.notlar.trim(), ekler: f.ekler, kalemler, siseler: H.siseTemizle(kalemler, f.siseler) };
       if (kayit) {
         const fark = farklar(kayit, v);
-        if (Object.keys(fark).length) await d.kaydet([{ c: 'sevk', k: kayit.id, v: fark }]);
+        try {
+          if (Object.keys(fark).length) await H.sevkYaz(d, kayit.id, fark, { mevcut: true, eskiEksigeIzin: true });
+        } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return; }
         bildir(NT.dil.m("{0} güncellendi.", kayit.no));
       } else {
         const no = H.yeniNo(d, 'sevk', f.tarih);
@@ -588,9 +606,9 @@
 
   NT.form = {
     KalemBelgeleri,
-    DolumFormu, SevkFormu, AlimFormu, SiseEtiketleri, SayimFormu, FormKatmani, ac, kapat, sil, tarihYaz, iptalEt, iptalGeriAl, UlkeSecimi, TelefonGirdisi,
-    yeniDolum: (on) => ac(DolumFormu, { on }),
-    yeniSevk: (on) => ac(SevkFormu, { on }),
+    DolumFormu, SevkFormu, AlimFormu, SiseEtiketleri, SayimFormu, FormKatmani, ac, kapat, sil, kayitDurumu, tarihYaz, iptalEt, iptalGeriAl, UlkeSecimi, TelefonGirdisi,
+    yeniDolum: (on) => NT.eylem?.dolum(on),
+    yeniSevk: (on) => NT.eylem?.sevk(on),
     yeniAlim: (on) => ac(AlimFormu, { on }),
     kayitAc: (c, kayit) => ac({ dolum: DolumFormu, sevk: SevkFormu, alim: AlimFormu }[c], { kayit, key: kayit.id }),
     sayim: (hedef) => ac(SayimFormu, { hedef }),

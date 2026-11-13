@@ -91,5 +91,9 @@
     return 'SKYHEM Takip.html' + (p.length ? '?' + p.join('&') : '');
   }
 
-  NT.c = { adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
+  /* Kullanıcıya gösterilen sürüm. İç sayaç (surum.js) güncelleme sırası için sürer: 12 ve 13 = 1.0 (ilk genel dağıtım ve
+     aynı günkü düzeltmesi), 14 = 1.1, 15 = 1.2 … */
+  const surumYaz = (n) => (n >= 12 ? `1.${Math.max(0, n - 13)}` : `0.${n}`);
+
+  NT.c = { surumYaz, adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
 })(typeof window !== 'undefined' ? window : globalThis);

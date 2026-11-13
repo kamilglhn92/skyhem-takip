@@ -42,7 +42,8 @@
      elle eklenen adlar; eski kayıtlarda alan yoktur. */
   const DOLUM_KISILERI = ['Nurettin Durak', 'Kamil Gülhan', 'Onur Özdemir', 'Yusuf Yılmaz', 'Erkan Eser'];
   const dolumKisileri = (depo) => {
-    const ek = depo.kayitlar('dolum').flatMap((r) => r.dolduranlar || []).filter((a) => a && !DOLUM_KISILERI.includes(a));
+    const ek = [...depo.kayitlar('dolum').flatMap((r) => r.dolduranlar || []),
+      ...depo.kayitlar('isemri').flatMap((r) => r.yapanlar || [])].filter((a) => a && !DOLUM_KISILERI.includes(a));
     return [...DOLUM_KISILERI, ...[...new Set(ek)].sort((a, b) => a.localeCompare(b, 'tr'))];
   };
   const dolduranYaz = (r) => (r.dolduranlar || []).join(', ');
@@ -144,7 +145,7 @@
     const sik = [...say.keys()].filter((u) => u !== 'Türkiye').sort((a, b) => say.get(b) - say.get(a) || trSirala(a, b));
     return { sik: ['Türkiye', ...sik], hepsi: tumUlkeler().filter((u) => u !== 'Türkiye' && !sik.includes(u)) };
   }
-  const ONEK = { alim: 'SA', dolum: 'NH', sevk: 'GN', sayim: 'SY', acik: 'AK' };
+  const ONEK = { alim: 'SA', dolum: 'NH', sevk: 'GN', sayim: 'SY', acik: 'AK', isemri: 'İE' };
 
   function kisaAd(ad) {
     return String(ad).toLocaleLowerCase('tr-TR')
@@ -257,7 +258,8 @@
       acik = yuvarla(acik - al); kalan = yuvarla(kalan - al);
       if (acik <= 1e-9) { acik = 0; biten += 1; }
     }
-    return { oncekiAcik: d?.acikL || 0, sonrakiAcik: acik, acilan, biten, tam: d?.mevcut ?? 0, tamSonra: (d?.mevcut ?? 0) - acilan };
+    return { oncekiAcik: d?.acikL || 0, sonrakiAcik: acik, acilan, biten, tam: d?.mevcut ?? 0,
+      tamSonra: (d?.mevcut ?? 0) - acilan, ayrilabilir: Math.max(0, d?.kullanilabilir || 0) };
   }
   /* Dolum kaynağı olabilecek kaplar: aynı ürün (ve partili üründe aynı parti), hedef ambalajdan büyük, tam ya da açık kabı olan. */
   function kaynakKaplar(depo, { urun, parti, ambalaj }) {
@@ -305,6 +307,9 @@
         else d.rezerve += sayi(k.adet);
       }
     }
+    for (const e of depo.kayitlar('isemri')) {
+      if (emirRezerve(e)) doluAl(e.urun, e.parti, e.ambalaj).rezerve += sayi(e.adet);
+    }
     for (const r of depo.kayitlar('sayim')) {
       if (r.tur === 'bos') bosAl(r.ambalaj).duzeltme += sayi(r.fark);
       else if (r.tur !== 'acik') doluAl(r.urun, r.parti, r.ambalaj).duzeltme += sayi(r.fark);
@@ -347,6 +352,163 @@
   }
   function doluMevcut(depo, urun, parti, ambalaj) {
     return stok(depo).dolu.get(anahtar(urun, parti, ambalaj))?.mevcut ?? 0;
+  }
+
+  const emirAcabilir = (ad) => ['kamil', 'kamil gülhan', 'farukcan', 'farukcan bey', 'farukcan biçer']
+    .includes(NT.c.kucuk(String(ad || '').normalize('NFC').trim().replace(/\s+/g, ' ')));
+  const kalemAnahtari = (k) => anahtar(k.urun, k.parti, k.ambalaj);
+  const emirAcik = (e) => e.durum === 'bekliyor' || e.durum === 'ustlenildi';
+  const emirRezerve = (e) => !e.sevkId && !e.ayirmaKaldirildi && !e.dolumSilindi && e.durum !== 'iptal' &&
+    (e.tur === 'hazirla' || (e.durum === 'tamamlandi' && !!e.firma));
+  const emirSevkeHazir = (e) => e && !e._silindi && e.durum === 'tamamlandi' && emirRezerve(e);
+  const sevkEmirleri = (depo, id) => depo.kayitlar('isemri').filter((e) => e.sevkId === id && e.durum !== 'iptal');
+  const kalemAdedi = (kalemler, a) => (kalemler || []).filter((k) => kalemAnahtari(k) === a).reduce((n, k) => n + sayi(k.adet), 0);
+  function emirStokKontrol(depo, k, sevk) {
+    const a = kalemAnahtari(k);
+    const x = stok(depo).dolu.get(a);
+    const kullanilabilir = (x?.kullanilabilir || 0) + (sevk ? kalemAdedi(sevk.kalemler, a) : 0);
+    return kullanilabilir >= k.adet;
+  }
+
+  function emirYaz(depo, id, islem, veri = {}) {
+    return depo.numuneIslem((d) => {
+      const e = d.kayit('isemri', id);
+      const hata = (tr, en) => { throw new Error(NT.dil.t(tr, en)); };
+      const yaz = (v) => [{ c: 'isemri', k: id, v }];
+      if (islem === 'ac') {
+        if (!emirAcabilir(d.kullanici)) hata('İş emrini yalnız Kamil ve Farukcan açabilir.', 'Only Kamil and Farukcan can create work orders.');
+        if (e) return [];
+        const k = { urun: veri.urun, parti: veri.parti || '', ambalaj: veri.ambalaj, adet: veri.adet };
+        if (!urunBul(d, k.urun) || !ambalajlar(d, { hepsi: true }).some((a) => a.id === k.ambalaj) ||
+            (urunBul(d, k.urun).partili && !k.parti) || !Number.isSafeInteger(k.adet) || k.adet <= 0 ||
+            !['dolum', 'hazirla'].includes(veri.tur)) {
+          hata('Ürün, parti, ambalaj ve adedi kontrol edin.', 'Check the product, batch, packaging and quantity.');
+        }
+        const sevk = veri.sevkId ? d.kayit('sevk', veri.sevkId) : null;
+        if (veri.sevkId && (!sevk || sevk._silindi || !sevkEtkili(sevk) || sevk.durum === 'Gönderildi' ||
+            kalemAdedi(sevk.kalemler, kalemAnahtari(k)) < k.adet ||
+            sevkEmirleri(d, sevk.id).some((x) => kalemAnahtari(x) === kalemAnahtari(k)))) {
+          hata('Gönderi değişmiş veya bu kalem için zaten bir iş emri var.', 'The shipment changed or a work order already exists for this item.');
+        }
+        if (veri.tur === 'hazirla' && !emirStokKontrol(d, k, sevk)) {
+          hata('Ayırmaya uygun dolu numune yetersiz.', 'There are not enough filled samples available to reserve.');
+        }
+        return yaz({ ...k, no: yeniNo(d, 'isemri'), tarih: bugun(), durum: 'bekliyor', tur: veri.tur,
+          firma: sevk?.firma || veri.firma || '', sevkId: sevk?.id || '', notlar: veri.notlar || '' });
+      }
+      if (!e || e._silindi) hata('İş emri bulunamadı.', 'Work order not found.');
+      if (islem === 'ayirmayiKaldir' && e.durum === 'tamamlandi' && emirRezerve(e)) return yaz({ ayirmaKaldirildi: true });
+      if (!emirAcik(e)) hata('Bu iş emri daha önce kapatıldı.', 'This work order is already closed.');
+      if (islem === 'iptal') return yaz({ durum: 'iptal' });
+      if (islem === 'ustlen' && e.durum === 'bekliyor') return yaz({ durum: 'ustlenildi', ustlenen: d.kullanici });
+      if (islem !== 'tamamla' || e.durum !== 'ustlenildi') {
+        hata('İş emrinin durumu değişti. Kartı kontrol edin.', 'The work order status changed. Check the card.');
+      }
+      const yapanlar = [...new Set((veri.yapanlar || []).map((a) => a.trim()).filter(Boolean))];
+      if (!yapanlar.length) hata('İşi yapan en az bir kişiyi seçin.', 'Select at least one person who did the work.');
+      const sevk = e.sevkId ? d.kayit('sevk', e.sevkId) : null;
+      if (e.sevkId && (!sevk || sevk._silindi || !sevkEtkili(sevk) || sevk.durum === 'Gönderildi')) {
+        hata('Bağlı gönderi artık hazırlanmaya açık değil.', 'The linked shipment can no longer be prepared.');
+      }
+      const k = { urun: e.urun, parti: e.parti, ambalaj: e.ambalaj, adet: e.adet };
+      if (e.tur === 'hazirla') {
+        const yeterli = emirStokKontrol(d, k, sevk || { kalemler: [k] });
+        if (!yeterli) hata('Ayırmaya uygun dolu numune yetersiz.', 'There are not enough filled samples available to reserve.');
+        return yaz({ durum: 'tamamlandi', yapanlar, bitis: bugun() });
+      }
+      const dolum = veri.dolum;
+      if (!dolum?.tarih || !DOLUM_KAYNAKLARI.some((x) => x.id === dolum.kaynakTur)) {
+        hata('Dolum tarihini ve kaynağını kontrol edin.', 'Check the fill date and source.');
+      }
+      if (bosMevcut(d, e.ambalaj) < e.adet && !veri.bosStokOnayi) {
+        hata('Boş şişe stoku değişti. Dolumu yeniden kontrol edin.', 'Empty bottle stock changed. Check the fill again.');
+      }
+      if (dolum.kaynakKap) {
+        const kaynak = acikOnizleme(d, dolum.kaynakKap, dolum.alinanLitre);
+        if (kaynak.acilan > kaynak.ayrilabilir) {
+          hata('Kaynakta kullanılabilir kap yetersiz. Ayrılmış kaplar kullanılamaz.', 'There are not enough available source containers. Reserved bottles cannot be used.');
+        }
+      }
+      const no = yeniNo(d, 'dolum', dolum.tarih);
+      return [...yaz({ durum: 'tamamlandi', yapanlar, bitis: dolum.tarih, dolumId: id }),
+        { c: 'dolum', k: id, v: { ...dolum, ...k, no, dolduranlar: yapanlar, isEmriId: id } }];
+    });
+  }
+
+  // Gönderi kendi ayırdığı şişeleri kullanabilir. Diğer emirlerin ve gönderilerin ayırdığı miktar korunur.
+  function sevkStokEksikleri(depo, kalemler, { eski, emirler = [], eskiEksigeIzin = false } = {}) {
+    const st = stok(depo);
+    return [...new Set(kalemler.map(kalemAnahtari))].filter((a) => {
+      const x = st.dolu.get(a);
+      const onceki = eski && sevkEtkili(eski) ? kalemAdedi(eski.kalemler, a) : 0;
+      const emirAdedi = kalemAdedi(emirler, a);
+      const mevcut = (x?.kullanilabilir || 0) + onceki + emirAdedi;
+      const digerAyirmalar = (x?.rezerve || 0) - (eski?.durum === 'Gönderildi' ? 0 : onceki) - emirAdedi;
+      return kalemAdedi(kalemler, a) > mevcut && !(eskiEksigeIzin && digerAyirmalar <= 0);
+    });
+  }
+
+  function sevkYaz(depo, id, v, { emirIds = [], mevcut = false, op = 'put', eskiEksigeIzin = false, beklenenDurum } = {}) {
+    return depo.numuneIslem((d) => {
+      const eski = d.kayit('sevk', id);
+      const hata = (tr, en) => { throw new Error(NT.dil.t(tr, en)); };
+      if (mevcut && (!eski || (eski._silindi && op !== 'undel'))) hata('Gönderi artık açık değil.', 'The shipment is no longer open.');
+      if (beklenenDurum && (eski?.durum !== beklenenDurum || eski.iptal)) {
+        hata('Gönderinin durumu değişti.', 'The shipment status changed.');
+      }
+      if (!mevcut && eski) return [];
+      const yeni = { ...eski, ...v };
+      const emirler = sevkEmirleri(d, id);
+      const baglanacak = [...new Set(emirIds)].map((id) => d.kayit('isemri', id));
+      if (!mevcut && (!baglanacak.length || baglanacak.some((e) => !emirSevkeHazir(e) ||
+          (e.firma && NT.c.kucuk(e.firma) !== NT.c.kucuk(yeni.firma))) ||
+          [...new Set([...baglanacak, ...yeni.kalemler].map(kalemAnahtari))]
+            .some((a) => kalemAdedi(yeni.kalemler, a) !== kalemAdedi(baglanacak, a)))) {
+        hata('Seçilen iş emirleri gönderiye bağlanamadı. İş emirlerini kontrol edin.', 'The selected work orders could not be linked. Check the work orders.');
+      }
+      const acikEmir = emirler.some(emirAcik);
+      if (acikEmir && (op === 'del' || yeni.iptal || (v.durum && v.durum !== eski.durum && ['Etiket Bekliyor', 'Gönderildi'].includes(v.durum)))) {
+        hata('Önce gönderiye bağlı iş emirlerini kapatın.', 'Close the work orders linked to this shipment first.');
+      }
+      if (op !== 'del' && sevkEtkili(yeni) && emirler.some((e) => e.dolumSilindi)) {
+        hata('Gönderiye bağlı dolum kaydı silinmiş.', 'A fill record linked to this shipment has been deleted.');
+      }
+      if (v.kalemler && emirler.some((e) => kalemAdedi(v.kalemler, kalemAnahtari(e)) !== kalemAdedi(eski.kalemler, kalemAnahtari(e)))) {
+        hata('İş emrine bağlı gönderi kaleminin miktarı değiştirilemez.', 'The quantity on a shipment item linked to a work order cannot be changed.');
+      }
+      const stokDegisti = !eski || op === 'undel' ||
+        (v.durum && eski.durum !== v.durum && [eski.durum, v.durum].includes('Gönderildi')) ||
+        (v.iptal === false && eski.iptal) || (v.kalemler && [...new Set([...v.kalemler, ...(eski.kalemler || [])].map(kalemAnahtari))]
+          .some((a) => kalemAdedi(v.kalemler, a) !== kalemAdedi(eski.kalemler, a)));
+      const stokEski = eski?._silindi ? null : eski;
+      if (op !== 'del' && sevkEtkili(yeni) && stokDegisti && sevkStokEksikleri(d, yeni.kalemler || [],
+        { eski: stokEski, emirler: baglanacak, eskiEksigeIzin: eskiEksigeIzin && !emirler.length && !baglanacak.length }).length) {
+        hata('Gönderi için ayrılabilir stok yetersiz. Ayrılmış şişeleri diğer iş emirleri veya gönderiler kullanıyor olabilir.',
+          'There is not enough stock available for this shipment. Bottles may already be reserved for other work orders or shipments.');
+      }
+      const guncel = eski ? v : { ...v, no: yeniNo(d, 'sevk', v.tarih) };
+      return [{ c: 'sevk', k: id, op, v: guncel },
+        ...baglanacak.map((e) => ({ c: 'isemri', k: e.id, v: { sevkId: id } }))];
+    });
+  }
+
+  function dolumYaz(depo, kayit, op, v = {}) {
+    if (!kayit.isEmriId) return depo.kaydet([{ c: 'dolum', k: kayit.id, op, v }]);
+    return depo.numuneIslem((d) => {
+      const dolum = d.kayit('dolum', kayit.id);
+      const e = d.kayit('isemri', kayit.isEmriId);
+      const s = e?.sevkId && d.kayit('sevk', e.sevkId);
+      if (op === 'del' && s && !s._silindi && sevkEtkili(s)) {
+        throw new Error(NT.dil.t('Önce doluma bağlı gönderiyi iptal edin.', 'Cancel the shipment linked to this fill first.'));
+      }
+      const yeni = { ...dolum, ...v };
+      if (op === 'put' && (kalemAnahtari(dolum) !== kalemAnahtari(yeni) || dolum.adet !== yeni.adet)) {
+        throw new Error(NT.dil.t('İş emrine bağlı dolumun ürün, parti, ambalaj ve adedi değiştirilemez.',
+          'The product, batch, packaging and quantity of a fill linked to a work order cannot be changed.'));
+      }
+      const emir = op === 'put' ? { yapanlar: yeni.dolduranlar, bitis: yeni.tarih } : { dolumSilindi: op === 'del' };
+      return [{ c: 'dolum', k: kayit.id, op, v }, ...(e ? [{ c: 'isemri', k: e.id, v: emir }] : [])];
+    });
   }
 
   /* Bir sevkiyat "Gönderildi" olursa stok yeterli mi? haricId: düzenlenen sevkiyatın kendi etkisini yok say. */
@@ -418,6 +580,9 @@
       for (const s of kayit('sevk')) {
         const adet = (s.kalemler || []).filter(ayni).reduce((t, k) => t + sayi(k.adet), 0);
         if (adet) h.push({ tarih: s.tarih, t: s._olusturma, c: 'sevk', r: s, adet: s.durum === 'Gönderildi' ? -adet : 0, rezerve: s.durum !== 'Gönderildi' ? adet : 0, aciklama: `${s.firma} · ${s.durum}` });
+      }
+      for (const r of kayit('isemri')) if (ayni(r) && emirRezerve(r)) {
+        h.push({ tarih: r.tarih, t: r._olusturma, c: 'isemri', r, adet: 0, rezerve: r.adet, aciklama: r.firma || NT.dil.t('Gönderime hazırlama', 'Shipment preparation') });
       }
       for (const r of kayit('sayim')) if (r.tur !== 'bos' && r.tur !== 'acik' && ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama: r.neden || 'Sayım düzeltmesi' });
       // Açık kap hareketleri (bu kaptan alınanlar, tamamlama, atık, açık kap sayımı)
@@ -566,6 +731,7 @@
     kisaAd, anahtar, ambalajlar, ambalajAdi, urunler, urunBul, varsayilanlariYaz, stok, bosMevcut, doluMevcut,
     sevkKontrol, yeniNo, partiler, sonrakiParti, partiNo, defter, whatsappMetni, eskiVeriyiAktar, yedek, yedektenYukle,
     acikOnizleme, kaynakKaplar, litreYazi,
+    emirAcabilir, emirAcik, emirRezerve, emirSevkeHazir, emirYaz, sevkEmirleri, sevkYaz, dolumYaz, kalemAnahtari, kalemAdedi,
     siseSlotlari, siseTemizle, siseBul, sevkEtkili, sevkLitre, firmaBilgisi, ulkeler, ulkeIngilizce, ulkeTelefonlari, telefonCoz, telefonBirlestir, ulkeIso,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
