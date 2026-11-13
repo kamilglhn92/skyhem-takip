@@ -279,7 +279,7 @@
         </div>
       </header>
       <main class="pt-icerik">
-        ${yonetici() && html`<${PersonelBekleyen} />`}
+        ${demo && yonetici() && html`<${PersonelBekleyen} />`}
         ${duyuruDeposu && html`<div class="pt-duyuru-eylem"><button class="d" onClick=${() => setYeniDuyuru(true)}><${Ikon} ad="arti" boyut=${16} />${cevir('Yeni duyuru', 'New announcement')}</button></div>`}
         <div class="pt-kartlar">${gorunen().map((m, i) => {
           const o = ozet[m.id];
