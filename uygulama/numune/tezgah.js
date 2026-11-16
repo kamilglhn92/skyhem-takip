@@ -21,7 +21,8 @@
     { id: 'isemirleri', ad: 'İş Emirleri', en: 'Work Orders', ikon: 'dolum' },
     ...(!personelSunumu ? [{ id: 'gonderiler', ad: 'Gönderiler', ikon: 'sevk' }] : []),
     { id: 'gecmis', ad: 'Geçmiş', ikon: 'saat' },
-    { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
+    // Personel kipinde Ayarlar yok (2026-11-13 sekreter isteği: personelin işi olmayanlar gizlenir).
+    ...(!personelSunumu ? [{ id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' }] : []),
   ];
   const sekmeAl = () => { const s = (location.hash.match(/^#\/(\w+)/) || [])[1]; return !s || s === 'tezgah' ? 'genel' : s; }; // #/tezgah: eski yer imleri
   const amb = (id) => H.ambalajAdi(depo(), id);
@@ -159,7 +160,7 @@
       },
       {
         soru: 'Kontrol edip kaydedin', gecerli: () => !!f.tarih,
-        icerik: () => html`<p class="tz-ozet"><em>${f.adet} ${cevir("şişe")}</em> ${f.urun}${f.parti ? html` · <em>${f.parti}</em>` : ''}, <em>${amb(f.ambalaj)}</em> ambalaja dolduruldu${f.kaynakTur ? html` ${cevir("(kaynak:")} <em>${H.dolumKaynagi(f)}</em>)` : ''}${cevir(".\r\n            Dolduran:")} <em>${H.dolduranYaz(f)}</em>.<br />
+        icerik: () => html`<p class="tz-ozet"><em>${f.adet} ${cevir("şişe")}</em> ${f.urun}${f.parti ? html` · <em>${f.parti}</em>` : ''}, <em>${amb(f.ambalaj)}</em> ${cevir('ambalaja dolduruldu', 'containers filled')}${f.kaynakTur ? html` ${cevir("(kaynak:")} <em>${H.dolumKaynagi(f)}</em>)` : ''}${cevir(".\r\n            Dolduran:")} <em>${H.dolduranYaz(f)}</em>.<br />
             <span class="soluk" style="font-size:16px">${cevir("Boş")} ${amb(f.ambalaj)} ${cevir("şişe:")} ${bos} → ${bos - sayi(f.adet)}</span></p>
           <${OnizYazi} />
           <div class="form-izgara">
@@ -353,8 +354,8 @@
     const [yeni, setYeni] = useState({ parti: '', ambalaj: '' });
     const bolumUrun = bolum && bolum !== 'bos' ? H.urunBul(d, bolum) : null;
     const kapLitre = (id) => sayi(H.ambalajlar(d, { hepsi: true }).find((a) => a.id === id)?.litre);
-    const bolumler = [{ id: 'bos', ad: 'Boş şişeler', alt: `${H.ambalajlar(d).length} ambalaj` },
-      ...H.urunler(d).map((u) => ({ id: u.ad, ad: u.ad, alt: `${[...st.dolu.values()].filter((x) => x.urun === u.ad && (x.mevcut !== 0 || x.acikL > 0)).length} kalem rafta` }))];
+    const bolumler = [{ id: 'bos', ad: cevir('Boş şişeler'), alt: `${H.ambalajlar(d).length} ${cevir('ambalaj', 'containers')}` },
+      ...H.urunler(d).map((u) => ({ id: u.ad, ad: u.ad, alt: `${[...st.dolu.values()].filter((x) => x.urun === u.ad && (x.mevcut !== 0 || x.acikL > 0)).length} ${cevir('kalem rafta', 'items on shelf')}` }))];
     const doluSatirlar = bolum === 'bos' ? [] : [...st.dolu.values()].filter((x) => x.urun === bolum && (x.mevcut !== 0 || x.rezerve || x.acikL > 0));
     for (const e of ekKalemler) if (e.urun === bolum && !doluSatirlar.some((x) => x.anahtar === e.anahtar)) doluSatirlar.push({ ...e, mevcut: 0, acikL: 0, yeni: true });
     const satirlar = bolum === 'bos'
@@ -596,6 +597,22 @@
     </section>`;
   }
 
+  /* Personel kipi: Genel Bakış'ın en üstünde açık dolum iş emirleri, tek dokunuşla İş Emirleri sekmesine. Firma adı gösterilmez. */
+  function BekleyenIsEmirleri() {
+    const acik = dolumEmirleri(depo()).filter(H.emirAcik)
+      .sort((a, x) => Number(a.durum !== 'bekliyor') - Number(x.durum !== 'bekliyor') || x._olusturma - a._olusturma);
+    if (!acik.length) return null;
+    return html`<a class="nm-p-is" href="#/isemirleri">
+      <span class="nm-p-is-bas"><span class="ik"><${Ikon} ad="dolum" boyut=${18} /></span>
+        <b>${cevir('Seni bekleyen iş emirleri', 'Work orders waiting for you')}</b><span class="n">${acik.length}</span>
+        <span class="git">${cevir('Aç', 'Open')} →</span></span>
+      <span class="nm-p-is-liste">${acik.slice(0, 3).map((e) => html`<span class="satir" key=${e.id}>
+        <span class="ne"><b>${e.adet} ×</b> ${kalemYazi(e)}</span>
+        <span class="durum">${e.durum === 'bekliyor' ? cevir('Üstlenilmeyi bekliyor', 'Awaiting pickup') : `${cevir('Üstlenen', 'Claimed by')} · ${e.ustlenen || ''}`}</span>
+      </span>`)}${acik.length > 3 && html`<span class="satir soluk">+ ${acik.length - 3} ${cevir('iş emri daha', 'more work orders')}</span>`}</span>
+    </a>`;
+  }
+
   const yeniEmirAc = (on) => H.emirAcabilir(b.kullanici) ? F.ac(IsEmriFormu, { on }) : isEmirlerineGit();
   // Hareket defteri dolum ve hazırlama işlerini aynı kart üzerinden başlatır.
   NT.eylem = {
@@ -763,11 +780,9 @@
   }
 
   /* ---------------- Genel Bakış (ana ekran, raf) ---------------- */
-  function GenelBakis() {
-    const d = depo();
+  function rafOzeti(d) {
     const st = H.stok(d);
     const ambalajlar = H.ambalajlar(d);
-    const litre = (id) => H.ambalajlar(d, { hepsi: true }).find((a) => a.id === id)?.litre;
     const dolu = [...st.dolu.values()];
     const hazir = dolu.reduce((t, x) => t + Math.max(0, x.mevcut), 0);
     const bos = ambalajlar.reduce((t, a) => t + Math.max(0, st.bos.get(a.id)?.mevcut ?? 0), 0);
@@ -776,8 +791,26 @@
     // Hiç girişi olmamış ambalaj "azalıyor" sayılmaz (ilk kurulumda her şey kırmızı yanmasın); eksiye düşen hep sayılır.
     const bosIzleniyor = (x) => !!x && (x.alinan > 0 || x.duzeltme !== 0 || x.kullanilan > 0);
     const bosUyari = ambalajlar.filter((a) => { const x = st.bos.get(a.id); return x && x.durum !== 'iyi' && bosIzleniyor(x); });
+    return { st, ambalajlar, dolu, hazir, bos, yolda, uyarilar, bosIzleniyor, bosUyari };
+  }
+  // Selam ve raf özeti: yönetimde Genel Bakış bandında, personel kipinde üstteki yeşil bantta.
+  function SelamMetni() {
+    const { hazir, bos, yolda, uyarilar, bosUyari } = rafOzeti(depo());
     const saat = new Date().getHours();
     const ad = (b.kullanici || '').split(' ')[0];
+    return html`<h1>${cevir(saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')}${ad ? ', ' + ad : ''}.</h1>
+        <p>${cevir("Rafta")} <b class="v">${adetYaz(hazir)} ${cevir("dolu numune")}</b> ${cevir("ve")} <b>${adetYaz(bos)} ${cevir("boş şişe")}</b> ${cevir("var.")}
+          ${!personelSunumu && (yolda.length ? html` <b>${yolda.length} ${cevir("gönderi")}</b> ${cevir("yolda bekliyor.")}` : cevir(" Bekleyen gönderi yok."))}
+          ${uyarilar.length + bosUyari.length ? html` <b class="u">${uyarilar.length + bosUyari.length} ${cevir("kalem")}</b> ${cevir("azalıyor.")}` : ''}</p>`;
+  }
+  /* Personel kipi: dolu stok sıkı liste (ürün başlığı, altında parti satırı · ambalaj başına adet çipi). Çip defteri açar; satır ilk çipinkini. */
+
+
+  function GenelBakis() {
+    const d = depo();
+    const { st, ambalajlar, dolu, uyarilar, bosIzleniyor } = rafOzeti(d);
+    const litre = (id) => H.ambalajlar(d, { hepsi: true }).find((a) => a.id === id)?.litre;
+    const yolda = d.kayitlar('sevk').filter((s) => s.durum !== 'Gönderildi' && H.sevkEtkili(s)).sort((a, x) => (a.tarih < x.tarih ? -1 : 1));
 
     const urunler = H.urunler(d, { hepsi: true });
     const partililer = urunler.filter((u) => u.partili);
@@ -796,33 +829,34 @@
         <span class=${'rozet-n' + (x.mevcut < 0 ? ' eksi' : '')}>${x.mevcut}</span><${Sise} litre=${litre(x.ambalaj)} boyut=${0.9} /><span class="a">${amb(x.ambalaj)}</span>${x.acikL > 0 && html`<span class="r acik">${cevir("+ açık")} ${H.litreYazi(x.acikL)}</span>`}${x.rezerve > 0 && html`<span class="r">${x.rezerve} ${cevir("ayrıldı")}</span>`}
       </button>`)}</div></div>`;
 
+    const sira = (a, x) => (siraAmb.get(a.ambalaj) ?? 99) - (siraAmb.get(x.ambalaj) ?? 99);
+    const alarmlar = (urun) => uyarilar.filter((t) => t.urun === urun).map((t) => html`<span class=${'tz-alarm ' + t.durum}><${Ikon} ad="uyari" />${amb(t.ambalaj)}${cevir(": toplam")} ${t.mevcut}</span>`);
+
     return html`
-      <div class="tz-selam tz-selam-bant"><${NT.ui.BantSus} /><div>
-        <h1>${cevir(saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')}${ad ? ', ' + ad : ''}.</h1>
-        <p>${cevir("Rafta")} <b class="v">${adetYaz(hazir)} ${cevir("dolu numune")}</b> ${cevir("ve")} <b>${adetYaz(bos)} ${cevir("boş şişe")}</b> ${cevir("var.")}
-          ${!personelSunumu && (yolda.length ? html` <b>${yolda.length} ${cevir("gönderi")}</b> ${cevir("yolda bekliyor.")}` : cevir(" Bekleyen gönderi yok."))}
-          ${uyarilar.length + bosUyari.length ? html` <b class="u">${uyarilar.length + bosUyari.length} ${cevir("kalem")}</b> ${cevir("azalıyor.")}` : ''}</p>
+      ${personelSunumu ? html`<${BekleyenIsEmirleri} />` : html`<div class="tz-selam tz-selam-bant"><${NT.ui.BantSus} /><div>
+        <${SelamMetni} />
       </div></div>
 
-      <${GenelBakisIsEmirleri} />
+      <${GenelBakisIsEmirleri} />`}
       <div class="tz-izgara">
         <section class="tz-kart">
-          <div class="tz-kart-bas"><h2>${cevir("Boş şişe stok")}</h2><div class="sag"><span class="raf-ipucu">${cevir("rozetteki sayı: rafta · şişeye tıklayınca geçmişi açılır")}</span>
+          <div class="tz-kart-bas"><h2>${cevir("Boş şişe stok")}</h2>${!personelSunumu && html`<div class="sag"><span class="raf-ipucu">${cevir("rozetteki sayı: rafta · şişeye tıklayınca geçmişi açılır")}</span>
             <button class="d kucuk-d" onClick=${E.whatsappKopyala} title=${cevir("Eski WhatsApp sayım biçiminde panoya kopyalar")}><${Ikon} ad="whatsapp" boyut=${15} />${cevir("Sayım listesi")}</button>
-            <button class="d kucuk-d" onClick=${E.disaAktar.stok} title=${cevir("Raftaki stok (Excel dosyası)")}><${Ikon} ad="indir" boyut=${15} />Excel</button></div></div>
-          <div class="tz-bos-serit">${ambalajlar.map((a) => {
+            <button class="d kucuk-d" onClick=${E.disaAktar.stok} title=${cevir("Raftaki stok (Excel dosyası)")}><${Ikon} ad="indir" boyut=${15} />Excel</button></div>`}</div>
+          <div class=${'tz-bos-serit' + (personelSunumu ? ' nm-p-bos-serit' : '')}>${ambalajlar.map((a) => {
             const x = st.bos.get(a.id) || { mevcut: 0, durum: 'yok' };
             return html`<button class=${'tz-bos ' + (x.durum !== 'iyi' && bosIzleniyor(x) ? x.durum : '')} onClick=${() => E.defterAc({ bos: true, ambalaj: a.id })} title=${NT.dil.m("{0}: {1} boş şişe", a.ad, x.mevcut)}>
               <span class="s"><${Sise} litre=${a.litre} /></span><span class="n">${x.mevcut}</span><span class="a">${a.ad} ${cevir("boş")}</span></button>`;
           })}</div>
           ${(raf.length > 0 || diger.length > 0) && html`<h2 class="tz-ara-baslik">${cevir("Dolu numune stok")}</h2>`}
+          ${/* Personel de kap görselli rafı görür (sekreter kararı 2026-11-13: sıkı liste değil). */''}
           ${raf.map((g) => html`<div class="tz-urun">
             <div class="tz-urun-bas"><h3>${g.u.ad}</h3><span class="toplam">${g.satirlar.reduce((t, s) => t + s.kalemler.reduce((a, x) => a + x.mevcut, 0), 0)} ${cevir("şişe ·")} ${g.satirlar.length} ${cevir("parti")}</span>
               <span class="sag">${uyarilar.filter((t) => t.urun === g.u.ad).map((t) => html`<span class=${'tz-alarm ' + t.durum}><${Ikon} ad="uyari" />${amb(t.ambalaj)}${cevir(": toplam")} ${t.mevcut}</span>`)}</span></div>
             <div class="tz-raf-izgara">${g.satirlar.map((s) => html`<${Satir} s=${s} />`)}</div>
           </div>`)}
           ${diger.length > 0 && html`<div class="tz-urun"><div class="tz-urun-bas"><h3>${cevir("Ar-Ge ve diğer ürünler")}</h3></div><div class="tz-raf-izgara">${diger.map((s) => html`<${Satir} s=${s} />`)}</div></div>`}
-          ${!raf.length && !diger.length && (d.olaylar.size > 20
+          ${!raf.length && !diger.length && (personelSunumu || d.olaylar.size > 20
             ? html`<p class="soluk">${cevir("Rafta dolu numune yok. “Dolum yaptım” ile ekleyin.")}</p>`
             : html`<div class="uyari-kutu bilgi"><${Ikon} ad="bilgi" /><span><b>${cevir("Raf boş — ilk adım:")}</b>
                 ${cevir("eski sistemdeki kayıtlarınızı")} <a href="#/ayarlar">${cevir("Ayarlar › Yedek ve aktarım › “Eski sistemden aktar”")}</a> ${cevir("ile yükleyin\r\n                (")}<code>numune_data.json</code>${cevir("). Sıfırdan başlıyorsanız önce “Şişe geldi” ile boş şişeleri, sonra “Dolum yaptım” ile dolumları girin.")}</span></div>`)}
@@ -884,10 +918,10 @@
         ${[['', 'Hepsi', tum.length], ['dolum', 'Dolum', sayilar.dolum], ...(personelSunumu ? [['cikis', cevir('Stok çıkışı', 'Stock deduction'), sayilar.cikis]] : [['sevk', 'Gönderi', sayilar.sevk]]), ['alim', 'Şişe girişi', sayilar.alim], ['sayim', 'Sayım', sayilar.sayim], ...(sayilar.acik ? [['acik', 'Açık kap', sayilar.acik]] : [])].map(([id, ad, n]) =>
           html`<button class=${'tz-cip' + (tur === id ? ' secili' : '')} onClick=${() => setTur(id)}>${cevir(ad)}<span class="n">${n}</span></button>`)}
         <input class="girdi" style="max-width:320px;margin-left:8px;border-radius:99px" placeholder=${cevir("Ara…")} value=${q} onInput=${(e) => setQ(e.target.value)} />
-        <span style="flex:1" /><span class="kucuk soluk">${cevir("Excel’e aktar:")}</span>
+        ${!personelSunumu && html`<span style="flex:1" /><span class="kucuk soluk">${cevir("Excel’e aktar:")}</span>
         <button class="d kucuk-d" onClick=${E.disaAktar.dolum}><${Ikon} ad="indir" boyut=${15} />${cevir("Dolumlar")}</button>
-        ${!personelSunumu && html`<button class="d kucuk-d" onClick=${E.disaAktar.sevk}><${Ikon} ad="indir" boyut=${15} />${cevir("Gönderiler")}</button>`}
-        <button class="d kucuk-d" onClick=${E.disaAktar.alim}><${Ikon} ad="indir" boyut=${15} />${cevir("Şişe girişleri")}</button>
+        <button class="d kucuk-d" onClick=${E.disaAktar.sevk}><${Ikon} ad="indir" boyut=${15} />${cevir("Gönderiler")}</button>
+        <button class="d kucuk-d" onClick=${E.disaAktar.alim}><${Ikon} ad="indir" boyut=${15} />${cevir("Şişe girişleri")}</button>`}
       </div>
       <section class="tz-kart">${gunler.length ? gunler.map((g) => html`<div class="tz-gun-bas">${gunAdi(g.tarih)}</div><ul class="tz-akis">${g.l.map((h) => html`<${HareketSatiri} key=${h.c + h.r.id} h=${h} />`)}</ul>`)
         : html`<p class="soluk" style="margin:0">${cevir("Kayıt yok.")}</p>`}
@@ -1002,7 +1036,35 @@
     const cevrimici = (d.kisiler || []).filter((k) => Date.now() - k.t < 90000);
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
     const acikEmirler = dolumEmirleri(d).filter(H.emirAcik).length;
-    const Sayfa = { genel: GenelBakis, isemirleri: IsEmirleri, ...(!personelSunumu ? { gonderiler: Gonderiler } : {}), gecmis: Gecmis, ayarlar: E.Ayarlar }[sekme] || GenelBakis;
+    const Sayfa = { genel: GenelBakis, isemirleri: IsEmirleri, ...(!personelSunumu ? { gonderiler: Gonderiler, ayarlar: E.Ayarlar } : {}), gecmis: Gecmis }[sekme] || GenelBakis;
+    if (personelSunumu) {
+      /* Personel kipi: kenar menüsü ve üst çubuk yerine personel panelindeki gibi yeşil bant (2026-11-13 sekreter isteği). */
+      const aktif = SEKMELER.find((s) => s.id === sekme) || SEKMELER[0];
+      return html`<div class="nm-p-kok tz-m-numune">
+        ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${cevir('· Örnek kayıtlar bu tarayıcıda paylaşılır.', '· Sample records are shared in this browser.')}</span></div>`}
+        <header class="nm-p-bant"><span class="nm-p-zemin" aria-hidden="true" />
+          <div class="nm-p-ic">
+            <div class="nm-p-ust">
+              <a class="nm-p-marka" href="#/genel" aria-label=${cevir('Genel Bakış')}><span class="nm-p-marka-logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></span><b>${cevir("Numune Takip")}</b></a>
+              <nav class="nm-p-menu" aria-label=${cevir("Sayfalar")}>${SEKMELER.map((s, i) => html`<a key=${s.id} style=${{ '--i': i }} href=${'#/' + s.id} class=${aktif.id === s.id ? 'aktif' : ''} aria-current=${aktif.id === s.id ? 'page' : undefined}>
+                <span class="ik"><${Ikon} ad=${s.ikon} boyut=${15} /></span><span>${cevir(s.ad, s.en)}</span>${s.id === 'isemirleri' && acikEmirler > 0 && html`<i>${acikEmirler}</i>`}</a>`)}</nav>
+              <span class="nm-p-araclar"><${DilSecimi} /><${TemaDugmesi} /></span>
+            </div>
+            <div class="nm-p-satir">
+              <a class="nm-p-geri" href=${personelAdresi}><${Ikon} ad="geri" boyut=${14} />${cevir('Personel paneli', 'Staff panel')} · <b>${cevir(aktif.ad, aktif.en)}</b></a>
+              <span class="nm-p-kisi"><${Avatar} ad=${b.kullanici || '?'} kucuk /><span>${b.kullanici}</span></span>
+            </div>
+            ${aktif.id === 'genel' && html`<div class="nm-p-selam"><${SelamMetni} /></div>`}
+            <div class="nm-p-hizli" aria-label=${cevir("Hızlı işlem")}>
+              ${eylemler().map((x) => html`<button type="button" onClick=${() => eylemAc(x)} title=${cevir(x.alt, x.en)}><span class="ik"><${Ikon} ad=${x.ikon} boyut=${15} /></span>${cevir(x.ad, x.en)}</button>`)}
+              <a href=${personelAdresi + '#/stok-bildir'}><span class="ik uyari"><${Ikon} ad="uyari" boyut=${15} /></span>${cevir('Eksik stok bildir', 'Report a stock shortage')}</a>
+            </div>
+            <div class="nm-p-ara"><${Arama} /></div>
+          </div>
+        </header>
+        <main class=${'tz-icerik nm-p-icerik'}><${Sayfa} /></main>
+      </div>`;
+    }
     return html`<div class="tz-iskelet tz-m-numune">
       <aside class="tz-yan">
         <a class="tz-marka" href="#/genel"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><span>${cevir("Numune Takip")}</span></a>

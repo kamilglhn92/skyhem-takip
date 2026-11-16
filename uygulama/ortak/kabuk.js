@@ -275,7 +275,7 @@
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
     const Sayfa = sayfalar[sekme] || sayfalar[sekmeler[0].id];
     if (!gorebilir()) return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}><div class="tz-ana"><main class="tz-icerik" style="max-width:560px;margin:12vh auto 0">
-      <${BosDurum} ikon="yasak" baslik=${NT.dil.m("{0} size açık değil", b.modul.ad)} aciklama=${cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
+      <${BosDurum} ikon="yasak" baslik=${NT.dil.m("{0} size açık değil", cevir(b.modul.ad))} aciklama=${cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
       <div style="display:flex;justify-content:center;margin-top:16px"><${AnaEkranLinki} /></div></main></div></div>`;
     return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}>
       <aside class="tz-yan">
@@ -414,7 +414,8 @@
         tik();
         return b.depo.abone(({ yeni }) => {
           tik();
-          const uzak = (yeni || []).filter((e) => e.d !== b.cihaz && e.t > baslangic - 5000 && (ayar.uzakKoleksiyonlar || []).includes(e.c));
+          // Sunum deposu kendi cihaz kimliğini taşır (ortak/depo.js › SunumDepo); kişinin kendi değişikliği "uzak" sayılmasın.
+          const uzak = (yeni || []).filter((e) => e.d !== b.cihaz && e.d !== b.depo.cihaz && e.t > baslangic - 5000 && (ayar.uzakKoleksiyonlar || []).includes(e.c));
           if (uzak.length) bildir(NT.dil.m("{0} {1} yaptı.", [...new Set(uzak.map((e) => e.u))].join(', '), uzak.length === 1 ? cevir('bir değişiklik', 'one change') : NT.dil.m('{0} değişiklik', uzak.length)));
         });
       }, [b.depo]);

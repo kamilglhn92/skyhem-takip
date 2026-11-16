@@ -34,7 +34,7 @@
       <div class="form-izgara">
         <${Alan} etiket=${cevir("Adınız")} sinif="s6">${NT.numunePersonel ? html`<b>${b.kullanici}</b>` : html`<div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
           <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div>`}<//>
-        <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><${Segment} secenekler=${[['oto', 'Sistem'], ['acik', 'Açık'], ['koyu', 'Koyu']]} deger=${t} degis=${(v) => { setT(v); try { localStorage.setItem('nt.tema', v); } catch { /* yoksay */ } temaUygula(v); }} /><//>
+        <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><${Segment} secenekler=${[['oto', cevir('Sistem', 'System')], ['acik', cevir('Açık', 'Light')], ['koyu', cevir('Koyu', 'Dark')]]} deger=${t} degis=${(v) => { setT(v); try { localStorage.setItem('nt.tema', v); } catch { /* yoksay */ } temaUygula(v); }} /><//>
       </div>
     <//>`;
   }
@@ -161,7 +161,7 @@
             bildir(n ? NT.dil.m("{0} hareket geri yüklendi.", n) : cevir("Yedekteki her şey zaten mevcut."));
           } catch (e) { bildir(e.message, { tur: 'hata' }); }
         }} />
-        <${DosyaDugmesi} yazi="Eski sistemden aktar (numune_data.json)" ikon="yukle" kabul=".json,application/json" fn=${async (f) => {
+        <${DosyaDugmesi} yazi=${cevir('Eski sistemden aktar (numune_data.json)', 'Import from old system (numune_data.json)')} ikon="yukle" kabul=".json,application/json" fn=${async (f) => {
           try {
             const veri = await jsonOku(f);
             if (!(await onayla(NT.dil.m('Eski sistemden {0} alım, {1} dolum ve {2} sevkiyat GEÇMİŞ olarak aktarılacak: Gönderiler ve Geçmiş ekranlarında görünür, stoku değiştirmez (stok açılış sayımıyla başladı). Aynı dosyayı iki kez aktarmak kopya oluşturmaz.', veri.purchases?.length ?? 0, veri.fillings?.length ?? 0, veri.shipments?.length ?? 0), { baslik: cevir("Eski verileri aktar"), evet: cevir("Geçmiş olarak aktar") }))) return;

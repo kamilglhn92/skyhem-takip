@@ -48,7 +48,8 @@
     yoklama: { ad: 'Yoklama', tablo: 'olaylar_yoklama', ek: '-yoklama' },
     klips: { ad: 'Klips Takip', tablo: 'olaylar_klips', ek: '-klips' },
     enerji: { ad: 'Enerji', tablo: 'olaylar_enerji', ek: '-enerji' },
-    personel: { ad: 'Personel', tablo: 'olaylar_personel', ek: '-personel' }, // şimdilik yalnız sunum modu; tablo henüz yok
+    personel: { ad: 'Personel', tablo: 'olaylar_personel', ek: '-personel' },
+    uretim: { ad: 'Üretim', tablo: 'olaylar_uretim', ek: '-uretim' }, // şimdilik yalnız sunum modu; tablo henüz yok (context/uretim-paneli.md) // şimdilik yalnız sunum modu; tablo henüz yok
   };
   const M = Object.assign({ id: 'numune' }, MODULLER[(window.NT_MODUL || {}).id || 'numune'] || {}, window.NT_MODUL || {});
   const onbellekAdi = (m) => 'bulut-olaylar' + m.ek;

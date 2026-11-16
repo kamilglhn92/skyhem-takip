@@ -313,7 +313,7 @@
     satirlar.push({ hucreler: [metin('Açıklama', 'sol'), metin('+ işte · sayı: fazla mesai saati · S rapor · Yİ yıllık izin · İ izinli/mazeret · G gelmedi · Ç hafta sonu/tatil çalıştı (saat) · HT hafta tatili · RT resmî tatil', 'sol')] });
     satirlar.push({ hucreler: [metin('Onay', 'sol'), metin(o ? `${o._degistiren} · ${NT.c.zamanYaz(o._degisim)}${o.notlar ? ' · ' + o.notlar : ''}` : 'Onaylanmadı', 'sol')] });
     for (const i of Y.istisnalar(d).filter((i) => i.notlar && i.bas <= gunler[gunler.length - 1] && (i.bit || i.bas) >= gunler[0]).sort((a, x) => (a.bas < x.bas ? -1 : 1))) {
-      satirlar.push({ hucreler: [metin(kisiAdi(i.kisi), 'sol'), metin(`${aralik(i)} · ${Y.tur(i.tur).ad}: ${i.notlar}`, 'sol')] });
+      satirlar.push({ hucreler: [metin(kisiAdi(i.kisi), 'sol'), metin(`${aralik(i)} · ${cevir(Y.tur(i.tur).ad)}: ${i.notlar}`, 'sol')] });
     }
     K.excel(`yoklama-${ay}.xlsx`, {
       sayfa: Y.ayAdi(ay),

@@ -426,16 +426,23 @@
   /* Kişi seçimi (Numune, Su, Klips). Liste: Yoklama personeli + verilen önceki adlar; kullanici true ise giriş yapan kişi de.
      Büyük/küçük harf farkı ve "Kamil" / "Kamil Gülhan" tek kişi sayılır. */
   const PERSONEL = ['Nurettin Durak', 'Kamil Gülhan', 'Onur Özdemir', 'Yusuf Yılmaz', 'Erkan Eser'];
+  /* Aynı kişinin farklı yazımları (ör. "Farukcan Bey", "Onur abi") tek ada iner. Sekreter kararı 2026-11-16:
+     ilk adı bu listede olan herkes tam adıyla yazılır. Kayıtlardaki eski yazım değişmez; yalnız listeler birleşir. */
+  const KANONIK = { kamil: 'Kamil Gülhan', farukcan: 'Farukcan Biçer', onur: 'Onur Özdemir' };
+  function kisiAdi(a) {
+    const s = String(a || '').replace(/\s+/g, ' ').trim();
+    return (s && KANONIK[s.split(' ')[0].toLocaleLowerCase('tr')]) || s;
+  }
   function kisiListesi(ekler = [], { kullanici = true } = {}) {
     const k = (a) => a.toLocaleLowerCase('tr');
-    const adlar = [...PERSONEL, ...(kullanici ? [NT.baglanti && NT.baglanti.kullanici] : []), ...ekler].map((a) => String(a || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const adlar = [...PERSONEL, ...(kullanici ? [NT.baglanti && NT.baglanti.kullanici] : []), ...ekler].map(kisiAdi).filter(Boolean);
     const gorulen = new Set();
     const tek = adlar.filter((a) => { if (gorulen.has(k(a))) return false; gorulen.add(k(a)); return true; });
     return tek.filter((a) => !tek.some((x) => x !== a && k(x).startsWith(`${k(a)} `))).sort((a, c) => a.localeCompare(c, 'tr'));
   }
   function KisiSec({ liste, deger, degis, etiket = 'Kişi' }) {
     const [diger, setDiger] = useState(false);
-    const k = (a) => String(a || '').trim().toLocaleLowerCase('tr');
+    const k = (a) => kisiAdi(a).toLocaleLowerCase('tr');
     const tum = deger && !liste.some((a) => k(a) === k(deger)) ? [...liste, deger] : liste;
     const secili = tum.find((a) => k(a) === k(deger)) || '';
     return html`<select class="girdi" aria-label=${cevir(etiket)} value=${diger ? '__diger' : secili} onChange=${(e) => { const v = e.target.value; if (v === '__diger') { setDiger(true); degis(''); } else { setDiger(false); degis(v); } }}>
@@ -447,5 +454,5 @@
   }
 
   NT.ui = { KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
-  Object.assign(NT.ui, { PERSONEL, kisiListesi, KisiSec });
+  Object.assign(NT.ui, { PERSONEL, kisiAdi, kisiListesi, KisiSec });
 })();

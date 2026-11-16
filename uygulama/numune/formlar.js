@@ -112,11 +112,15 @@
   }
 
   /* Dolumu yapanlar: çoklu seçim (dokununca seçilir / bırakılır); listede olmayan kişi "Başka kişi" ile eklenir. */
-  function DolduranSecimi({ secili, degis }) {
+  function DolduranSecimi({ secili: ham, degis }) {
     const [yeni, setYeni] = useState('');
-    const liste = [...new Set([...H.dolumKisileri(depo()), ...secili])];
+    // Farklı yazımlar tek ada iner (NT.ui.kisiAdi); giriş yapan kişi ve elle eklenen/önceki adlar listede durur.
+    const n = NT.ui.kisiAdi;
+    const tekle = (l) => l.map(n).filter(Boolean).filter((a, i, t) => t.findIndex((x) => x.toLocaleLowerCase('tr') === a.toLocaleLowerCase('tr')) === i);
+    const secili = tekle(ham);
+    const liste = tekle([...H.dolumKisileri(depo()), kullanici(), ...secili]);
     const sec = (a) => degis(secili.includes(a) ? secili.filter((x) => x !== a) : [...secili, a]);
-    const ekle = () => { const a = yeni.trim().replace(/\s+/g, ' '); if (a && !secili.includes(a)) degis([...secili, a]); setYeni(''); };
+    const ekle = () => { const a = n(yeni); if (a && !secili.some((x) => x.toLocaleLowerCase('tr') === a.toLocaleLowerCase('tr'))) degis([...secili, a]); setYeni(''); };
     return html`<div class="secenekler">${liste.map((a) => html`<button type="button" class=${'secenek' + (secili.includes(a) ? ' secili' : '')} aria-pressed=${secili.includes(a)} onClick=${() => sec(a)}>${secili.includes(a) && html`<${Ikon} ad="tik" boyut=${12} /> `}${a}</button>`)}</div>
       <div style="display:flex;gap:6px;margin-top:8px;max-width:360px">
         <input class="girdi" placeholder=${cevir("Başka kişi…")} value=${yeni} onInput=${(e) => setYeni(e.target.value)} onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); ekle(); } }} />

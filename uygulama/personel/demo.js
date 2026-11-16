@@ -70,7 +70,17 @@
     return d;
   }
 
-  NT.personelDemo = { PERSONEL, personelMi, depoAc };
+  /* Sunumun sabit örnek duyuruları (kayda yazılmaz; portal ve personel paneli birlikte gösterir). */
+  const ORNEK_DUYURULAR = [
+    { id: 'ornek-duyuru-1', tarih: '2026-11-13', baslik: ['Kasım yemek menüsü', 'November meal menu'], ozet: ['Günlük ve aylık menü personel panelinde.', 'Daily and monthly menus are in the staff panel.'],
+      metin: ['Personel panelinde Yemek menüsü kartını açın. Üst bölümde bugünün öğle ve akşam yemekleri, altında aylık menü yer alır. Aylık tablodan istediğiniz güne dokunarak ayrıntısını görebilirsiniz.', 'Open Meal menu in the staff panel. Today’s lunch and dinner appear at the top, followed by the monthly menu. Select a day to see its details.'] },
+    { id: 'ornek-duyuru-2', tarih: '2026-11-12', ornekGorsel: true, baslik: ['Numune raf sayımı', 'Sample stocktake'], ozet: ['Boş şişeleri ve dolu numuneleri kontrol edin.', 'Check empty bottles and filled samples.'],
+      metin: ['Numune Takip’te Raf sayımı’nı açıp saydığınız rafı seçin. Boş şişe adedini, tam dolu kapları ve varsa açık kapta kalan litreyi girin. Kaydettiğiniz fark iki panelde de stoğa yansır.', 'Open Stocktake in Sample Tracking and select the shelf. Enter empty bottles, full containers, and any litres remaining in an open container. Saved adjustments appear in both panels.'] },
+    { id: 'ornek-duyuru-3', tarih: '2026-11-11', baslik: ['Malzeme taleplerinde kalem notu', 'Notes on material request items'], ozet: ['Her malzeme için birim ve isteğe bağlı not girilebilir.', 'Each item can have its own unit and optional note.'],
+      metin: ['Malzeme isteğinde her kalemin birimini seçin. Beden, ölçü veya kullanım yeri gibi bilgiler için kalemin altındaki Not ekle düğmesini kullanın. Yönetim notu ilgili kalemin yanında görür.', 'Choose a unit for each item in a material request. Use Add note for details such as size, dimensions, or where it will be used. Management sees the note beside the item.'] },
+  ];
+
+  NT.personelDemo = { PERSONEL, personelMi, depoAc, ORNEK_DUYURULAR };
   NT.demo = {
     aktif: new URLSearchParams(location.search).has('demo'),
     async kur(bag) {

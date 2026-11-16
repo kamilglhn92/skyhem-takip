@@ -26,7 +26,7 @@
     coaBelge: 'CoA belgesi', irsaliyeBelge: 'İrsaliye', faturaBelge: 'Fatura', kontrolFormu: 'Sevkiyat kontrol formu', kantarFisleri: 'Kantar fişleri', packingList: 'Packing list',
     aracFoto: 'Araç fotoğrafları', plaka: 'Plaka', sofor: 'Şoför',
   });
-  NT.ui.DEGER_YAZ.kalemler = (v) => (v || []).map((k) => `${k.adet}× ${k.ambalaj} ${k.urun}${k.parti ? ' ' + k.parti : ''} (${K.sayiYaz(S.kalemNet(k))} kg)`).join(', ');
+  NT.ui.DEGER_YAZ.kalemler = (v) => (v || []).map((k) => `${k.adet}× ${cevir(k.ambalaj)} ${k.urun}${k.parti ? ' ' + k.parti : ''} (${K.sayiYaz(S.kalemNet(k))} kg)`).join(', ');
   NT.ui.DEGER_YAZ.musteri = (v) => depo()?.kayit('musteri', v)?.ad || v;
 
   /* ---------------- Ambalaj çizimleri (numunedeki şişeler gibi) ---------------- */
@@ -477,7 +477,7 @@
         ${kayit && html`<div class="s12 form-bolum">${cevir("Sevkiyatlar")}</div>
           <div class="s12">${sevkler.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>No</th><th>${cevir("Tarih")}</th><th>${cevir("Kalemler")}</th><th class="sag">Net</th><th>${cevir("Durum")}</th></tr></thead><tbody>
             ${sevkler.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x)}><td><span class="etiket-kod">${x.no}</span></td><td>${tarihYaz(S.sevkTarihi(x))}</td>
-              <td>${(x.kalemler || []).map((k) => `${k.adet} ${k.ambalaj} ${k.urun} ${k.parti || ''}`).join(', ')}</td><td class="sag sayi">${kg(S.sevkNet(x))}</td><td><${DurumRozeti} s=${x} /></td></tr>`)}
+              <td>${(x.kalemler || []).map((k) => `${k.adet} ${cevir(k.ambalaj)} ${k.urun} ${k.parti || ''}`).join(', ')}</td><td class="sag sayi">${kg(S.sevkNet(x))}</td><td><${DurumRozeti} s=${x} /></td></tr>`)}
           </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Henüz sevkiyat yok.")}</p>`}</div>`}
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
@@ -532,7 +532,7 @@
         <div class="st-ozet-serit" style="margin-bottom:14px"><div><small>${cevir("Toplam net")}</small><b>${kg(toplam)}</b></div><div><small>${cevir("Sevkiyat")}</small><b>${sevkSay}</b></div><div><small>${cevir("Müşteri")}</small><b>${musteriSay}</b></div></div>
         ${sirali.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Sevk tarihi")}</th><th>No</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">Net</th></tr></thead><tbody>
           ${sirali.map((x, i) => html`<tr key=${i} class="tik" onClick=${() => sevkAc(x.s)}><td>${tarihYaz(x.tarih)}</td><td><span class="etiket-kod">${x.s.no}</span></td><td>${x.s.firma}</td>
-            <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${x.k.ambalaj}</td><td class="sag sayi">${kg(x.net)}</td></tr>`)}
+            <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${cevir(x.k.ambalaj)}</td><td class="sag sayi">${kg(x.net)}</td></tr>`)}
         </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Bu seçimde sevkiyat yok.")}</p>`}
       </div>
     <//>`;
@@ -781,7 +781,7 @@
         <${K.Kart} baslik=${cevir("Sevkiyat kalemleri")}>
           ${satirlar.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Tarih")}</th><th>No</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">Net</th><th class="sag">${cevir("Tutar")}</th></tr></thead><tbody>
             ${satirlar.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x.s)}><td>${tarihYaz(x.tarih)}</td><td><span class="etiket-kod">${x.s.no}</span></td><td>${x.s.firma}${x.s.ulke && x.s.ulke !== 'Türkiye' ? html`<div class="soluk kucuk">${cevir(x.s.ulke)}</div>` : ''}</td>
-              <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${x.k.ambalaj}</td><td class="sag sayi">${kg(x.net)}</td><td class="sag sayi">${x.tutar ? paraYaz(x.tutar, x.para) : html`<span class="soluk">—</span>`}</td></tr>`)}
+              <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${cevir(x.k.ambalaj)}</td><td class="sag sayi">${kg(x.net)}</td><td class="sag sayi">${x.tutar ? paraYaz(x.tutar, x.para) : html`<span class="soluk">—</span>`}</td></tr>`)}
             <tr><td colspan="5"><b>${cevir("Toplam")}</b></td><td class="sag sayi"><b>${kg(toplam)}</b></td><td></td></tr>
           </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Bu süzgeçte satış yok.")}</p>`}
         <//>

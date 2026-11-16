@@ -52,6 +52,7 @@
   }
   const PANELLER = [
     { id: 'personel', ad: 'Personel', aciklama: 'İzin, malzeme isteği, arıza, ramak kala, öneri ve numune işleri', adres: () => NT.c.adres('personel', { demo: true, kullanici: demo && NT.personelDemo.personelMi(demoKim) ? demoKim : '' }), sunum: true },
+    { id: 'uretim', ad: 'Üretim', aciklama: 'Reaksiyon ve proses takip formları, hammadde kabul, vardiya devri; sahada doldurulan formların taranıp dijitale işlenmesi', adres: () => NT.c.adres('uretim', { demo: true }), sunum: true },
     { id: 'yonetim', ad: 'Yönetim', aciklama: 'Numune, satış, içme suyu, yemek, yoklama, enerji ve personel talepleri',
       adres: () => NT.c.adres('portal', { panel: 'yonetim', kullanici: demo && NT.personelDemo.personelMi(demoKim) ? 'Kamil' : q.get('kullanici') }) },
   ];
@@ -300,14 +301,8 @@
   }
 
   /* 1. seviye: Personel / Yönetim seçimi (aynı bant ve kart görünümü). */
-  const ORNEK_DUYURULAR = [
-    { tarih: '2026-11-13', baslik: ['Kasım yemek menüsü', 'November meal menu'], ozet: ['Günlük ve aylık menü personel panelinde.', 'Daily and monthly menus are in the staff panel.'],
-      metin: ['Personel panelinde Yemek menüsü kartını açın. Üst bölümde bugünün öğle ve akşam yemekleri, altında aylık menü yer alır. Aylık tablodan istediğiniz güne dokunarak ayrıntısını görebilirsiniz.', 'Open Meal menu in the staff panel. Today’s lunch and dinner appear at the top, followed by the monthly menu. Select a day to see its details.'] },
-    { tarih: '2026-11-12', ornekGorsel: true, baslik: ['Numune raf sayımı', 'Sample stocktake'], ozet: ['Boş şişeleri ve dolu numuneleri kontrol edin.', 'Check empty bottles and filled samples.'],
-      metin: ['Numune Takip’te Raf sayımı’nı açıp saydığınız rafı seçin. Boş şişe adedini, tam dolu kapları ve varsa açık kapta kalan litreyi girin. Kaydettiğiniz fark iki panelde de stoğa yansır.', 'Open Stocktake in Sample Tracking and select the shelf. Enter empty bottles, full containers, and any litres remaining in an open container. Saved adjustments appear in both panels.'] },
-    { tarih: '2026-11-11', baslik: ['Malzeme taleplerinde kalem notu', 'Notes on material request items'], ozet: ['Her malzeme için birim ve isteğe bağlı not girilebilir.', 'Each item can have its own unit and optional note.'],
-      metin: ['Malzeme isteğinde her kalemin birimini seçin. Beden, ölçü veya kullanım yeri gibi bilgiler için kalemin altındaki Not ekle düğmesini kullanın. Yönetim notu ilgili kalemin yanında görür.', 'Choose a unit for each item in a material request. Use Add note for details such as size, dimensions, or where it will be used. Management sees the note beside the item.'] },
-  ];
+  /* Örnek duyurular personel/demo.js'te (personel paneli de aynı listeyi gösterir). */
+  const ORNEK_DUYURULAR = NT.personelDemo.ORNEK_DUYURULAR;
 
   function DuyuruGorseli({ duyuru, depo, detay = false }) {
     const [url, setUrl] = useState('');
@@ -347,7 +342,7 @@
           <p>${tarih} ${cevir('· Hangi panele gireceksiniz?', '· Which panel do you want to open?')}</p></div>
       </div></header>
       <main class="pt-icerik"><div class="pt-kartlar pt-panel-kartlar">${PANELLER.map((p, i) => html`<button class="pt-kart" data-modul=${'panel-' + p.id} style=${{ '--i': i }} onClick=${() => { location.href = p.adres(); }}>
-          <span class="pt-baslik">${cevir(p.ad, p.id === 'personel' ? 'Staff' : 'Management')}${p.sunum && html` <span class="rozet">${cevir('Sunum', 'Demo')}</span>`}</span>
+          <span class="pt-baslik">${cevir(p.ad, { personel: 'Staff', uretim: 'Production', yonetim: 'Management' }[p.id])}${p.sunum && html` <span class="rozet">${cevir('Sunum', 'Demo')}</span>`}</span>
           <span class="pt-aciklama">${cevir(p.aciklama)}</span>
           <span class="pt-ozet"><span class="soluk">${p.sunum ? cevir('Örnek verilerle açılır; kişisel hesaplar kurulunca canlıya geçer', 'Opens with sample data; goes live with personal accounts') : cevir('Bugün kullandığınız sistemler', 'The trackers you use today')}</span></span>
           <span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span></button>`)}</div>

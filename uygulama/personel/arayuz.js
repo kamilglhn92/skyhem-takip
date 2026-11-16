@@ -25,6 +25,16 @@
   const anonimKodlar = () => {
     try { return JSON.parse(localStorage.getItem(anonimAnahtar()) || '[]'); } catch { return []; }
   };
+  /* Görüldü kaydı: dikkat alanında yalnız henüz açılmamış kararlar, cevaplar ve duyurular kalır.
+     Sunumda bu tarayıcıda kişi başına tutulur; canlıda kişisel hesapla sunucuya taşınacak (context/personel-paneli.md). */
+  const gorulduAnahtar = () => 'nt.sunum.goruldu.' + b.kullanici;
+  const gorulduler = () => { try { return new Set(JSON.parse(localStorage.getItem(gorulduAnahtar()) || '[]')); } catch { return new Set(); } };
+  function gorulduYaz(anahtar) {
+    const s = gorulduler();
+    s.add(anahtar);
+    try { localStorage.setItem(gorulduAnahtar(), JSON.stringify([...s].slice(-300))); } catch { /* yalnız şerit tekrar gösterir */ }
+    window.dispatchEvent(new Event('pn-goruldu'));
+  }
 
   /* ---------------- Ortak parçalar ---------------- */
   const Rozet = ({ durum, tablo = P.TALEP_DURUM }) => { const x = tablo[durum] || Object.values(tablo)[0]; return html`<span class=${'rozet ' + x.rozet}><${Ikon} ad=${x.ikon} />${adi(x)}</span>`; };
@@ -284,16 +294,17 @@
 
   /* ---------------- Personel görünümü (telefon) ---------------- */
   const KARTLAR = [
-    { id: 'izin', ad: 'İzin talebi', en: 'Leave request', alt: 'Yıllık, mazeret, rapor', altEn: 'Annual, excused, sick', ikon: 'takvim', ac: () => K.ac(IzinFormu) },
-    { id: 'malzeme', ad: 'Malzeme isteği', en: 'Material request', alt: 'Eldiven, KKD, sarf', altEn: 'Gloves, PPE, supplies', ikon: 'kutu', ac: () => K.ac(MalzemeFormu) },
-    { id: 'ariza', ad: 'Arıza bildir', en: 'Report a fault', alt: 'Fotoğrafla, yerinden', altEn: 'With a photo, on the spot', ikon: 'ayar', ac: () => K.ac(ArizaFormu) },
-    { id: 'ramak', ad: 'Ramak kala', en: 'Near miss', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'uyari', ac: () => K.ac(BildirimFormu, { ramak: true }) },
-    { id: 'oneri', ad: 'Öneri / şikâyet', en: 'Suggestion / complaint', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'bilgi', ac: () => K.ac(BildirimFormu, {}) },
+    /* Sıra: her gün kullanılanlar önde (sekreter değerlendirmesi, 2026-11-13). */
     { id: 'numune', ad: 'Numune Takip', en: 'Sample Tracking', alt: 'Stok, sayım, şişe girişi, dolum', altEn: 'Stock, stocktake, bottle intake, filling', ikon: 'dolum',
       not: ['Sayım değişiklikleri yönetim stokuna da yansır.', 'Stocktake changes also appear in management’s stock view.'],
       ac: () => { location.href = NT.c.adres('numune', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
     { id: 'yemek', ad: 'Yemek menüsü', en: 'Meal menu', alt: 'Bugünün yemekleri ve aylık tablo', altEn: 'Today’s meals and monthly menu', ikon: 'yemek',
       ac: () => { location.href = NT.c.adres('yemek', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
+    { id: 'malzeme', ad: 'Malzeme isteği', en: 'Material request', alt: 'Eldiven, KKD, sarf', altEn: 'Gloves, PPE, supplies', ikon: 'kutu', ac: () => K.ac(MalzemeFormu) },
+    { id: 'ariza', ad: 'Arıza bildir', en: 'Report a fault', alt: 'Fotoğrafla, yerinden', altEn: 'With a photo, on the spot', ikon: 'ayar', ac: () => K.ac(ArizaFormu) },
+    { id: 'ramak', ad: 'Ramak kala', en: 'Near miss', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'uyari', ac: () => K.ac(BildirimFormu, { ramak: true }) },
+    { id: 'izin', ad: 'İzin talebi', en: 'Leave request', alt: 'Yıllık, mazeret, rapor', altEn: 'Annual, excused, sick', ikon: 'takvim', ac: () => K.ac(IzinFormu) },
+    { id: 'oneri', ad: 'Öneri / şikâyet', en: 'Suggestion / complaint', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'bilgi', ac: () => K.ac(BildirimFormu, {}) },
   ];
 
   function TalepSatiri({ t }) {
@@ -327,6 +338,85 @@
     </span></span>`;
   }
 
+  /* Ortak Numune kaydındaki açık dolum iş emirleri (salt okunur). Kayıt yoksa (Numune hiç açılmadıysa) boş döner; örnek veri burada kurulmaz. */
+  function useDolumEmirleri() {
+    const [liste, setListe] = useState([]);
+    useEffect(() => {
+      if (!NT.SunumDepo || !NT.idb) return undefined;
+      let aktif = true;
+      let nd;
+      let birak;
+      const oku = () => setListe(nd.kayitlar('isemri').filter((e) => e.tur === 'dolum' && (e.durum === 'bekliyor' || (e.durum === 'ustlenildi' && e.ustlenen === b.kullanici))));
+      NT.idb.al('nt.sunum.v1.numune').then((olaylar) => {
+        if (!aktif) return;
+        nd = new NT.SunumDepo('numune', b.kullanici);
+        if (olaylar) nd.uygula(olaylar);
+        birak = nd.abone(oku);
+        oku();
+      }).catch(console.error);
+      return () => { aktif = false; birak?.(); nd?.kapat(); };
+    }, []);
+    return liste;
+  }
+
+  const duyuruYazi = (v) => (Array.isArray(v) ? c(...v) : v || '');
+  function DuyuruListesi({ liste, kapat }) {
+    return html`<${Modal} dar baslik=${c('Yeni duyurular', 'New notices')} kapat=${kapat}>
+      <div class="modal-ic pn-bildirim-kartlar">${liste.map((x) => html`<button type="button" key=${x.id} class="pn-bildirim-karti" onClick=${() => { kapat(); gorulduYaz('duyuru:' + x.id); K.ac(DuyuruDetay, { duyuru: x }); }}>
+        <span class="pn-simge" aria-hidden="true"><${Ikon} ad="bilgi" boyut=${18} /></span><span><b>${duyuruYazi(x.baslik)}</b><span>${duyuruYazi(x.ozet)}</span><small>${tarihYaz(x.tarih)}</small></span></button>`)}</div><//>`;
+  }
+  function DuyuruDetay({ duyuru: x, kapat }) {
+    const [resim, setResim] = useState('');
+    useEffect(() => {
+      let adres = '';
+      if (x.gorsel?.dosya) depo().ekOku(x.gorsel.dosya).then((f) => { if (f) { adres = URL.createObjectURL(f); setResim(adres); } }).catch(() => {});
+      return () => adres && URL.revokeObjectURL(adres);
+    }, []);
+    const yazi = duyuruYazi;
+    return html`<${Modal} baslik=${yazi(x.baslik)} kapat=${kapat} alt=${html`<button class="d ana-d" onClick=${kapat}>${c('Tamam', 'OK')}</button>`}>
+      <div class="modal-ic pn-duyuru-detay"><small class="soluk">${tarihYaz(x.tarih)}</small><p>${yazi(x.metin) || yazi(x.ozet)}</p>${resim && html`<img src=${resim} alt=${x.gorsel.ad || ''} />`}</div><//>`;
+  }
+
+  /* Bantın dikkat alanı (yönetim karşılamasındaki "Dikkat bekleyen" ile aynı görünüm): personeli bekleyen işler ve yeni haberler. */
+  function PersonelDikkat() {
+    const d = depo();
+    const [, yenile] = useState(0);
+    useEffect(() => { const f = () => yenile((n) => n + 1); window.addEventListener('pn-goruldu', f); return () => window.removeEventListener('pn-goruldu', f); }, []);
+    const emirler = useDolumEmirleri();
+    const g = gorulduler();
+    const bg = bugun();
+    const sinir = P.gunEkle(bg, -14);
+    const ac = (anahtar, B, props) => () => { gorulduYaz(anahtar); K.ac(B, props); };
+    const isler = [];
+    if (emirler.length) isler.push({ id: 'emir', ikon: 'dolum', sinif: 'is', metin: cm('{0} dolum iş emri seni bekliyor', '{0} filling work order(s) waiting for you', emirler.length),
+      fn: () => { location.href = NT.c.adres('numune', { kullanici: b.kullanici }) + '&gorunum=personel#/isemirleri'; } });
+    for (const t of P.benimTaleplerim(d, b.kullanici)) {
+      if (t.durum === 'bekliyor' || !t.karar || (t.karar.tarih || '') < sinir) continue;
+      const anahtar = `talep:${t.id}:${t.durum}`;
+      if (!g.has(anahtar)) isler.push({ id: anahtar, ikon: P.TALEP_DURUM[t.durum].ikon, sinif: t.durum === 'reddedildi' ? 'red' : 'iyi',
+        metin: `${adi(P.talepTuru(t.tur))} · ${adi(P.TALEP_DURUM[t.durum]).toLocaleLowerCase(NT.dil.yerel())}`, fn: ac(anahtar, TalepDetay, { talep: t }) });
+    }
+    const kodlar = new Set(anonimKodlar());
+    for (const x of P.bildirimler(d)) {
+      if (!(x.isimsiz ? kodlar.has(x.takipKodu) : x.sahip === b.kullanici) || x.durum === 'yeni' || (!x.cevap && x.durum === 'okundu')) continue;
+      const anahtar = `bildirim:${x.id}:${x.durum}`;
+      if (!g.has(anahtar)) isler.push({ id: anahtar, ikon: 'bilgi', sinif: 'iyi',
+        metin: cm('{0} bildirimine cevap geldi', 'Reply to your {0} report', adi(P.bildirimTuru(x.tur), 'kisa').toLocaleLowerCase(NT.dil.yerel())), fn: ac(anahtar, BildirimDetay, { bildirim: x }) });
+    }
+    const duyurular = [...d.kayitlar('duyuru'), ...(b.mod === 'demo' ? NT.personelDemo.ORNEK_DUYURULAR : [])]
+      .filter((x) => (x.tarih || '') >= sinir && !g.has('duyuru:' + x.id)).sort((a, x) => ((x.tarih || '') > (a.tarih || '') ? 1 : -1));
+    if (duyurular.length === 1) isler.push({ id: 'duyuru', ikon: 'bilgi', sinif: 'duyuru', metin: cm('Duyuru: {0}', 'Notice: {0}', duyuruYazi(duyurular[0].baslik)), fn: ac('duyuru:' + duyurular[0].id, DuyuruDetay, { duyuru: duyurular[0] }) });
+    else if (duyurular.length) isler.push({ id: 'duyuru', ikon: 'bilgi', sinif: 'duyuru', metin: cm('{0} yeni duyuru', '{0} new notices', duyurular.length), fn: () => K.ac(DuyuruListesi, { liste: duyurular }) });
+    const yakin = P.benimTaleplerim(d, b.kullanici).find((t) => t.tur === 'izin' && t.durum === 'onaylandi' && t.bas >= bg && t.bas <= P.gunEkle(bg, 7));
+    if (yakin) isler.push({ id: 'izin', ikon: 'takvim', sinif: 'bilgi', metin: cm('{0} {1} tarihinde başlıyor', 'Your {0} starts on {1}', adi(P.izinTuru(yakin.izinTur)), tarihYaz(yakin.bas)), fn: () => K.ac(TalepDetay, { talep: yakin }) });
+    return html`<div class="pn-dikkat" role="status">
+      ${isler.length ? html`<span class="pn-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />${c('Seni bekleyen', 'Waiting for you')} ${isler.length}</span>
+        ${isler.map((x, i) => html`<button type="button" key=${x.id} class="pn-dikkat-cip" style=${{ '--i': i }} onClick=${x.fn}>
+          <span class=${'pn-dikkat-ikon ' + x.sinif}><${Ikon} ad=${x.ikon} boyut=${14} /></span>${x.metin}<${Ikon} ad="ok" boyut=${14} /></button>`)}`
+      : html`<span class="pn-dikkat-bas tamam"><${Ikon} ad="tik" boyut=${15} />${c('Her şey yolunda · seni bekleyen bir iş yok', 'All good · nothing is waiting for you')}</span>`}
+    </div>`;
+  }
+
   function PersonelSelami() {
     const ad = (b.kullanici || '').split(' ')[0];
     const simdi = new Date();
@@ -344,11 +434,11 @@
     const izin = P.izinDurumu(d, b.kullanici);
     return html`
       <div class="pn-serit">
-        <a href="#/profil"><small>${c('Kalan yıllık izin', 'Annual leave left')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
-        <a href="#/taleplerim"><small>${c('Açık taleplerim', 'Open requests')}</small><b>${acik}</b></a>
+        <a href="#/profil" style=${{ '--i': 0 }}><small>${c('Kalan yıllık izin', 'Annual leave left')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
+        <a href="#/taleplerim" style=${{ '--i': 1 }}><small>${c('Açık taleplerim', 'Open requests')}</small><b>${acik}</b></a>
       </div>
       <div class="pn-ana-izgara">
-      <div class="pn-kartlar">${KARTLAR.map((k) => html`<button key=${k.id} class=${'pn-kart pn-k-' + k.id + (k.not || k.id === 'yemek' ? ' pn-kart-notlu' : '')} onClick=${k.ac}>
+      <div class="pn-kartlar">${KARTLAR.map((k, i) => html`<button key=${k.id} style=${{ '--i': i + 2 }} class=${'pn-kart pn-k-' + k.id + (k.not || k.id === 'yemek' ? ' pn-kart-notlu' : '')} onClick=${k.ac}>
         <span class="pn-kart-gorsel" aria-hidden="true"><${Ikon} ad=${k.ikon} boyut=${30} /></span>
         <span class="pn-kart-metin"><b>${c(k.ad, k.en)}</b><small>${c(k.alt, k.altEn)}</small>
         ${k.id === 'yemek' ? html`<${YemekKartiNotu} />` : k.not && html`<span class="pn-kart-not"><${Ikon} ad="bilgi" boyut=${14} /><span>${c(...k.not)}</span></span>`}</span><span class="pn-kart-ac" aria-hidden="true">${c('Aç', 'Open')} <${Ikon} ad="ok" boyut=${16} /></span></button>`)}</div>
@@ -374,12 +464,14 @@
     const benim = P.bildirimler(d).filter((x) => x.isimsiz ? kodlar.has(x.takipKodu) : x.sahip === b.kullanici);
     const temiz = kod.trim().toUpperCase().replace(/\s/g, '');
     const bulunan = temiz.length >= 6 ? P.bildirimler(d).find((x) => x.isimsiz && x.takipKodu.replace('-', '') === temiz.replace('-', '')) : null;
-    return html`<div class="pn-sayfa-bas"><h1>${c('Bildirimlerim', 'My reports')}</h1></div>
+    return html`<div class="pn-sayfa-bas"><h1>${c('Bildirdiklerim', 'My reports')}</h1></div>
+      <div class="pn-yeni-bildirim"><button type="button" class="d ana-d" onClick=${() => K.ac(BildirimFormu, { ramak: true })}><${Ikon} ad="uyari" boyut=${16} />${c('Ramak kala bildir', 'Report a near miss')}</button>
+        <button type="button" class="d" onClick=${() => K.ac(BildirimFormu, {})}><${Ikon} ad="bilgi" boyut=${16} />${c('Öneri / şikâyet yaz', 'Write a suggestion / complaint')}</button></div>
       <div class="pn-bildirim-kartlar">${benim.length ? benim.map((x) => html`<button type="button" key=${x.id} class="pn-bildirim-karti" onClick=${() => K.ac(BildirimDetay, { bildirim: x })}>
         <${TurSimge} tur=${x.tur} bildirim /><span><b>${adi(P.bildirimTuru(x.tur), 'kisa')}</b><span>${x.metin}</span>
         ${x.cevap && html`<small>${x.cevap}</small>`}${x.isimsiz && html`<small>${c('İsimsiz', 'Anonymous')}</small>`}</span>
         <${Rozet} durum=${x.durum} tablo=${P.BILDIRIM_DURUM} /></button>`)
-        : html`<p class="soluk">${c('Henüz bildiriminiz yok.', 'No reports yet.')}</p>`}</div>
+        : html`<p class="soluk">${c('Henüz bir şey bildirmediniz. Yukarıdaki düğmelerle ramak kala, öneri ya da şikâyet gönderebilirsiniz.', 'You have not reported anything yet. Use the buttons above to send a near miss, suggestion or complaint.')}</p>`}</div>
       <section class="pn-bolum pn-kod-sor"><h2>${c('İsimsiz bildirimimi sorgula', 'Check my anonymous report')}</h2>
         <input class="girdi mono" value=${kod} onInput=${(e) => setKod(e.target.value)} placeholder="ABC-123" autocomplete="off" spellcheck="false" />
         ${temiz.length >= 6 && (bulunan ? html`<div class="pn-sonuc" onClick=${() => K.ac(BildirimDetay, { bildirim: bulunan })}><${TurSimge} tur=${bulunan.tur} bildirim /><span><b>${adi(P.bildirimTuru(bulunan.tur), 'kisa')}</b><small>${bulunan.cevap || c('Henüz cevap yok', 'No reply yet')}</small></span><${Rozet} durum=${bulunan.durum} tablo=${P.BILDIRIM_DURUM} /></div>`
@@ -405,7 +497,7 @@
   const SEKMELER = [
     { id: 'ana', ad: 'Ana sayfa', en: 'Home', ikon: 'ev', Sayfa: AnaSayfa },
     { id: 'taleplerim', ad: 'Taleplerim', en: 'Requests', ikon: 'liste', Sayfa: Taleplerim },
-    { id: 'bildirimlerim', ad: 'Bildirimler', en: 'Reports', ikon: 'uyari', Sayfa: Bildirimlerim },
+    { id: 'bildirimlerim', ad: 'Bildirdiklerim', en: 'My reports', ikon: 'uyari', Sayfa: Bildirimlerim },
     { id: 'profil', ad: 'Profil', en: 'Profile', ikon: 'kisi', Sayfa: Profil },
   ];
   const sekmeAl = () => { const s = (location.hash.match(/^#\/(\w+)/) || [])[1]; return SEKMELER.find((x) => x.id === s) || SEKMELER[0]; };
@@ -426,15 +518,16 @@
       <header class="pn-panel-bant">
         <div class="pn-panel-ic">
           <div class="pn-panel-ust">
-            <span class="pn-marka"><span class="pn-marka-logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></span><b>SKYHEM Takip</b></span>
-            <span class="pn-panel-kisi"><${Avatar} ad=${b.kullanici} kucuk />${b.kullanici}</span>
+            <a class="pn-marka" href="#/ana" aria-label=${c('Ana sayfa', 'Home')}><span class="pn-marka-logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></span><b>SKYHEM Takip</b></a>
+            <nav class="pn-menu" aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.filter((s) => s.id !== 'ana').map((s, i) => html`<a key=${s.id} style=${{ '--i': i }} href=${'#/' + s.id} class=${(sekme.id === s.id ? 'aktif ' : '') + s.id} aria-current=${sekme.id === s.id ? 'page' : undefined}>
+              ${s.id === 'profil' ? html`<${Avatar} ad=${b.kullanici} kucuk />` : html`<span class="ik"><${Ikon} ad=${s.ikon} boyut=${15} /></span>`}
+              <span>${s.id === 'profil' ? (b.kullanici || '').split(' ')[0] || c(s.ad, s.en) : c(s.ad, s.en)}</span>${s.id === 'taleplerim' && acik > 0 && html`<i aria-label=${cm('{0} açık', '{0} open', acik)}>${acik}</i>`}</a>`)}</nav>
           </div>
-          ${sekme.id === 'ana' && html`<div class="pn-panel-selam"><${PersonelSelami} /></div>`}
-          <nav class="pn-alt" aria-label=${c('Sayfalar', 'Pages')}>${SEKMELER.map((s) => html`<a key=${s.id} href=${'#/' + s.id} class=${sekme.id === s.id ? 'aktif' : ''} aria-current=${sekme.id === s.id ? 'page' : undefined}>
-            <span class="ik"><${Ikon} ad=${s.ikon} boyut=${22} />${s.id === 'taleplerim' && acik > 0 && html`<i>${acik}</i>`}</span>${c(s.ad, s.en)}</a>`)}</nav>
+          ${sekme.id === 'ana' ? html`<div class="pn-panel-selam"><${PersonelSelami} /></div><${PersonelDikkat} />`
+            : html`<a class="pn-panel-geri" href="#/ana"><${Ikon} ad="geri" boyut=${14} />${c('Ana sayfa', 'Home')} · <b>${c(sekme.ad, sekme.en)}</b></a>`}
         </div>
       </header>
-      <main class=${sekme.id === 'ana' ? 'pn-icerik pn-icerik-ana' : 'pn-icerik'}><${sekme.Sayfa} /></main>
+      <main key=${sekme.id} class=${sekme.id === 'ana' ? 'pn-icerik pn-icerik-ana' : 'pn-icerik'}><${sekme.Sayfa} /></main>
     </div>`;
   }
 

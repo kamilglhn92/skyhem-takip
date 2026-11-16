@@ -309,7 +309,7 @@
         ${Y.OGUNLER.map((o, i) => {
           const girildi = String(f[o.id]).trim() !== '';
           const fark = girildi ? sayi(f[o.id]) - x.adet[o.id] : 0;
-          return html`<${Alan} etiket=${NT.dil.m("{0} (bizde {1})", o.ad, x.adet[o.id])} sinif="s4" hata=${girildi && fark !== 0 ? `Fatura ${Math.abs(fark)} ${fark > 0 ? 'fazla' : 'eksik'}` : ''} ipucu=${girildi && fark === 0 ? cevir("Tutuyor ✓") : ''}>
+          return html`<${Alan} etiket=${NT.dil.m("{0} (bizde {1})", cevir(o.ad), x.adet[o.id])} sinif="s4" hata=${girildi && fark !== 0 ? `${cevir('Fatura', 'Invoice')} ${Math.abs(fark)} ${fark > 0 ? cevir('fazla', 'higher') : cevir('eksik', 'lower')}` : ''} ipucu=${girildi && fark === 0 ? cevir("Tutuyor ✓") : ''}>
             <input class="girdi sayi" inputmode="numeric" value=${f[o.id]} onInput=${(e) => s(o.id)(e.target.value)} placeholder=${String(x.adet[o.id])} autofocus=${i === 0} /><//>`;
         })}
         ${eksik.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${cevir("Bu ayda")} ${eksik.length} ${cevir("iş günü girilmemiş (")}${eksik.slice(0, 6).map(kisaTarih).join(', ')}${eksik.length > 6 ? '…' : ''}${cevir("); karşılaştırma eksik olabilir.")}</span></div>`}
