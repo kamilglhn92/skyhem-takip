@@ -338,7 +338,7 @@
     </span></span>`;
   }
 
-  /* Ortak Numune kaydındaki açık dolum iş emirleri (salt okunur). Kayıt yoksa (Numune hiç açılmadıysa) boş döner; örnek veri burada kurulmaz. */
+  /* Ortak Numune kaydındaki açık iş emirleri (salt okunur). Kayıt yoksa (Numune hiç açılmadıysa) boş döner; örnek veri burada kurulmaz. */
   function useDolumEmirleri() {
     const [liste, setListe] = useState([]);
     useEffect(() => {
@@ -346,7 +346,9 @@
       let aktif = true;
       let nd;
       let birak;
-      const oku = () => setListe(nd.kayitlar('isemri').filter((e) => e.tur === 'dolum' && (e.durum === 'bekliyor' || (e.durum === 'ustlenildi' && e.ustlenen === b.kullanici))));
+      // 2026-11-16: bir iş emri birden çok satırdır (grup) ve hazırlama işi de içerebilir; emir sayısı grup başına sayılır.
+      const oku = () => setListe([...new Set(nd.kayitlar('isemri').filter((e) => e.durum === 'bekliyor' || (e.durum === 'ustlenildi' && e.ustlenen === b.kullanici))
+        .map((e) => e.grup || e.id))]);
       NT.idb.al('nt.sunum.v1.numune').then((olaylar) => {
         if (!aktif) return;
         nd = new NT.SunumDepo('numune', b.kullanici);
@@ -388,7 +390,7 @@
     const sinir = P.gunEkle(bg, -14);
     const ac = (anahtar, B, props) => () => { gorulduYaz(anahtar); K.ac(B, props); };
     const isler = [];
-    if (emirler.length) isler.push({ id: 'emir', ikon: 'dolum', sinif: 'is', metin: cm('{0} dolum iş emri seni bekliyor', '{0} filling work order(s) waiting for you', emirler.length),
+    if (emirler.length) isler.push({ id: 'emir', ikon: 'dolum', sinif: 'is', metin: cm('{0} iş emri seni bekliyor', '{0} work order(s) waiting for you', emirler.length),
       fn: () => { location.href = NT.c.adres('numune', { kullanici: b.kullanici }) + '&gorunum=personel#/isemirleri'; } });
     for (const t of P.benimTaleplerim(d, b.kullanici)) {
       if (t.durum === 'bekliyor' || !t.karar || (t.karar.tarih || '') < sinir) continue;

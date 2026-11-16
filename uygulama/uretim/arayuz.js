@@ -99,11 +99,12 @@
   /* Tablo hücreleri: Enter aynı sütunda alt satıra, " üstteki değeri kopyalar. */
   function Hucre({ sutun, deger, satir, degis, salt, konum }) {
     const durum = U.degerDurumu(sutun, deger, satir);
-    if (sutun.tur === 'sabit') return html`<td class="ur-sabit">${c(deger || '', deger)}</td>`;
+    const tur = `ur-k-${sutun.tur}`;
+    if (sutun.tur === 'sabit') return html`<td class=${'ur-sabit ' + tur}>${c(deger || '', deger)}</td>`;
     const ortak = { 'data-konum': konum, disabled: salt, 'aria-label': c(sutun.ad, sutun.en) };
     if (sutun.tur === 'secim' || sutun.tur === 'tik') {
       const sec = sutun.tur === 'tik' ? ['✓', '✗'] : sutun.secenekler;
-      return html`<td class=${durum || (sutun.anormal && deger === sutun.anormal ? 'disari' : '')}><select class="ur-girdi" value=${deger || ''} onChange=${(e) => degis(e.target.value)} ...${ortak}><option value="">—</option>${sec.map((x) => html`<option value=${x}>${x}</option>`)}</select></td>`;
+      return html`<td class=${tur + ' ' + (durum || (sutun.anormal && deger === sutun.anormal ? 'disari' : ''))}><select class="ur-girdi" value=${deger || ''} onChange=${(e) => degis(e.target.value)} ...${ortak}><option value="">—</option>${sec.map((x) => html`<option value=${x}>${x}</option>`)}</select></td>`;
     }
     const tus = (e) => {
       if (e.key === '"' && e.target.value === '') { e.preventDefault(); degis('"'); }
@@ -114,7 +115,7 @@
       }
     };
     const limit = sutun.satirLimiti && (satir.min != null || satir.max != null) ? `${satir.min ?? '—'} – ${satir.max ?? '—'}` : '';
-    return html`<td class=${durum}><input class="ur-girdi" value=${deger ?? ''} inputmode=${sutun.tur === 'sayi' ? 'decimal' : sutun.tur === 'saat' ? 'numeric' : 'text'}
+    return html`<td class=${tur + ' ' + (durum || '')}><input class="ur-girdi" value=${deger ?? ''} inputmode=${sutun.tur === 'sayi' ? 'decimal' : sutun.tur === 'saat' ? 'numeric' : 'text'}
       placeholder=${sutun.tur === 'saat' ? 'ss:dd' : limit} onInput=${(e) => degis(e.target.value)} onKeyDown=${tus} title=${durum === 'disari' ? c('Sınır dışı değer', 'Out of range') : durum === 'gecersiz' ? c('Sayı değil', 'Not a number') : ''} ...${ortak} /></td>`;
   }
 
@@ -131,7 +132,7 @@
       degis([...satirlar, tablo.sutunlar.some((s) => s.id === 'saat') ? { saat } : {}]);
     };
     return html`<section class="ur-tablo-bolum"><h3>${c(tablo.ad, tablo.en)}</h3>
-      <div class="tablo-kap"><table class="tablo ur-tablo"><thead><tr>${tablo.sutunlar.map((s) => html`<th class=${s.tur === 'metin' ? 'genis' : ''}>${c(s.ad, s.en)}</th>`)}${tablo.serbest && !salt && html`<th />`}</tr></thead>
+      <div class="tablo-kap"><table class=${'tablo ur-tablo' + (tablo.sutunlar.some((s) => s.tur === 'metin') ? '' : ' dar')}><thead><tr>${tablo.sutunlar.map((s) => html`<th class=${'ur-k-' + s.tur}>${c(s.ad, s.en)}</th>`)}${tablo.serbest && !salt && html`<th />`}</tr></thead>
         <tbody>${satirlar.map((s, i) => html`<tr key=${i}>${tablo.sutunlar.map((su) => html`<${Hucre} key=${su.id} sutun=${su} satir=${s} deger=${s[su.id]} salt=${salt} konum=${`${tablo.id}|${i}|${su.id}`} degis=${(v) => sat(i, su.id, v)} />`)}
           ${tablo.serbest && !salt && html`<td><button class="d hayalet kucuk-d ikon-d" aria-label=${c('Satırı sil', 'Delete row')} onClick=${() => degis(satirlar.filter((_, j) => j !== i))}><${Ikon} ad="kapat" boyut=${14} /></button></td>`}</tr>`)}</tbody></table></div>
       ${tablo.serbest && !salt && html`<button class="d kucuk-d" onClick=${ekle}><${Ikon} ad="arti" boyut=${15} />${c('Satır ekle', 'Add row')}</button>`}
@@ -146,7 +147,86 @@
     else if (alan.tur === 'parti') g = html`<input class="girdi" list="ur-partiler" placeholder=${c('örn. Batch #24', 'e.g. Batch #24')} ...${ortak} onInput=${(e) => degis(e.target.value)} onBlur=${(e) => degis(U.partiAdi(e.target.value))} />
       <datalist id="ur-partiler">${partiler.map((p) => html`<option value=${p} />`)}</datalist>`;
     else g = html`<input class="girdi" type=${alan.tur === 'tarih' ? 'date' : 'text'} inputmode=${alan.tur === 'sayi' ? 'decimal' : undefined} ...${ortak} onInput=${(e) => degis(e.target.value)} />`;
-    return html`<label class=${'alan ' + (alan.tur === 'uzun' ? 's12' : 's4')}><span>${c(alan.ad, alan.en)}${alan.zorunlu && html` <b class="kirmizi">*</b>`}</span>${g}</label>`;
+    return html`<label class=${'alan' + (alan.tur === 'uzun' ? ' tam' : '')}><span>${c(alan.ad, alan.en)}${alan.zorunlu && html` <b class="kirmizi">*</b>`}</span>${g}</label>`;
+  }
+
+  /* ---------------- Kâğıt görünümü (ekran ve A4 çıktısı ortak) ---------------- */
+  const IMZA_EN = { Hazırlayan: 'Prepared by', Onay: 'Approved by', Kontrol: 'Checked by', Devreden: 'Handed over by', Devralan: 'Taken over by' };
+  const alanYaz = (a, v) => (v == null || v === '' ? '—' : a.tur === 'tarih' ? tarihYaz(v) : a.tur === 'secim' ? c(v, v) : String(v));
+
+  function KagitBaslik({ f, kayit, parti }) {
+    const tarih = kayit.alanlar?.tarih || kayit.tarih;
+    return html`<header class="ur-kagit-bas">
+      <img src="uygulama/ortak/logo.svg" alt="SKYHEM" />
+      <div class="ad"><b>${c(f.ad, f.en)}</b><small>${f.kod} · ${c('Sayfa', 'Page')} ${f.sayfa}</small></div>
+      <dl class="ur-kunye">
+        <div><dt>${c('Kayıt', 'Record')}</dt><dd>${kayit.no || '—'}</dd></div>
+        <div><dt>${c('Parti', 'Batch')}</dt><dd>${parti || '—'}</dd></div>
+        ${tarih && html`<div><dt>${c('Tarih', 'Date')}</dt><dd>${tarihYaz(tarih)}</dd></div>`}
+      </dl>
+    </header>`;
+  }
+
+  /* İmza kutuları: formdaki imza alanlarının dijital karşılığı. İlki işleyen (FR-032'de devreden), ikincisi kontrol eden (devralan). */
+  function Imzalar({ f, kayit }) {
+    const devir = f.imzalar[0] === 'Devreden';
+    const kisi = devir ? [kayit.alanlar?.devreden, kayit.alanlar?.devralan] : [kayit.isleyen, kayit.kontrol?.kim];
+    const tarih = devir ? [null, null] : [null, kayit.kontrol?.tarih];
+    return html`<div class="ur-imzalar">${f.imzalar.map((ad, i) => html`<div class="ur-imza">
+      <small>${c(ad, IMZA_EN[ad])}</small><b>${kisi[i] || ' '}</b><span>${tarih[i] ? tarihYaz(tarih[i]) : ' '}</span></div>`)}</div>`;
+  }
+
+  /* A4 çıktısı: değerler kutusuz düz metin olarak, matbu forma benzer düzende. */
+  /* A4 üst bilgisi: EYS dokümanlarındaki gibi logo | başlık | künye tablosu, ince ve silik çizgilerle. */
+  function A4Baslik({ f, kayit, parti }) {
+    const tarih = kayit.alanlar?.tarih || kayit.tarih;
+    const satir = [[c('Doküman no', 'Document no'), f.kod], [c('Sayfa', 'Page'), f.sayfa], [c('Kayıt no', 'Record no'), kayit.no || '—'], [c('Parti', 'Batch'), parti || '—'], [c('Tarih', 'Date'), tarih ? tarihYaz(tarih) : '—']];
+    return html`<header class="ur-a4-bas">
+      <div class="logo"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /></div>
+      <div class="baslik"><b>${c(f.ad, f.en)}</b></div>
+      <table class="kunye"><tbody>${satir.map(([k, v]) => html`<tr><th>${k}</th><td>${v}</td></tr>`)}</tbody></table>
+    </header>`;
+  }
+
+  /* FR-011 2/2 "Operatör ve teknik bakım": matbu formdaki gibi iki grup yan yana (Ad-soyad · Vardiya · İmza). */
+  function A4Ekip({ satirlar }) {
+    const grup = (g) => satirlar.filter((r) => (r.gorev || 'Operatör') === g);
+    const op = grup('Operatör'), tb = grup('Teknik bakım');
+    const n = Math.max(2, op.length, tb.length);
+    const hucre = (r) => html`<td>${r?.ad || ''}</td><td class="ur-k-secim">${r?.vardiya ? c(r.vardiya, r.vardiya) : ''}</td><td class="imza"></td>`;
+    return html`<table class="ur-a4-tablo ur-a4-ekip"><thead>
+        <tr><th colspan="3" class="grup">${c('Operatör', 'Operator')}</th><th colspan="3" class="grup">${c('Teknik bakım', 'Maintenance')}</th></tr>
+        <tr>${[0, 1].map(() => html`<th>${c('Ad soyad', 'Name')}</th><th class="ur-k-secim">${c('Vardiya', 'Shift')}</th><th class="imza">${c('İmza', 'Signature')}</th>`)}</tr></thead>
+      <tbody>${Array.from({ length: n }, (_, i) => html`<tr>${hucre(op[i])}${hucre(tb[i])}</tr>`)}</tbody></table>`;
+  }
+
+  function YazdirmaKagidi({ f, kayit }) {
+    const parti = kayit.parti || kayit.alanlar?.parti;
+    const yatay = f.tablolar.some((t) => t.sutunlar.length > 8);
+    return html`<article class=${'ur-a4' + (yatay ? ' yatay' : '')}>
+      <${A4Baslik} f=${f} kayit=${kayit} parti=${parti} />
+      <dl class="ur-a4-alanlar">${f.alanlar.filter((a) => a.id !== 'parti' && a.id !== 'tarih').map((a) => html`<div class=${a.tur === 'uzun' ? 'tam' : ''}><dt>${c(a.ad, a.en)}</dt><dd>${alanYaz(a, kayit.alanlar?.[a.id])}</dd></div>`)}</dl>
+      ${f.tablolar.map((t) => {
+        const satirlar = U.satirlar(kayit, t);
+        if (t.id === 'ekip') return html`<section class="ur-a4-bolum"><h3>${c(t.ad, t.en)}</h3><${A4Ekip} satirlar=${satirlar} /></section>`;
+        return html`<section class="ur-a4-bolum"><h3>${c(t.ad, t.en)}</h3>
+          <table class=${'ur-a4-tablo' + (t.sutunlar.some((s) => s.tur === 'metin') ? '' : ' dar')}><thead><tr>${t.sutunlar.map((s) => html`<th class=${'ur-k-' + s.tur}>${c(s.ad, s.en)}</th>`)}</tr></thead>
+            <tbody>${satirlar.length ? satirlar.map((r) => html`<tr>${t.sutunlar.map((s) => html`<td class=${'ur-k-' + s.tur + ' ' + (U.degerDurumu(s, r[s.id], r) || '')}>${r[s.id] == null || r[s.id] === '' ? '' : s.tur === 'sabit' ? c(r[s.id], r[s.id]) : String(r[s.id])}</td>`)}</tr>`)
+              : html`<tr><td colspan=${t.sutunlar.length} class="bos">—</td></tr>`}</tbody></table></section>`;
+      })}
+      ${kayit.not && html`<p class="ur-a4-not"><b>${c('İşleme notu', 'Entry note')}:</b> ${kayit.not}</p>`}
+      <${Imzalar} f=${f} kayit=${kayit} />
+      <footer class="ur-a4-alt"><span>SKYHEM Takip · ${c(U.DURUM[kayit.durum]?.ad || '', U.DURUM[kayit.durum]?.en)}</span><span>${c('Çıktı', 'Printed')}: ${tarihYaz(bugun())}</span></footer>
+    </article>`;
+  }
+
+  function yazdir(icerik) {
+    let alan = document.getElementById('yazdir-alani');
+    if (!alan) { alan = document.createElement('div'); alan.id = 'yazdir-alani'; document.body.appendChild(alan); }
+    render(icerik, alan);
+    const temizle = () => { render(null, alan); window.removeEventListener('afterprint', temizle); };
+    window.addEventListener('afterprint', temizle);
+    setTimeout(() => window.print(), 150); // logo yüklensin
   }
 
   function IslemeEkrani({ kayit: ilk, kapat }) {
@@ -181,6 +261,7 @@
         <button class="d hayalet ikon-d" onClick=${kapat} aria-label=${c('Kapat', 'Close')}><${Ikon} ad="geri" /></button>
         <div class="ur-isle-baslik"><b>${kayitli.no} · ${f ? `${f.kod} ${f.sayfa} · ${c(f.ad, f.en)}` : c('Form türünü seçin', 'Choose the form type')}</b>
           <small>${kayitli.isleyen ? m('İşleyen: {0}', 'Entered by: {0}', kayitli.isleyen) : c('Henüz işlenmedi', 'Not entered yet')}${kayitli.kontrol ? ' · ' + m('Kontrol: {0}, {1}', 'Checked: {0}, {1}', kayitli.kontrol.kim, tarihYaz(kayitli.kontrol.tarih)) : ''}</small></div>
+        ${f && html`<button class="d kucuk-d" onClick=${() => yazdir(html`<${YazdirmaKagidi} f=${f} kayit=${{ ...tumKayit, parti: U.partiAdi(k.parti || k.alanlar.parti) }} />`)} title=${c('Formu A4 olarak yazdır veya PDF kaydet', 'Print the form on A4 or save as PDF')}><${Ikon} ad="yazici" boyut=${15} />${c('Yazdır', 'Print')}</button>`}
         <${Durum} d=${kayitli.durum} />
       </header>
       <div class="ur-isle-govde">
@@ -192,9 +273,13 @@
             <label class="alan s6"><span>${c('Form', 'Form')}</span><select class="girdi" disabled=${salt} value=${k.form} onChange=${(e) => setK((p) => ({ ...p, form: e.target.value }))}>
               <option value="">${c('— seçin —', '— choose —')}</option>${Object.entries(U.FORMLAR).map(([id, x]) => html`<option value=${id}>${x.kod} ${x.sayfa} · ${c(x.ad, x.en)}</option>`)}</select></label>
           </div>
-          ${f && html`<div class="form-izgara ur-alanlar">${f.alanlar.map((a) => html`<${AlanGirdi} key=${a.id} alan=${a} salt=${salt} partiler=${partiler} deger=${a.id === 'parti' ? (k.alanlar.parti ?? k.parti) : k.alanlar[a.id]} degis=${(v) => alanDegis(a.id, v)} />`)}</div>
+          ${f && html`<article class="ur-kagit">
+            <${KagitBaslik} f=${f} kayit=${tumKayit} parti=${U.partiAdi(k.parti || k.alanlar.parti)} />
+            <div class="ur-alanlar">${f.alanlar.map((a) => html`<${AlanGirdi} key=${a.id} alan=${a} salt=${salt} partiler=${partiler} deger=${a.id === 'parti' ? (k.alanlar.parti ?? k.parti) : k.alanlar[a.id]} degis=${(v) => alanDegis(a.id, v)} />`)}</div>
             ${oneri && html`<div class=${'uyari-kutu ' + (oneri.karar === 'Kabul' ? 'iyi' : oneri.karar === 'Red' ? 'yok' : 'kritik')}><${Ikon} ad="bilgi" /><span>${m('Program önerisi: {0}', 'Suggested decision: {0}', c(oneri.karar))}${oneri.neden.length ? ' · ' + oneri.neden.join(', ') : ''}. ${c('Kararı kontrol eden kişi verir.', 'The checker makes the decision.')}${k.alanlar.karar && k.alanlar.karar !== oneri.karar ? ' ' + c('Formdaki karar öneriden farklı.', 'The decision on the form differs from the suggestion.') : ''}</span></div>`}
-            ${f.tablolar.map((t) => html`<${TabloDuzenle} key=${k.form + t.id} tablo=${t} salt=${salt} satirlar=${U.satirlar(k, t)} degis=${(l) => setK((p) => ({ ...p, tablolar: { ...p.tablolar, [t.id]: l } }))} />`)}`}
+            ${f.tablolar.map((t) => html`<${TabloDuzenle} key=${k.form + t.id} tablo=${t} salt=${salt} satirlar=${U.satirlar(k, t)} degis=${(l) => setK((p) => ({ ...p, tablolar: { ...p.tablolar, [t.id]: l } }))} />`)}
+            <${Imzalar} f=${f} kayit=${tumKayit} />
+          </article>`}
           <label class="alan"><span>${c('İşleme notu', 'Entry note')}</span><input class="girdi" disabled=${salt} value=${k.not} onInput=${(e) => setK((p) => ({ ...p, not: e.target.value }))} placeholder=${c('Örn: 03:30 satırı okunmuyor', 'e.g. 03:30 row is illegible')} /></label>
         </div>
       </div>

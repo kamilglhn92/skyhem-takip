@@ -368,7 +368,8 @@
 
   /* Belirli bir belge için yükleme kutusu (CoA, irsaliye, kargo belgesi…): boşken kesik çizgili, yüklenince yeşil.
      Dosya sürükle-bırak da olur. Değer, Ekler ile aynı biçimde dosya listesidir. `eski`: eski kayıtlardaki numara vb. */
-  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, eski, children }) {
+  /* kamera: telefonda dosya seçici yerine doğrudan arka kamerayı açar (capture="environment"); masaüstünde dosya seçimi kalır. */
+  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, eski, children }) {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [surukle, setSurukle] = useState(false);
     const girdi = useRef();
@@ -394,10 +395,10 @@
         <button type="button" class="belge-kaldir" title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
       </div>`)}</div>`}
       <div class="belge-alt">
-        <button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : tamam ? cevir("Ekle") : foto ? cevir("Fotoğraf yükle") : cevir("Belge yükle")}</button>
+        <button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : tamam ? cevir("Ekle") : kamera ? cevir("Fotoğraf çek", "Take a photo") : foto ? cevir("Fotoğraf yükle") : cevir("Belge yükle")}</button>
         ${!tamam && !yukleniyor && html`<span class="ipucu">${ipucu || (foto ? cevir("veya buraya sürükleyin") : cevir("PDF ya da görsel; buraya da sürükleyebilirsiniz"))}</span>`}
       </div>
-      <input ref=${girdi} type="file" multiple accept=${foto ? 'image/*' : 'image/*,application/pdf'} class="gizli" onChange=${(e) => { const l = [...e.target.files]; e.target.value = ''; yukle(l); }} />
+      <input ref=${girdi} type="file" multiple accept=${foto ? 'image/*' : 'image/*,application/pdf'} capture=${foto && kamera ? 'environment' : undefined} class="gizli" onChange=${(e) => { const l = [...e.target.files]; e.target.value = ''; yukle(l); }} />
     </div>`;
   }
 

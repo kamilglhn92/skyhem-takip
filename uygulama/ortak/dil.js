@@ -1988,7 +1988,17 @@
     "Sevk edilen": "Shipped",
     "Diğer müşteriler": "Other customers",
     "rezerve": "reserved",
-    "atık": "waste"
+    "atık": "waste",
+    "İstenen {0}, doldurulan {1}": "Requested {0}, filled {1}",
+    "{0} açıldı: {1} × {2}. Raftaki {3} adet gönderide kaldı.": "{0} opened: {1} × {2}. The {3} on the shelf stay in the shipment.",
+    "{0}: rafta {1} var, {2} istendi. Eksik {3} adet için dolum iş emri açılmalı.": "{0}: {1} on the shelf, {2} requested. A fill work order is needed for the missing {3}.",
+    "Eksik {0} için dolum iş emri aç": "Open a fill work order for the missing {0}",
+    "{0} adedi": "{0} quantity",
+    "Raftan gönderi": "Ship from the shelf",
+    "Dolum ve hazırlama": "Filling and preparation",
+    "İş emri": "Work order",
+    "Hangi kaptan aldığınızı seçin": "Select the container you took it from",
+    "Kaynakta kullanılabilir kap yetersiz. Ayrılmış kaplar kullanılamaz.": "There are not enough available source containers. Reserved bottles cannot be used."
   });
   belgeDiliniUygula();
   window.NT.dil = { t, m, useDil, DilSecimi, yerel: () => dil === 'en' ? 'en-GB' : 'tr-TR' };

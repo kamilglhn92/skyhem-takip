@@ -737,3 +737,27 @@
   .nm-p-bos-serit .tz-bos .a { flex-basis: 100%; text-align: center; font-size: 11px; }
 }
 @media print { .nm-p-bant { display: none; } }
+
+/* İş emri satırları ve raftan gönderim (2026-11-16) */
+.tz-emir-satir-listesi { list-style: none; padding: 0; margin: 10px 0 4px; display: grid; gap: 6px; }
+.tz-emir-satir-listesi li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tz-emir-satirlar { display: grid; gap: 10px; }
+.tz-emir-satir { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; border: 1px solid var(--cizgi, #d9e2dc); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
+.tz-emir-satir legend { font-size: 12px; font-weight: 700; padding: 0 4px; }
+.tz-emir-satir .tz-emir-stok { grid-column: 1 / -1; margin: 0; }
+.tz-emir-satir .tz-emir-sil { position: absolute; top: -10px; right: 8px; background: var(--yuzey, #fff); }
+.tz-emir-liste { margin: 0 0 12px; padding-left: 18px; }
+.tz-emir-gorseller { margin: 6px 0; }
+.tz-alt-baslik { margin: 0 0 8px; font-size: 14px; }
+.tz-raf-secim { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
+.tz-raf-kart { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 10px; border-radius: 14px; border: 2px solid var(--cizgi); background: var(--yuzey2); }
+.tz-raf-kart.sepette { border-color: var(--vurgu-sinir); background: var(--ana-acik); }
+.tz-raf-kart .bilgi { display: flex; flex-direction: column; gap: 2px; min-height: 58px; }
+.tz-raf-kart .bilgi small { color: var(--soluk); }
+.tz-emir-satir-listesi .nt-sise { flex-shrink: 0; }
+.tz-raf-adet { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.tz-raf-adet .yuvar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--cizgi, #d9e2dc); background: var(--yuzey, #fff); color: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.tz-raf-adet .yuvar:disabled { opacity: .4; cursor: default; }
+.tz-raf-adet input { width: 64px; text-align: center; padding: 6px; }
+.tz-buyuk-kaplar .secenek { display: inline-flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 10px 14px; min-width: 120px; }
+.tz-buyuk-kaplar .secenek.acik-kap { border-color: var(--uyari, #c98a00); }

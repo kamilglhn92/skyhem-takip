@@ -54,8 +54,8 @@
       })()}
       alt=${html`<div class="sol"><button class="d" onClick=${() => F.sayim(hedef)}><${Ikon} ad="sayim" />${cevir("Sayım düzelt")}</button></div>
         ${bosMu ? html`<button class="d" onClick=${() => { kapat(); eylem('alim', { ambalaj: hedef.ambalaj }); }}><${Ikon} ad="alim" />${cevir("Şişe geldi")}</button>`
-          : !personel && H.emirAcabilir(d.kullanici) && html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Hazırlama iş emri", "Preparation work order")}</button>`}
-        ${(personel || H.emirAcabilir(d.kullanici)) && html`<button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${personel ? cevir("Dolum yaptım", "Record a filling") : cevir("Dolum iş emri", "Fill work order")}</button>`}`}>
+          : !personel && html`<button class="d" onClick=${() => { kapat(); eylem('sevk', { sepet: [{ urun: hedef.urun, parti: hedef.parti || '', ambalaj: hedef.ambalaj, adet: 1 }] }); }}><${Ikon} ad="sevk" />${cevir("Numune gönder", "Ship samples")}</button>`}
+        ${!personel && H.emirAcabilir(d.kullanici) && html`<button class="d ana-d" onClick=${() => { kapat(); eylem('dolum', { urun: hedef.urun || H.urunler(d)[0]?.ad || '', parti: hedef.parti || '', ambalaj: hedef.ambalaj }); }}><${Ikon} ad="dolum" />${cevir("Dolum iş emri", "Fill work order")}</button>`}`}>
       <div class="modal-ic">
         <div class="defter-ozet">${ozet.map(([ad, n], i) => html`<div class=${i === 0 ? 'ana-sayi' : ''}><span>${cevir(ad)}</span><b>${n}</b></div>`)}</div>
         ${acikVar && html`<div class="uyari-kutu bilgi acik-kap-kutu"><${Ikon} ad="kutu" /><span style="flex:1">
