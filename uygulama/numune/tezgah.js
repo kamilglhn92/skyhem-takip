@@ -1270,35 +1270,8 @@
     </div>`;
   }
 
-  /* ---------------- Kurulum ---------------- */
-  function Kurulum() {
-    const [ad, setAd] = useState(b.kullanici);
-    const [kod, setKod] = useState(b.kod);
-    const [hata, setHata] = useState('');
-    const [bekle, setBekle] = useState(false);
-    const giris = async () => {
-      if (ad.trim().length < 2) return setHata(cevir("Önce adınızı yazın."));
-      if (kod.trim().length < 4) return setHata(cevir("Erişim kodunu yazın."));
-      setHata(''); setBekle(true);
-      try { await b.girisYap(ad, kod); } catch (e) { console.error(e); setHata(e); } finally { setBekle(false); }
-    };
-    // Kod sonradan değiştirildiyse ya da sunucuya ulaşılamadıysa: aynı ekran, nedeniyle birlikte.
-    const hataVar = b.durum === 'hata';
-    const girisFormu = !hataVar || b.hataKod;
-    const enter = (e) => e.key === 'Enter' && giris();
-    return html`<div class="tz-kurulum"><div class="tz-kurulum-kutu">
-      <div class="tz-kurulum-dil"><${DilSecimi} /></div>
-      <img src="uygulama/ortak/logo.svg" alt="SKYHEM" />
-      <h1>${hataVar && !b.hataKod ? cevir('Sunucuya bağlanılamadı') : cevir('Numune Takip’e hoş geldiniz')}</h1>
-      <p>${hataVar ? cevir(b.hataMesaji) : cevir("Adınızı ve size verilen erişim kodunu bir kez yazın. Kayıtlar internet üzerinden herkesle otomatik eşitlenir.")}</p>
-      ${girisFormu && html`
-        <input class="girdi" style="font-size:17px;padding:12px 14px" placeholder=${cevir("Adınız Soyadınız")} value=${ad} onInput=${(e) => setAd(e.target.value)} onKeyDown=${enter} autofocus />
-        <input class="girdi mono" style="font-size:17px;padding:12px 14px;text-transform:uppercase" placeholder=${cevir("Erişim kodu (örn. SKY-XXXX-XXXX)")} value=${kod} onInput=${(e) => setKod(e.target.value)} onKeyDown=${enter} autocomplete="off" spellcheck="false" />
-        <button class="d ana-d tz-buyuk" disabled=${bekle} onClick=${giris}>${bekle ? cevir("Bağlanıyor…") : cevir("Başla")}</button>`}
-      ${!girisFormu && html`<button class="d ana-d tz-buyuk" onClick=${() => b.baslat()}>${cevir("Tekrar dene")}</button>`}
-      <${NT.ui.HataKutusu} hata=${hata} />
-    </div></div>`;
-  }
+  /* ---------------- Kurulum (ortak giriş: ad soyad + şifre; ortak/bilesenler.js) ---------------- */
+  const Kurulum = () => html`<${NT.ui.Kurulum} baslik="Numune Takip’e hoş geldiniz" />`;
 
   function Kok() {
     useDil();

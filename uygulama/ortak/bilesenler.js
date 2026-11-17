@@ -9,6 +9,7 @@
   /* --- İkonlar (1.8px çizgi, 24'lük kutu) --- */
   const YOLLAR = {
     ozet: 'M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z',
+    grafik: 'M3 3v18h18M7 15l4-4 3 3 5-6',
     stok: 'M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4',
     dolum: 'M12 3s6 6.2 6 11a6 6 0 01-12 0c0-4.8 6-11 6-11z',
     damacana: 'M10 2h4v3h-4zM10 5v1.5C7 7.3 5.5 9.3 5.5 12v8a2 2 0 002 2h9a2 2 0 002-2v-8c0-2.7-1.5-4.7-4.5-5.5V5M5.5 14h13M5.5 18h13',
@@ -454,6 +455,103 @@
       ${diger && html`<input class="girdi" style="margin-top:6px" value=${deger} placeholder=${cevir("Ad Soyad")} autofocus onInput=${(e) => degis(e.target.value)} />`}`;
   }
 
-  NT.ui = { KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
+  /* ---------------- Giriş (kişisel hesap: ad soyad + şifre; bütün sistemlerde ortak) ---------------- */
+  const GIRDI = 'font-size:17px;padding:12px 14px';
+  function KurulumKutusu({ children }) {
+    return html`<div class="tz-kurulum"><div class="tz-kurulum-kutu">
+      <div class="tz-kurulum-dil"><${NT.dil.DilSecimi} /></div>
+      <img src="uygulama/ortak/logo.svg" alt="SKYHEM" />${children}</div></div>`;
+  }
+  function Kurulum({ baslik }) {
+    const b = NT.baglanti;
+    if (b.durum === 'sifre') return html`<${SifreBelirle} />`;
+    if (/[?&]hesapkur\b/.test(location.search)) return html`<${HesapKurulumu} />`;
+    return html`<${GirisFormu} baslik=${baslik} />`;
+  }
+  function GirisFormu({ baslik }) {
+    const b = NT.baglanti;
+    const [ad, setAd] = useState(b.kullanici);
+    const [sifre, setSifre] = useState('');
+    const [hata, setHata] = useState('');
+    const [bekle, setBekle] = useState(false);
+    const giris = async () => {
+      if (!NT.oturum.kullaniciAdi(ad)) return setHata(cevir("Adınızı ve soyadınızı yazın."));
+      if (!sifre) return setHata(cevir("Şifrenizi yazın."));
+      setHata(''); setBekle(true);
+      try { await b.girisYap(ad, sifre); } catch (e) { console.error(e); setHata(cevir(e.message)); } finally { setBekle(false); }
+    };
+    const hataVar = b.durum === 'hata';
+    const girisFormu = !hataVar || b.hataKod;
+    const enter = (e) => e.key === 'Enter' && giris();
+    return html`<${KurulumKutusu}>
+      <h1>${hataVar && !b.hataKod ? cevir('Sunucuya bağlanılamadı') : cevir(baslik || 'SKYHEM Takip’e hoş geldiniz')}</h1>
+      <p>${hataVar && !b.hataKod ? cevir(b.hataMesaji) : cevir("Adınızı, soyadınızı ve şifrenizi yazın. İlk girişte size verilen geçici şifreyi kullanın; ardından kendi şifrenizi belirlersiniz.", "Enter your first name, last name and password. On first sign-in use the temporary password you were given; you will then set your own.")}</p>
+      ${girisFormu && html`
+        <input class="girdi" style=${GIRDI} placeholder=${cevir("Adınız Soyadınız")} value=${ad} onInput=${(e) => setAd(e.target.value)} onKeyDown=${enter} autocomplete="username" autofocus />
+        <input class="girdi" type="password" style=${GIRDI} placeholder=${cevir("Şifre", "Password")} value=${sifre} onInput=${(e) => setSifre(e.target.value)} onKeyDown=${enter} autocomplete="current-password" />
+        <button class="d ana-d tz-buyuk" disabled=${bekle} onClick=${giris}>${bekle ? cevir("Bağlanıyor…") : cevir("Giriş yap", "Sign in")}</button>
+        <p class="kucuk soluk" style="margin:0">${cevir("Şifrenizi unuttuysanız Kamil Gülhan'a veya Farukcan Biçer'e başvurun; size yeni geçici şifre verilir.", "Forgot your password? Ask Kamil Gülhan or Farukcan Biçer for a new temporary password.")}</p>`}
+      ${!girisFormu && html`<button class="d ana-d tz-buyuk" onClick=${() => b.baslat()}>${cevir("Tekrar dene")}</button>`}
+      <${HataKutusu} hata=${hata} />
+    <//>`;
+  }
+  /* İlk giriş: geçici şifre kişinin kendi şifresiyle değiştirilmeden program açılmaz. */
+  function SifreBelirle() {
+    const b = NT.baglanti;
+    const [s1, setS1] = useState('');
+    const [s2, setS2] = useState('');
+    const [hata, setHata] = useState('');
+    const [bekle, setBekle] = useState(false);
+    const kaydet = async () => {
+      if (s1.length < 8) return setHata(cevir("Şifre en az 8 karakter olmalı.", "The password must be at least 8 characters."));
+      if (s1 !== s2) return setHata(cevir("İki şifre aynı değil.", "The two passwords do not match."));
+      setHata(''); setBekle(true);
+      try { await b.sifreBelirle(s1); } catch (e) { console.error(e); setHata(cevir(e.message)); } finally { setBekle(false); }
+    };
+    const enter = (e) => e.key === 'Enter' && kaydet();
+    return html`<${KurulumKutusu}>
+      <h1>${NT.dil.m('Hoş geldiniz, {0}', 'Welcome, {0}', (b.hesap && b.hesap.ad) || '')}</h1>
+      <p>${cevir("Geçici şifreyle girdiniz. Devam etmek için kendi şifrenizi belirleyin; bundan sonra yalnız bu şifreyle girersiniz. Şifrenizi kimseyle paylaşmayın.", "You signed in with a temporary password. Set your own password to continue; from now on you will sign in only with it. Do not share it.")}</p>
+      <input class="girdi" type="password" style=${GIRDI} placeholder=${cevir("Yeni şifre (en az 8 karakter)", "New password (at least 8 characters)")} value=${s1} onInput=${(e) => setS1(e.target.value)} onKeyDown=${enter} autocomplete="new-password" autofocus />
+      <input class="girdi" type="password" style=${GIRDI} placeholder=${cevir("Yeni şifre (tekrar)", "New password (again)")} value=${s2} onInput=${(e) => setS2(e.target.value)} onKeyDown=${enter} autocomplete="new-password" />
+      <button class="d ana-d tz-buyuk" disabled=${bekle} onClick=${kaydet}>${bekle ? cevir("Kaydediliyor…") : cevir("Şifremi belirle", "Set my password")}</button>
+      <button class="d hayalet" onClick=${() => b.ayril()}>${cevir("Başka biriyle gir", "Sign in as someone else")}</button>
+      <${HataKutusu} hata=${hata} />
+    <//>`;
+  }
+  /* Hesapların ilk kurulumu (?hesapkur): ortak erişim koduyla bir kez yapılır; ortak geçici şifreyi kurulumu yapan kişi yazar,
+     şifre hiçbir dosyaya ve kayda yazılmaz. Sunucu işlevi yalnız eksik hesapları açar, var olanlara dokunmaz. */
+  function HesapKurulumu() {
+    const b = NT.baglanti;
+    const [kod, setKod] = useState('');
+    const [s1, setS1] = useState('');
+    const [s2, setS2] = useState('');
+    const [hata, setHata] = useState('');
+    const [bekle, setBekle] = useState(false);
+    const [sonuc, setSonuc] = useState(null);
+    const kur = async () => {
+      if (kod.trim().length < 4) return setHata(cevir("Erişim kodunu yazın."));
+      if (s1.length < 8) return setHata(cevir("Geçici şifre en az 8 karakter olmalı."));
+      if (s1 !== s2) return setHata(cevir("İki şifre aynı değil."));
+      setHata(''); setBekle(true);
+      try { setSonuc(await NT.oturum.islev({ islem: 'kur', sifre: s1 }, { kod: kod.trim().toUpperCase() })); setS1(''); setS2(''); }
+      catch (e) { console.error(e); setHata(cevir(e.message)); } finally { setBekle(false); }
+    };
+    return html`<${KurulumKutusu}>
+      <h1>${cevir("Hesapları kur")}</h1>
+      ${!sonuc ? html`
+        <p>${cevir("Bütün kişilerin hesapları aynı geçici şifreyle açılır. Herkes ilk girişte kendi şifresini belirlemek zorundadır. Var olan hesaplara dokunulmaz.")}</p>
+        <input class="girdi mono" style=${GIRDI + ';text-transform:uppercase'} placeholder=${cevir("Erişim kodu (örn. SKY-XXXX-XXXX)")} value=${kod} onInput=${(e) => setKod(e.target.value)} autocomplete="off" spellcheck="false" />
+        <input class="girdi" type="password" style=${GIRDI} placeholder=${cevir("Ortak geçici şifre (en az 8 karakter)")} value=${s1} onInput=${(e) => setS1(e.target.value)} autocomplete="new-password" />
+        <input class="girdi" type="password" style=${GIRDI} placeholder=${cevir("Ortak geçici şifre (tekrar)")} value=${s2} onInput=${(e) => setS2(e.target.value)} autocomplete="new-password" />
+        <button class="d ana-d tz-buyuk" disabled=${bekle} onClick=${kur}>${bekle ? cevir("Kuruluyor…") : cevir("Hesapları aç")}</button>`
+      : html`<table class="tablo" style="width:100%;text-align:left"><thead><tr><th>${cevir("Kişi")}</th><th>${cevir("Kullanıcı adı")}</th><th>${cevir("Rol")}</th><th>${cevir("Durum")}</th></tr></thead>
+          <tbody>${(sonuc.hesaplar || []).map((h) => html`<tr><td>${h.ad}</td><td class="mono">${h.kullanici}</td><td>${h.rol}${h.mimar ? ' + mimar' : ''}</td><td>${h.durum === 'acildi' ? cevir('Açıldı') : h.durum === 'vardi' ? cevir('Zaten vardı') : h.hata || h.durum}</td></tr>`)}</tbody></table>
+        <a class="d ana-d tz-buyuk" href=${location.pathname}>${cevir("Girişe dön")}</a>`}
+      <${HataKutusu} hata=${hata} />
+    <//>`;
+  }
+
+  NT.ui = { Kurulum, KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
   Object.assign(NT.ui, { PERSONEL, kisiAdi, kisiListesi, KisiSec });
 })();

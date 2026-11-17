@@ -3,7 +3,8 @@
  * silme/çöp kutusu, ayarlar ve Excel yardımcıları. Numune kendi iskeletini (numune/tezgah.js) kullanır; görünüm aynıdır.
  *
  * Bir modül şunu çağırır:
- *   NT.kabuk.calistir({ sekmeler, sayfalar, eylemler, arama, uzakKoleksiyonlar })
+ *   NT.kabuk.calistir({ sekmeler, sayfalar, eylemler, arama, uzakKoleksiyonlar, geri })
+ *   geri: { yazi, adres } — "Tüm sistemler" yerine dönülecek yer (ör. personel görünümünde Personel paneli).
  * Modüller birbirini tanımaz; ortak olan yalnızca bu dosya, bağlantı ve görünümdür.
  */
 (function () {
@@ -203,8 +204,10 @@
     const [t, setT] = useState(temaAl());
     return html`<${AyarKarti} baslik=${cevir("Profil")} aciklama=${cevir("Adınız her kaydın geçmişinde “kim yaptı” olarak görünür. Bütün sistemlerde ortaktır.")}>
       <div class="form-izgara">
-        <${Alan} etiket=${cevir("Adınız")} sinif="s6"><div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
-          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div><//>
+        ${b.hesap ? html`<${Alan} etiket=${cevir("Adınız")} sinif="s6"><div class="ust-satir">${b.hesap.ad} <span class="kucuk soluk mono">${b.hesap.kullanici}</span></div>
+            <div class="kucuk soluk">${cevir(b.hesap.rol === 'yonetici' ? 'Yönetici' : 'Personel')}${b.hesap.mimar ? ' · ' + cevir('Sistem mimarı') : ''}${b.hesap.onay ? ' · ' + cevir('Talepleri onaylar') : ''}</div><//>`
+          : html`<${Alan} etiket=${cevir("Adınız")} sinif="s6"><div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
+          <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div><//>`}
         <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><div class="segment">${[['oto', cevir('Sistem', 'System')], ['acik', cevir('Açık', 'Light')], ['koyu', cevir('Koyu', 'Dark')]].map(([id, yazi]) => html`<button class=${t === id ? 'secili' : ''} onClick=${() => { setT(id); temaUygula(id); }}>${yazi}</button>`)}</div><//>
       </div>
     <//>`;
@@ -220,7 +223,7 @@
         ${window.NT_SURUM_AKTIF && html`<div class="s12 kucuk soluk">${cevir("Program sürümü")} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)} ${cevir("· güncellemeler kendiliğinden gelir")}</div>`}
         ${d.bekleyen.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${d.bekleyen.length} ${cevir("değişiklik bu bilgisayarda bekliyor; internete ulaşılınca otomatik gönderilecek.")}</span></div>`}
         ${d.hata && html`<div class="s12 uyari-kutu yok"><${Ikon} ad="uyari" /><span>${d.hata}</span></div>`}
-        ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayardaki erişim kodu silinir (bütün sistemler için); bir dahaki açılışta kod yeniden sorulur. Buluttaki kayıtlara dokunulmaz."), { baslik: cevir("Bağlantıyı kes"), evet: cevir("Bağlantıyı kes") })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button></div>`}
+        ${b.mod === 'bulut' && html`<div class="s12 dugmeler"><button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayarda oturumunuz kapanır (bütün sistemler için); bir dahaki açılışta ad soyad ve şifre yeniden sorulur. Buluttaki kayıtlara dokunulmaz.", "You will be signed out on this computer (all trackers); your name and password will be asked again next time. Cloud records are not touched."), { baslik: cevir("Oturumu kapat", "Sign out"), evet: cevir("Oturumu kapat", "Sign out") })) b.ayril(); }}>${cevir("Oturumu kapat", "Sign out")}</button></div>`}
       </div>
     <//>`;
   }
@@ -243,9 +246,37 @@
       <button class="d" onClick=${() => { indir(`${onEk}-yedek-${bugun()}.json`, JSON.stringify({ uygulama: 'SKYHEM Takip', modul: b.modul.id, tarih: new Date().toISOString(), olaylar: d.sirali }, null, 1), 'application/json'); bildir(cevir("Yedek indirildi.")); }}><${Ikon} ad="indir" />${cevir("Tam yedek indir")}</button>
     <//>`;
   }
+  /* Hesaplar: yalnız sistem mimarı (Kamil) ve onay yetkilisi (Farukcan) görür. Şifresini unutan kişiye yeni geçici şifre verilir;
+     kişi bir sonraki girişte kendi şifresini yeniden belirler. Yetki sunucu işlevinde ayrıca denetlenir. */
+  function Hesaplar() {
+    const [liste, setListe] = useState(null);
+    const [hata, setHata] = useState('');
+    const [secili, setSecili] = useState('');
+    const [sifre, setSifre] = useState('');
+    const [bekle, setBekle] = useState(false);
+    const yukle = () => NT.oturum.islev({ islem: 'liste' }).then((j) => setListe(j.hesaplar || []), (e) => setHata(cevir(e.message)));
+    useEffect(() => { yukle(); }, []);
+    const ver = async () => {
+      if (sifre.length < 8) return setHata(cevir("Geçici şifre en az 8 karakter olmalı."));
+      setHata(''); setBekle(true);
+      try { await NT.oturum.islev({ islem: 'sifirla', kullanici: secili, sifre }); bildir(cevir("Geçici şifre verildi; kişi ilk girişte kendi şifresini belirleyecek.")); setSifre(''); setSecili(''); yukle(); }
+      catch (e) { setHata(cevir(e.message)); } finally { setBekle(false); }
+    };
+    return html`<${AyarKarti} baslik=${cevir("Hesaplar")} aciklama=${cevir("Kişisel hesaplar. Şifresini unutan kişiye buradan yeni geçici şifre verilir; kişi ilk girişte kendi şifresini belirler.")}>
+      ${!liste ? html`<div class="kucuk soluk">${hata || cevir("Yükleniyor…")}</div>` : html`
+        <table class="tablo" style="width:100%;text-align:left"><thead><tr><th>${cevir("Kişi")}</th><th>${cevir("Kullanıcı adı")}</th><th>${cevir("Rol")}</th><th>${cevir("Şifre")}</th><th>${cevir("Son giriş")}</th><th /></tr></thead>
+          <tbody>${liste.map((h) => html`<tr><td>${h.ad}</td><td class="mono kucuk">${h.kullanici}</td><td>${cevir(h.rol === 'yonetici' ? 'Yönetici' : 'Personel')}${h.mimar ? ' + ' + cevir('mimar') : ''}</td>
+            <td>${h.durum === 'yok' ? html`<span class="rozet yok">${cevir('Hesap yok')}</span>` : h.sifreBelirlendi ? cevir('Kendi şifresi') : html`<span class="soluk">${cevir('Geçici')}</span>`}</td><td class="kucuk">${h.sonGiris ? onceYaz(Date.parse(h.sonGiris)) : '—'}</td>
+            <td><button class="d kucuk-d" onClick=${() => { setSecili(h.kullanici); setSifre(''); setHata(''); }}>${h.durum === 'yok' ? cevir("Hesabı aç") : cevir("Geçici şifre ver")}</button></td></tr>`)}</tbody></table>
+        ${secili && html`<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center"><span class="mono">${secili}</span>
+          <input class="girdi" type="password" style="max-width:260px" placeholder=${cevir("Yeni geçici şifre (en az 8 karakter)")} value=${sifre} onInput=${(e) => setSifre(e.target.value)} autocomplete="new-password" />
+          <button class="d ana-d" disabled=${bekle} onClick=${ver}>${cevir("Ver")}</button><button class="d hayalet" onClick=${() => setSecili('')}>${cevir("Vazgeç")}</button></div>`}
+        ${hata && html`<div class="uyari-kutu yok" style="margin-top:10px"><${Ikon} ad="uyari" /><span>${hata}</span></div>`}`}
+    <//>`;
+  }
   function AyarlarSayfasi({ aciklama, cop, children }) {
     return html`<${Selam} baslik=${cevir("Ayarlar")}>${aciklama || cevir("Buradaki ayarlar bu sistemi kullanan herkes için ortaktır (profil ve görünüm hariç).")}<//>
-      <${Profil} />${children}<${Bulut} />${cop && yazabilir() && html`<${CopKutusu} turler=${cop} />`}<${Yedek} onEk=${b.modul.id} />`;
+      <${Profil} />${b.hesap && (b.hesap.mimar || b.hesap.onay) && html`<${Hesaplar} />`}${children}<${Bulut} />${cop && yazabilir() && html`<${CopKutusu} turler=${cop} />`}<${Yedek} onEk=${b.modul.id} />`;
   }
 
   /* ---------------- İskelet ---------------- */
@@ -280,7 +311,7 @@
     return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}>
       <aside class="tz-yan">
         <a class="tz-marka" href=${'#/' + sekmeler[0].id}><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><span>${cevir(b.modul.ad)}</span></a>
-        <${AnaEkranLinki} />
+        ${ayar.geri ? html`<a class="tz-anaekran" href=${ayar.geri.adres}>← ${ayar.geri.yazi}</a>` : html`<${AnaEkranLinki} />`}
         <nav class="tz-menu" aria-label=${cevir("Sayfalar")}>${sekmeler.map((s) => {
           const n = s.sayac ? s.sayac(d) : 0;
           return html`<a href=${'#/' + s.id} class=${sekme === s.id ? 'aktif' : ''}><${Ikon} ad=${s.ikon} />${cevir(s.ad)}${n > 0 ? html`<span class="n">${n}</span>` : ''}</a>`;
@@ -295,45 +326,19 @@
           <button class=${'tz-canli ' + durum} onClick=${() => d.tara()} title=${d.hata || cevir("Şimdi eşitle")}><span class="nokta" />
             <span><b>${b.mod === 'demo' ? cevir("Sunum modu") : d.hata ? cevir("Bağlantı sorunu") : d.bekleyen.length ? NT.dil.m("{0} değişiklik bekliyor", d.bekleyen.length) : cevir("Eşitlendi")}</b>
               ${b.mod === 'demo' ? cevir("Örnek veri · kaydedilmez") : NT.dil.m("Bulut · {0}", d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—')}</span></button>
-          <a class="tz-kullanici" href="#/ayarlar"><${Avatar} ad=${b.kullanici || '?'} kucuk /><span>${b.kullanici}</span></a>
+          <a class="tz-kullanici" href=${ayar.sayfalar.ayarlar ? '#/ayarlar' : '#/' + sekmeler[0].id}><${Avatar} ad=${b.kullanici || '?'} kucuk /><span>${b.kullanici}</span></a>
         </div>
       </aside>
       <div class="tz-ana">
-        ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${d instanceof NT.SunumDepo ? cevir('· Örnek kayıtlar bu tarayıcıda paylaşılır.', '· Sample records are shared in this browser.') : cevir("· Örnek veriler. Burada girdiğiniz hiçbir şey kaydedilmez; sayfa kapanınca silinir.")}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
+        ${b.mod === 'demo' && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${d instanceof NT.SunumDepo ? cevir('· Örnek kayıtlar bu tarayıcıda paylaşılır.', '· Sample records are shared in this browser.') : cevir("· Örnek veriler. Burada girdiğiniz hiçbir şey kaydedilmez; sayfa kapanınca silinir.")}</span>${!ayar.geri && html`<a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a>`}</div>`}
         <header class="tz-ust">${arama ? html`<${Arama} kaynak=${arama} />` : ''}<span style="flex:1" /><${DilSecimi} /><${TemaDugmesi} /></header>
         <main class=${'tz-icerik' + (sekme === 'ayarlar' ? ' tz-klasik' : '')}>${!yazabilir() && sekme !== 'ayarlar' && html`<div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>${cevir("Bu sistemde kayıtları yalnız Kamil ve Farukcan girebilir; siz görüntüleyebilirsiniz")}${NT.dil.yerel() === "tr-TR" ? kisit.ek : ""}.</span></div>`}<${Sayfa} /></main>
       </div>
     </div>`;
   }
 
-  /* ---------------- Giriş (ad + erişim kodu; bütün sistemlerde ortak) ---------------- */
-  function Kurulum({ baslik }) {
-    const [ad, setAd] = useState(b.kullanici);
-    const [kod, setKod] = useState(b.kod);
-    const [hata, setHata] = useState('');
-    const [bekle, setBekle] = useState(false);
-    const giris = async () => {
-      if (ad.trim().length < 2) return setHata(cevir("Önce adınızı yazın."));
-      if (kod.trim().length < 4) return setHata(cevir("Erişim kodunu yazın."));
-      setHata(''); setBekle(true);
-      try { await b.girisYap(ad, kod); } catch (e) { console.error(e); setHata(e); } finally { setBekle(false); }
-    };
-    const hataVar = b.durum === 'hata';
-    const girisFormu = !hataVar || b.hataKod;
-    const enter = (e) => e.key === 'Enter' && giris();
-    return html`<div class="tz-kurulum"><div class="tz-kurulum-kutu">
-      <div class="tz-kurulum-dil"><${DilSecimi} /></div>
-      <img src="uygulama/ortak/logo.svg" alt="SKYHEM" />
-      <h1>${hataVar && !b.hataKod ? cevir('Sunucuya bağlanılamadı') : cevir(baslik || 'SKYHEM Takip’e hoş geldiniz')}</h1>
-      <p>${hataVar ? cevir(b.hataMesaji) : cevir("Adınızı ve size verilen erişim kodunu bir kez yazın. Kayıtlar internet üzerinden herkesle otomatik eşitlenir.")}</p>
-      ${girisFormu && html`
-        <input class="girdi" style="font-size:17px;padding:12px 14px" placeholder=${cevir("Adınız Soyadınız")} value=${ad} onInput=${(e) => setAd(e.target.value)} onKeyDown=${enter} autofocus />
-        <input class="girdi mono" style="font-size:17px;padding:12px 14px;text-transform:uppercase" placeholder=${cevir("Erişim kodu (örn. SKY-XXXX-XXXX)")} value=${kod} onInput=${(e) => setKod(e.target.value)} onKeyDown=${enter} autocomplete="off" spellcheck="false" />
-        <button class="d ana-d tz-buyuk" disabled=${bekle} onClick=${giris}>${bekle ? cevir("Bağlanıyor…") : cevir("Başla")}</button>`}
-      ${!girisFormu && html`<button class="d ana-d tz-buyuk" onClick=${() => b.baslat()}>${cevir("Tekrar dene")}</button>`}
-      <${NT.ui.HataKutusu} hata=${hata} />
-    </div></div>`;
-  }
+  /* Giriş, ilk şifre ve hesap kurulumu ekranları ortak/bilesenler.js'te (NT.ui.Kurulum; Numune de aynısını kullanır). */
+  const Kurulum = (p) => html`<${NT.ui.Kurulum} ...${p} />`;
 
   /* ---------------- Sunum modu: bellekte depo + modülün örnek senaryosu ---------------- */
   class BellekDosya {

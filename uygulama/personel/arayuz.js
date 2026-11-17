@@ -45,6 +45,8 @@
   const Secenekler = ({ liste, deger, degis, sinif = '' }) => html`<div class=${'pn-secenekler ' + sinif} role="radiogroup">${liste.map((x) => html`
     <button type="button" role="radio" aria-checked=${deger === x.id} class=${deger === x.id ? 'secili' : ''} onClick=${() => degis(x.id)}>${adi(x)}</button>`)}</div>`;
   const Anahtar = ({ deger, degis, children }) => html`<label class="pn-anahtar"><input type="checkbox" checked=${deger} onChange=${(e) => degis(e.target.checked)} /><span class="iz" aria-hidden="true" /><span>${children}</span></label>`;
+  /* Yıllık izin rakamları şimdilik test gösterimidir; gerçek kalan izinler ileride ayrı bir güncelleme paketiyle gelecek (sekreter kararı, 2026-11-17). */
+  const IZIN_TEST = () => c('Yıllık izin rakamları test gösterimidir; gerçek rakamlar daha sonra güncellenecek.', 'Annual leave figures are a test display; the real figures will be updated later.');
   const YERLER = ['Dolum alanı', 'Depo', 'Üretim / reaktör', 'Kazan dairesi', 'Laboratuvar', 'Ofis', 'Bahçe / dış alan'];
 
   /* Gönderim sonrası kısa teşekkür + (isimsizde) takip kodu. */
@@ -72,7 +74,7 @@
       if (hata.bas || hata.bit || hata.gun) return;
       const no = await talepYaz(d, 'izin', { izinTur: f.izinTur, bas: f.bas, bit, gun, aciklama: f.aciklama.trim(), rapor: f.rapor });
       kapat();
-      K.ac(Gonderildi, { baslik: c('Talebiniz gönderildi', 'Request sent'), metin: cm('{0} numaralı izin talebiniz yönetime iletildi. Onaylanınca burada ve yoklamada görünür.', 'Your leave request {0} has been sent. Once approved it shows here and in attendance.', no) });
+      K.ac(Gonderildi, { baslik: c('Talebiniz gönderildi', 'Request sent'), metin: gonderildiMetni(no, '{0} numaralı izin talebiniz yönetime iletildi. Onaylanınca burada ve yoklamada görünür.', 'Your leave request {0} has been sent. Once approved it shows here and in attendance.') });
     }
     return html`<${Modal} baslik=${c('İzin talebi', 'Leave request')} kapat=${kapat} sinif="pn-form"
       alt=${html`<button class="d hayalet" onClick=${kapat}>${c('Vazgeç', 'Cancel')}</button><button class="d ana-d pn-gonder" onClick=${gonder}><${Ikon} ad="tik" />${c('Talebi gönder', 'Send request')}</button>`}>
@@ -109,7 +111,7 @@
       if (!dolu.length || !dolu.every(miktarGecerli)) return;
       const no = await talepYaz(d, 'malzeme', { kalemler: dolu.map((k) => ({ ad: k.ad.trim(), adet: Number(k.adet), birim: k.birim, not: k.not.trim() })), acil });
       kapat();
-      K.ac(Gonderildi, { baslik: c('İsteğiniz gönderildi', 'Request sent'), metin: cm('{0} numaralı malzeme isteğiniz yönetime iletildi.', 'Your material request {0} has been sent.', no) });
+      K.ac(Gonderildi, { baslik: c('İsteğiniz gönderildi', 'Request sent'), metin: gonderildiMetni(no, '{0} numaralı malzeme isteğiniz yönetime iletildi.', 'Your material request {0} has been sent.') });
     }
     return html`<${Modal} baslik=${c('Malzeme isteği', 'Material request')} kapat=${kapat} sinif="pn-form"
       alt=${html`<button class="d hayalet" onClick=${kapat}>${c('Vazgeç', 'Cancel')}</button><button class="d ana-d pn-gonder" onClick=${gonder}><${Ikon} ad="tik" />${c('İsteği gönder', 'Send request')}</button>`}>
@@ -219,12 +221,20 @@
       </div><//>`;
   }
 
+  /* Yönetim › Taleplerim (sekreter onayı, 2026-11-17): yönetim kadrosu kendi taleplerini yönetim panelinden verir, kararı onay yetkilisi
+     (Farukcan Bey) verir. Onay yetkilisinin kendi talebi onaya düşmez, doğrudan kayıt olarak işlenir; kimse kendi talebine karar veremez.
+     Canlıda onay yetkisi hesaptan (app_metadata.onay) gelir; sunumda ad kuralı. */
+  const onayYetkilisi = () => (b.hesap ? !!b.hesap.onay : yonetici());
+  const kendiKaydi = () => YONETIM && onayYetkilisi();
   async function talepYaz(d, tur, ayrinti) {
+    const dogrudan = kendiKaydi();
     const [olay] = await d.numuneIslem(() => [{ c: 'talep', k: uid(), v: {
-      no: K.yeniNo(d, 'talep', 'TL'), tur, sahip: b.kullanici, tarih: bugun(), durum: 'bekliyor', ...ayrinti,
+      no: K.yeniNo(d, 'talep', 'TL'), tur, sahip: b.kullanici, tarih: bugun(), durum: dogrudan ? 'onaylandi' : 'bekliyor', ...ayrinti,
+      ...(dogrudan ? { karar: { kim: b.kullanici, tarih: bugun(), not: c('Onay yetkilisinin kendi talebi; doğrudan kayıt', 'Approver’s own request; recorded directly') } } : {}),
     } }]);
     return olay.v.no;
   }
+  const gonderildiMetni = (no, tr, en) => (kendiKaydi() ? cm('{0} numaralı talebiniz doğrudan kayda işlendi.', 'Your request {0} has been recorded.', no) : cm(tr, en, no));
 
   /* ---------------- Talep ve bildirim ayrıntısı (iki görünümde ortak) ---------------- */
   function TalepDetay({ talep: ilk, kapat }) {
@@ -249,7 +259,7 @@
   async function karar(t, durum, not = '') {
     const d = depo();
     const olaylar = await d.numuneIslem(() => {
-      if (!yonetici() || d.kayit('talep', t.id)?.durum !== 'bekliyor') return [];
+      if (!yonetici() || t.sahip === b.kullanici || d.kayit('talep', t.id)?.durum !== 'bekliyor') return [];
       return [{ c: 'talep', k: t.id, v: { durum, karar: { kim: b.kullanici, tarih: bugun(), not } } }];
     });
     if (!olaylar.length) return;
@@ -265,6 +275,7 @@
   }
   function KararDugmeleri({ talep, sonra, kompakt }) {
     if (!yonetici()) return html`<span class="soluk kucuk pn-yalniz">${c('Onayı yalnız Yönetici verir', 'Only managers approve')}</span>`;
+    if (talep.sahip === b.kullanici) return html`<span class="soluk kucuk pn-yalniz">${c('Kendi talebinize karar veremezsiniz', 'You cannot decide on your own request')}</span>`;
     return html`<div class=${'pn-karar' + (kompakt ? ' kompakt' : '')}>
       <button class="d ana-d kucuk-d" onClick=${async (e) => { e.stopPropagation(); await karar(talep, talep.tur === 'ariza' ? 'tamamlandi' : 'onaylandi'); sonra && sonra(); }}><${Ikon} ad="tik" boyut=${15} />${talep.tur === 'ariza' ? c('Giderildi', 'Fixed') : c('Onayla', 'Approve')}</button>
       <button class="d kucuk-d" onClick=${(e) => { e.stopPropagation(); K.ac(RedFormu, { talep, sonra }); }}>${c('Reddet', 'Decline')}</button></div>`;
@@ -300,6 +311,9 @@
       ac: () => { location.href = NT.c.adres('numune', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
     { id: 'yemek', ad: 'Yemek menüsü', en: 'Meal menu', alt: 'Bugünün yemekleri ve aylık tablo', altEn: 'Today’s meals and monthly menu', ikon: 'yemek',
       ac: () => { location.href = NT.c.adres('yemek', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
+    /* Yönetim › Yoklama ile aynı kayıt ve kurallar; kişi yalnız kendi yoklamasını görür ve girer (sekreter kararı, 2026-11-17). */
+    { id: 'yoklama', ad: 'Yoklama', en: 'Attendance', alt: 'İzin, rapor ve fazla mesai kayıtlarım', altEn: 'My leave, sick leave and overtime records', ikon: 'takvim',
+      ac: () => { location.href = NT.c.adres('yoklama', { kullanici: b.kullanici }) + '&gorunum=personel'; } },
     { id: 'malzeme', ad: 'Malzeme isteği', en: 'Material request', alt: 'Eldiven, KKD, sarf', altEn: 'Gloves, PPE, supplies', ikon: 'kutu', ac: () => K.ac(MalzemeFormu) },
     { id: 'ariza', ad: 'Arıza bildir', en: 'Report a fault', alt: 'Fotoğrafla, yerinden', altEn: 'With a photo, on the spot', ikon: 'ayar', ac: () => K.ac(ArizaFormu) },
     { id: 'ramak', ad: 'Ramak kala', en: 'Near miss', alt: 'İsimsiz gönderilebilir', altEn: 'Can be anonymous', ikon: 'uyari', ac: () => K.ac(BildirimFormu, { ramak: true }) },
@@ -436,7 +450,7 @@
     const izin = P.izinDurumu(d, b.kullanici);
     return html`
       <div class="pn-serit">
-        <a href="#/profil" style=${{ '--i': 0 }}><small>${c('Kalan yıllık izin', 'Annual leave left')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
+        <a href="#/profil" style=${{ '--i': 0 }}><small>${c('Kalan yıllık izin (test)', 'Annual leave left (test)')}</small><b>${izin ? cm('{0} gün', '{0} days', izin.kalan) : '—'}</b></a>
         <a href="#/taleplerim" style=${{ '--i': 1 }}><small>${c('Açık taleplerim', 'Open requests')}</small><b>${acik}</b></a>
       </div>
       <div class="pn-ana-izgara">
@@ -491,7 +505,8 @@
         <div class="pn-izin-tablo">
           <div><small>${c('Hak', 'Entitlement')}</small><b>${izin.hak}</b></div><div><small>${c('Kullanılan', 'Used')}</small><b>${izin.kullanilan}</b></div>
           <div><small>${c('Onay bekleyen', 'Pending')}</small><b>${izin.bekleyen}</b></div><div class="vurgu"><small>${c('Kalan', 'Left')}</small><b>${izin.kalan}</b></div></div>
-        <p class="soluk kucuk">${cm('İzin yılı {0} – {1} · kıdem {2} yıl. Devreden izinler İK kaydına göre ayrıca eklenir.', 'Leave year {0} – {1} · {2} years of service. Carried-over days are added from HR records.', tarihYaz(izin.bas), tarihYaz(izin.bit), izin.kidem)}</p></section>`}
+        <div class="uyari-kutu bilgi pn-izin-test"><${Ikon} ad="bilgi" /><span>${IZIN_TEST()}</span></div>
+        <p class="soluk kucuk">${cm('İzin yılı {0} – {1} · kıdem {2} yıl.', 'Leave year {0} – {1} · {2} years of service.', tarihYaz(izin.bas), tarihYaz(izin.bit), izin.kidem)}</p></section>`}
       <section class="pn-bolum"><h2>${c('Görünüm', 'Display')}</h2><div class="pn-ayar"><${NT.dil.DilSecimi} /><${K.TemaDugmesi} /></div></section>
       <section class="pn-bolum"><h2>${c('Gizlilik', 'Privacy')}</h2><p class="kucuk">${c('Sunumda kendi talepleriniz gösterilir. Gerçek kayıtlara erişim kişisel hesaplarla tanımlanacak.', 'The demo shows your own requests. Access to live records will be set up with personal accounts.')}</p></section>`;
   }
@@ -585,10 +600,23 @@
   function IzinDurumu() {
     const d = depo();
     const satirlar = P.kisiler(d).map((k) => ({ k, i: P.izinDurumu(d, k.ad) })).filter((x) => x.i);
-    return html`<${K.Selam} baslik=${c('İzin durumu', 'Leave balances')}>${c('Bu izin yılı için yıllık izin hakkı (İş Kanunu 53. madde) ve kullanımı. Devreden izinler ve yaş kuralı henüz hesaba katılmıyor.', 'Annual leave entitlement (Labour Law art. 53) and usage for the current leave year. Carry-over and age rules are not yet included.')}<//>
+    return html`<${K.Selam} baslik=${c('İzin durumu', 'Leave balances')}>${c('Bu izin yılı için yıllık izin hakkı (İş Kanunu 53. madde) ve kullanımı.', 'Annual leave entitlement (Labour Law art. 53) and usage for the current leave year.')}<//>
+      <div class="uyari-kutu bilgi" style="margin-bottom:14px"><${Ikon} ad="bilgi" /><span>${IZIN_TEST()}</span></div>
       <${K.Kart}><div class="tablo-kap"><table class="tablo"><thead><tr><th>${c('Kişi', 'Person')}</th><th>${c('İşe başlama', 'Joined')}</th><th class="sag">${c('Kıdem', 'Service')}</th><th>${c('İzin yılı', 'Leave year')}</th><th class="sag">${c('Hak', 'Entitled')}</th><th class="sag">${c('Kullanılan', 'Used')}</th><th class="sag">${c('Bekleyen', 'Pending')}</th><th class="sag">${c('Kalan', 'Left')}</th></tr></thead><tbody>
         ${satirlar.map(({ k, i }) => html`<tr key=${k.id}><td><b>${k.ad}</b></td><td class="kucuk">${tarihYaz(k.iseBaslama)}</td><td class="sag sayi">${i.kidem}</td><td class="kucuk">${tarihYaz(i.bas)} – ${tarihYaz(i.bit)}</td>
           <td class="sag sayi">${i.hak}</td><td class="sag sayi">${i.kullanilan}</td><td class="sag sayi">${i.bekleyen || ''}</td><td class="sag sayi"><b>${i.kalan}</b></td></tr>`)}</tbody></table></div><//>`;
+  }
+
+  /* Yönetim › Taleplerim: yönetim kadrosunun kendi izin ve malzeme talepleri (personel paneline girmeden). */
+  function YonetimTaleplerim() {
+    const d = depo();
+    const benim = P.benimTaleplerim(d, b.kullanici);
+    return html`<${K.Selam} baslik=${c('Taleplerim', 'My requests')} sag=${html`<button class="d ana-d" onClick=${() => K.ac(IzinFormu)}><${Ikon} ad="takvim" />${c('İzin talebi', 'Leave request')}</button>
+        <button class="d" onClick=${() => K.ac(MalzemeFormu)}><${Ikon} ad="kutu" />${c('Malzeme isteği', 'Material request')}</button>`}>
+        ${kendiKaydi() ? c('Talepleriniz onaya düşmeden doğrudan kayda işlenir.', 'Your requests are recorded directly, without approval.')
+          : c('İzin ve malzeme taleplerinizi buradan verin; kararı Farukcan Bey verir.', 'Submit your leave and material requests here; Farukcan Bey decides.')}<//>
+      <${K.Kart}><div class="kart-ic">${benim.length ? html`<ul class="pn-liste">${benim.map((t) => html`<${TalepSatiri} key=${t.id} t=${t} />`)}</ul>`
+        : html`<${BosDurum} ikon="liste" baslik=${c('Henüz talebiniz yok', 'No requests yet')} />`}</div><//>`;
   }
 
   /* ---------------- Başlat ---------------- */
@@ -611,9 +639,10 @@
         { id: 'talepler', ad: 'Talepler', ikon: 'liste' },
         { id: 'bildirimler', ad: 'Bildirimler', ikon: 'uyari' },
         { id: 'izin', ad: 'İzin durumu', ikon: 'takvim' },
+        { id: 'taleplerim', ad: 'Taleplerim', ikon: 'kisi', sayac: (d) => P.benimTaleplerim(d, b.kullanici).filter((t) => t.durum === 'bekliyor').length },
         { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
       ],
-      sayfalar: { onaylar: Onaylar, talepler: TumTalepler, bildirimler: TumBildirimler, izin: IzinDurumu, ayarlar: () => html`<${K.AyarlarSayfasi} />` },
+      sayfalar: { onaylar: Onaylar, talepler: TumTalepler, bildirimler: TumBildirimler, izin: IzinDurumu, taleplerim: YonetimTaleplerim, ayarlar: () => html`<${K.AyarlarSayfasi} />` },
     });
     return;
   }

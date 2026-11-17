@@ -26,15 +26,142 @@
     return Object.assign(new Error(mesaj), { name: ad, detay });
   }
 
+  /* ---------------- Kişisel hesap oturumu (Supabase Auth; context/kararlar.md 2026-11-16) ----------------
+     Kişi adını soyadını ve şifresini yazar; "Kamil Gülhan" → kullanıcı adı "kamil.gulhan" (küçük harf, Türkçe harfsiz).
+     Hesaplar e-postasızdır: arka planda iç adres kullanılır, hiçbir yere posta gitmez. Hesabı yalnız sunucu işlevi açar.
+     Oturum bu tarayıcıda saklanır (nt.oturum) ve bütün sayfalarca paylaşılır; erişim belirteci süresi dolmadan yenilenir. */
+  const IC_ALAN = 'hesap.skyhem.invalid';
+  const OTURUM = 'nt.oturum';
+  const HARF = { ç: 'c', ğ: 'g', ı: 'i', i: 'i', ö: 'o', ş: 's', ü: 'u', â: 'a', î: 'i', û: 'u' };
+  function kullaniciAdi(adSoyad) {
+    return String(adSoyad || '').toLocaleLowerCase('tr-TR').replace(/[çğıiöşüâîû]/g, (h) => HARF[h])
+      .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9.\s-]/g, '').trim().split(/[\s.]+/).filter(Boolean).join('.');
+  }
+  const oturumOku = () => { try { return JSON.parse(localStorage.getItem(OTURUM) || 'null'); } catch { return null; } };
+  const oturumYaz = (o) => { try { o ? localStorage.setItem(OTURUM, JSON.stringify(o)) : localStorage.removeItem(OTURUM); } catch { /* yoksay */ } };
+  function oturumYap(j) {
+    return { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: j.user };
+  }
+  async function authIstek(yol, { method = 'POST', govde, belirtec } = {}) {
+    let r;
+    try {
+      r = await fetch(`${SUNUCU}/auth/v1/${yol}`, {
+        method,
+        headers: { apikey: ANAHTAR, 'Content-Type': 'application/json', ...(belirtec ? { Authorization: 'Bearer ' + belirtec } : {}) },
+        body: govde !== undefined ? JSON.stringify(govde) : undefined,
+        cache: 'no-store',
+      });
+    } catch (e) {
+      throw hataYap('Sunucuya ulaşılamadı. İnternet bağlantısını kontrol edin.', 'BaglantiYok', e.message);
+    }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw hataYap(j.msg || j.error_description || j.message || `Sunucu hatası (${r.status}).`, r.status === 400 || r.status === 401 || r.status === 403 ? 'OturumHatasi' : 'SunucuHatasi', j.error_code || j.error);
+    return j;
+  }
+  let yenileniyor = null;
+  async function yenile(eski) {
+    const kilitli = async () => {
+      const simdiki = oturumOku(); // başka sekme yenilemiş olabilir
+      if (simdiki && simdiki.refresh_token !== eski.refresh_token && simdiki.expires_at - Date.now() / 1000 > 60) return simdiki;
+      try {
+        const o = oturumYap(await authIstek('token?grant_type=refresh_token', { govde: { refresh_token: (simdiki || eski).refresh_token } }));
+        oturumYaz(o);
+        return o;
+      } catch (e) {
+        if (e.name === 'OturumHatasi') oturumYaz(null); // oturum geçersiz: yeniden giriş istenir
+        throw e;
+      }
+    };
+    return navigator.locks ? navigator.locks.request('nt-oturum-yenile', kilitli) : kilitli();
+  }
+  const oturum = {
+    kullaniciAdi,
+    var: () => !!oturumOku(),
+    /* Hesap bilgisi: { ad, rol: personel|yonetici, mimar, onay, kullanici, sifreBelirlendi } */
+    kim() {
+      const o = oturumOku();
+      if (!o || !o.user) return null;
+      const a = o.user.app_metadata || {};
+      return { ad: a.ad || '', rol: a.rol || '', mimar: !!a.mimar, onay: !!a.onay, kullanici: a.kullanici || '', sifreBelirlendi: !!(o.user.user_metadata || {}).sifre_belirlendi };
+    },
+    async girisYap(adSoyad, sifre) {
+      const ka = kullaniciAdi(adSoyad);
+      // Tek kelimelik ad da olabilir (Alex, sekreter kararı 2026-11-17); yanlış ad "Ad soyad veya şifre yanlış" döner.
+      if (!ka) throw hataYap('Adınızı ve soyadınızı yazın.', 'OturumHatasi');
+      try {
+        const o = oturumYap(await authIstek('token?grant_type=password', { govde: { email: `${ka}@${IC_ALAN}`, password: sifre } }));
+        oturumYaz(o);
+        return oturum.kim();
+      } catch (e) {
+        if (e.name === 'OturumHatasi') throw hataYap('Ad soyad veya şifre yanlış.', 'OturumHatasi');
+        throw e;
+      }
+    },
+    /* Geçerli erişim belirteci; süresi bitmek üzereyse yenilenir. Oturum yoksa null. */
+    async belirtec() {
+      const o = oturumOku();
+      if (!o) return null;
+      if (o.expires_at - Date.now() / 1000 > 60) return o.access_token;
+      if (!yenileniyor) yenileniyor = yenile(o).finally(() => { yenileniyor = null; });
+      try { return (await yenileniyor).access_token; } catch (e) {
+        if (e.name === 'BaglantiYok') return o.access_token; // internet yok: eski belirteçle dene, kayıtlar bekletilir
+        return null;
+      }
+    },
+    /* İlk girişte (ve istenince) kişinin kendi şifresini belirlemesi. */
+    async sifreBelirle(yeni) {
+      if (String(yeni).length < 8) throw hataYap('Şifre en az 8 karakter olmalı.', 'OturumHatasi');
+      const t = await oturum.belirtec();
+      if (!t) throw hataYap('Oturum kapanmış; yeniden giriş yapın.', 'OturumHatasi');
+      let user;
+      try {
+        user = await authIstek('user', { method: 'PUT', belirtec: t, govde: { password: yeni, data: { sifre_belirlendi: true } } });
+      } catch (e) {
+        if (e.detay === 'same_password') throw hataYap('Yeni şifre geçici şifreden farklı olmalı.', 'OturumHatasi');
+        if (e.detay === 'weak_password') throw hataYap('Bu şifre çok zayıf; daha uzun ve tahmin edilmesi zor bir şifre seçin.', 'OturumHatasi');
+        throw e;
+      }
+      const o = oturumOku();
+      if (o) oturumYaz({ ...o, user: user.id ? user : o.user });
+      return oturum.kim();
+    },
+    async cikis() {
+      const o = oturumOku();
+      oturumYaz(null);
+      if (o) authIstek('logout?scope=local', { belirtec: o.access_token }).catch(() => {});
+    },
+    /* Sunucu işlevi: hesapları kurma (erişim koduyla), listeleme ve geçici şifre verme (yetkili oturumla). */
+    async islev(govde, { kod } = {}) {
+      const t = await oturum.belirtec();
+      let r;
+      try {
+        r = await fetch(`${SUNUCU}/functions/v1/hesaplar`, {
+          method: 'POST',
+          headers: { apikey: ANAHTAR, 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}), ...(kod ? { 'x-nt-kod': kod } : {}) },
+          body: JSON.stringify(govde),
+          cache: 'no-store',
+        });
+      } catch (e) {
+        throw hataYap('Sunucuya ulaşılamadı. İnternet bağlantısını kontrol edin.', 'BaglantiYok', e.message);
+      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw hataYap(j.hata || `Sunucu hatası (${r.status}).`, 'SunucuHatasi');
+      return j;
+    },
+  };
+  NT.oturum = oturum;
+
   async function istek(kod, yol, { method = 'GET', govde, prefer, sure = 20000 } = {}) {
     const iptal = new AbortController();
     const z = setTimeout(() => iptal.abort(), sure);
+    const belirtec = await oturum.belirtec();
     let r;
     try {
       r = await fetch(`${SUNUCU}/rest/v1/${yol}`, {
         method,
         headers: {
           apikey: ANAHTAR,
+          ...(belirtec ? { Authorization: 'Bearer ' + belirtec } : {}),
           'x-nt-kod': kod,
           ...(govde !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(prefer ? { Prefer: prefer } : {}),
@@ -51,7 +178,7 @@
     if (!r.ok) {
       const metin = await r.text().catch(() => '');
       if (r.status === 401 || r.status === 403 || /row-level security/.test(metin)) {
-        throw hataYap('Erişim kodu kabul edilmedi.', 'KodHatasi', metin.slice(0, 200));
+        throw hataYap(oturum.var() ? 'Oturumunuz kabul edilmedi; yeniden giriş yapın.' : 'Erişim kodu kabul edilmedi.', 'KodHatasi', metin.slice(0, 200));
       }
       throw hataYap(`Sunucu hatası (${r.status}).`, 'SunucuHatasi', metin.slice(0, 200));
     }

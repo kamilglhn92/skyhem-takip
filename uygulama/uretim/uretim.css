@@ -209,3 +209,48 @@ td.disari .ur-girdi, td.gecersiz .ur-girdi { border-color: var(--yok); backgroun
 .ur-sayfalar { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
 .ur-sayfalar li { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 10px; border: 1px solid var(--cizgi); border-radius: 12px; background: var(--yuzey2); }
 .ur-sayfalar img { width: 96px; height: 120px; object-fit: contain; background: #fff; border-radius: 6px; transition: transform .2s; }
+
+/* Grafik değer ipucu (2026-11-17): fareyle ya da parmakla gezilince o andaki değerler */
+.ur-cizgi { position: relative; }
+.ur-cizgi svg { touch-action: pan-y; cursor: crosshair; }
+.ur-imlec line { stroke: var(--murekkep); stroke-width: 1; stroke-dasharray: 3 3; opacity: .55; }
+.ur-imlec circle { stroke: var(--yuzey); stroke-width: 2; }
+.ur-ipucu { position: absolute; top: 2px; transform: translateX(10px); z-index: 2; pointer-events: none; display: grid; gap: 3px; min-width: 150px; max-width: 260px; padding: 8px 10px; border-radius: 10px; background: var(--yuzey); border: 1px solid var(--cizgi); box-shadow: 0 6px 18px rgba(0, 0, 0, .14); font-size: 12.5px; }
+.ur-ipucu.sag { transform: translateX(-10px); }
+.ur-ipucu > b { font-size: 13px; }
+.ur-ipucu span { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; color: var(--ikincil); }
+.ur-ipucu span > span, .ur-ipucu span { white-space: nowrap; }
+.ur-ipucu span i { width: 10px; height: 3px; border-radius: 2px; }
+.ur-ipucu span b { color: var(--murekkep); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ur-ipucu span b.kirmizi { color: var(--kritik); }
+.ur-ipucu span small { grid-column: 2 / 4; color: var(--soluk); margin-top: -2px; }
+
+.ur-kayit-rozet { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; flex: none; }
+
+/* Grafikler ve Formlar: partiye göre / forma göre seçimleri */
+.ur-secim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+.ur-secim > .kucuk { margin-right: 4px; }
+.ur-secim .secenek { display: inline-flex; align-items: center; gap: 6px; }
+.ur-parti-sec i { width: 12px; height: 3px; border-radius: 2px; background: var(--renk); }
+.ur-renk { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+.ur-karsilastir { margin-top: 12px; }
+.tz-m-uretim .tz-icerik > .tz-kart + .tz-kart { margin-top: 14px; }
+.ur-form-sec { max-width: 220px; margin-left: 8px; border-radius: 99px; }
+.ur-form-etiket { white-space: nowrap; }
+
+/* Dar alanda (telefon ya da masaüstünde dar kart) kayıt satırının rozetleri metnin altına iner. */
+.ur-kayitlar { container-type: inline-size; }
+@container (max-width: 560px) {
+  .ur-kayitlar li { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; row-gap: 6px; align-items: start; padding: 12px 0; }
+  .ur-kayitlar .ne { grid-column: 2; }
+  .ur-kayit-rozet { grid-column: 2; justify-content: flex-start; }
+}
+
+/* Telefon: kayıt satırında rozetler metnin altına iner; metin tam genişlik kullanır (sekreter ekran görüntüsü, 2026-11-17) */
+@media (max-width: 640px) {
+
+  .tz-m-uretim .tz-kart { padding: 16px 12px; }
+  .tz-m-uretim .tz-kart .kart-ic { padding: 6px 2px; }
+  .ur-form-sec { margin-left: 0; max-width: none; }
+  .ur-ipucu { min-width: 0; max-width: 80%; font-size: 12px; }
+}

@@ -1,4 +1,7 @@
-/* Yoklama — arayüz: bugün, aylık çizelge (İK karşılaştırması), kayıtlar, personel, ayarlar. Ücret hesabı yoktur. */
+/* Yoklama — arayüz: bugün, aylık çizelge (İK karşılaştırması), kayıtlar, personel, ayarlar. Ücret hesabı yoktur.
+ * Personel görünümü (Personel paneli › Yoklama, &gorunum=personel): aynı kayıt ve aynı kurallar; kişi yalnız kendi satırını
+ * ve kendi kayıtlarını görür, yalnız kendisi için kayıt girer. Ay onayı, Personel listesi ve Ayarlar yönetimde kalır.
+ * Şimdilik sunumda; canlıda süzme sunucu tarafında (rol + RLS) yapılacak (context/personel-paneli.md). */
 (function () {
   'use strict';
   const NT = window.NT;
@@ -10,7 +13,37 @@
   const T = NT.tatil;
   const { bugun, uid, sayi, tarihYaz, gunEkle, ara, AYLAR, onceYaz } = NT.c;
   const b = NT.baglanti;
-  const depo = () => b.depo;
+  const q = new URLSearchParams(location.search);
+  const PERSONEL = q.has('demo') && (q.get('gorunum') === 'personel' || /^(ahmet|ali|hasan|mehmet)(\s|$)/i.test((q.get('kullanici') || '').trim()));
+
+  /* Personel görünümünde depo, yalnız kişinin kendi kişi kaydını ve kendi istisnalarını döndüren bir görünümle sarılır;
+     yazma, abonelik vb. aynı depoya gider (senkron bozulmaz). Kişi, Yoklama'daki adıyla eşleşir (büyük/küçük harf fark etmez). */
+  const adAyni = (a, x) => NT.c.kucuk(String(a || '').trim()) === NT.c.kucuk(String(x || '').trim());
+  function benimId(d) {
+    const l = d.kayitlar('kisi');
+    const tam = l.find((k) => adAyni(k.ad, b.kullanici));
+    if (tam) return tam.id;
+    const ilk = (s) => NT.c.kucuk(String(s || '').trim().split(/\s+/)[0]);
+    const ayni = l.filter((k) => ilk(k.ad) === ilk(b.kullanici));
+    return ayni.length === 1 ? ayni[0].id : '';
+  }
+  function kendiGorunumu(d) {
+    const benim = (c, r, id) => (c === 'kisi' ? r.id === id : c === 'istisna' ? r.kisi === id : true);
+    return new Proxy(d, {
+      get(t, p) {
+        if (p === 'kayitlar') return (c, o) => { const id = benimId(t); return t.kayitlar(c, o).filter((r) => benim(c, r, id)); };
+        if (p === 'kayit') return (c, k) => { const r = t.kayit(c, k); return r && benim(c, r, benimId(t)) ? r : undefined; };
+        const v = Reflect.get(t, p, t);
+        return typeof v === 'function' ? v.bind(t) : v;
+      },
+    });
+  }
+  let sarili = null, sarilan = null;
+  const depo = () => {
+    if (!PERSONEL || !b.depo) return b.depo;
+    if (sarilan !== b.depo) { sarilan = b.depo; sarili = kendiGorunumu(b.depo); }
+    return sarili;
+  };
   const kisaTarih = (t) => `${+t.slice(8, 10)} ${cevir(AYLAR[+t.slice(5, 7) - 1])}`;
   const aralik = (i) => (!i.bit || i.bit === i.bas ? tarihYaz(i.bas) : `${kisaTarih(i.bas)} – ${tarihYaz(i.bit)}`);
   const kisiAdi = (id) => depo()?.kayit('kisi', id)?.ad || '?';
@@ -39,7 +72,7 @@
     const d = depo();
     const kisiler = Y.kisiler(d);
     const [f, setF] = useState(() => (kayit ? { kisiler: [kayit.kisi], tur: kayit.tur, bas: kayit.bas, bit: kayit.bit || kayit.bas, saat: kayit.saat ? Y.saatYaz(sayi(kayit.saat)) : '', yarim: !!kayit.yarim, notlar: kayit.notlar || '', ekler: kayit.ekler || [] }
-      : { kisiler: on.kisi ? [on.kisi] : [], tur: on.tur || '', bas: on.bas || bugun(), bit: on.bas || bugun(), saat: '', yarim: false, notlar: '', ekler: [] }));
+      : { kisiler: on.kisi ? [on.kisi] : PERSONEL && kisiler.length === 1 ? [kisiler[0].id] : [], tur: on.tur || '', bas: on.bas || bugun(), bit: on.bas || bugun(), saat: '', yarim: false, notlar: '', ekler: [] }));
     const [denendi, setDenendi] = useState(false);
     const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
     const t = f.tur ? Y.tur(f.tur) : null;
@@ -106,12 +139,14 @@
     const saat = new Date().getHours();
     const adK = (b.kullanici || '').split(' ')[0];
     const a = Y.ayar(d);
+    if (PERSONEL && !Y.kisiler(d).length) return html`<${K.Selam} baslik=${cevir("Yoklamam", "My attendance")}>${b.kullanici}<//><${BosDurum} ikon="kisi" baslik=${cevir("Yoklama listesinde kaydınız yok", "You are not on the attendance list")} aciklama=${cevir("Yoklamanız yönetimin Yoklama listesine eklenince burada görünür. Yönetime haber verin.", "Your attendance appears here once management adds you to the attendance list. Please let management know.")} />`;
     if (!Y.kisiler(d).length) return html`<${K.Selam} baslik=${cevir("Yoklama")}>${cevir("Henüz personel yok.")}<//><${BosDurum} ikon="kisi" baslik=${cevir("Personel ekleyin")} aciklama=${cevir("Önce Personel sayfasından çalışanları ekleyin.")}><a class="d ana-d" href="#/personel">${cevir("Personel ekle")}</a><//>`;
     return html`
       <${K.Selam} bant baslik=${`${cevir(saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')}${adK ? ', ' + adK : ''}.`}
         sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => yeniKayit({})}><${Ikon} ad="arti" />${cevir("Kayıt gir")}</button>`}>
-        ${T.isGunu(bg) ? html`${cevir("Bugün")} <b class="v">${takipte.length - yok.length} / ${takipte.length}</b> ${cevir("kişi işte.")}${yok.length ? html` ${yok.map((x) => `${x.k.ad} (${cevir(Y.tur(x.g.tur).ad).toLocaleLowerCase(NT.dil.yerel())})`).join(', ')}.` : ''}` : html`${cevir("Bugün")} ${T.tatil(bg) ? cevir(T.tatil(bg)) : cevir("hafta sonu")}.`}
-        ${' '}${cevir("Herkes işte sayılır; yalnızca izin, rapor, gelmeme ve fazla mesai girilir.")}
+        ${PERSONEL ? html`${cevir("Bugün")}: <b class="v">${takipte.length ? durumYazi(takipte[0].g, bg) : cevir("Takip dışı")}</b>. ${cevir("İş günlerinde işte sayılırsınız; yalnız izin, rapor ve fazla mesai girilir.", "On working days you count as present; only leave, sick leave and overtime are entered.")}`
+          : html`${T.isGunu(bg) ? html`${cevir("Bugün")} <b class="v">${takipte.length - yok.length} / ${takipte.length}</b> ${cevir("kişi işte.")}${yok.length ? html` ${yok.map((x) => `${x.k.ad} (${cevir(Y.tur(x.g.tur).ad).toLocaleLowerCase(NT.dil.yerel())})`).join(', ')}.` : ''}` : html`${cevir("Bugün")} ${T.tatil(bg) ? cevir(T.tatil(bg)) : cevir("hafta sonu")}.`}
+        ${' '}${cevir("Herkes işte sayılır; yalnızca izin, rapor, gelmeme ve fazla mesai girilir.")}`}
       <//>
       ${a.baslangic && bg < Y.ayKaydir(a.baslangic.slice(0, 7), 1) + '-01' && html`<div class="uyari-kutu bilgi" style="margin-bottom:16px"><${Ikon} ad="bilgi" /><span>${cevir("Yoklama")} ${tarihYaz(a.baslangic)} ${cevir("tarihinden itibaren tutuluyor; önceki günler sayılmaz.")}</span></div>`}
       <div class="yk-bugun">${l.map(({ k, g }) => html`<div class=${'yk-kisi' + (g.yok ? ' yok' : '')}>
@@ -127,7 +162,7 @@
         <${K.Kpi} ikon="kapat" ad="Gelmedi" deger=${Y.saatYaz(ay.reduce((s, x) => s + x.gelmedi, 0))} birim="gün" alt=${Y.ayAdi(bg.slice(0, 7))} />
       </div>
       <div class="tz-izgara">
-        <${K.Kart} baslik=${NT.dil.m("{0} · kişi başı", Y.ayAdi(bg.slice(0, 7)))} sag=${html`<a href="#/cizelge" style="color:var(--ana)">${cevir("Çizelge →")}</a>`}>
+        <${K.Kart} baslik=${PERSONEL ? Y.ayAdi(bg.slice(0, 7)) : NT.dil.m("{0} · kişi başı", Y.ayAdi(bg.slice(0, 7)))} sag=${html`<a href="#/cizelge" style="color:var(--ana)">${cevir("Çizelge →")}</a>`}>
           <${OzetTablo} ozet=${ay} />
         <//>
         <div class="tz-sutun">
@@ -171,12 +206,13 @@
     const degisen = Y.onaydanSonraDegisen(d, ay);
     const ayBitti = ay < bg.slice(0, 7);
     return html`<${K.Selam} baslik=${cevir("Aylık çizelge")} sag=${html`<button class="d" onClick=${() => excelAy(d, ay)}><${Ikon} ad="indir" boyut=${15} />${cevir("Excel (İK için)")}</button>
-        <button class=${'d ' + (o && !degisen.length ? '' : 'ana-d')} onClick=${() => K.ac(OnayPenceresi, { ay })}><${Ikon} ad="daire_tik" boyut=${15} />${o ? (degisen.length ? cevir("Yeniden onayla") : cevir("Onaylı")) : cevir("Ayı onayla")}</button>`}>
+        ${PERSONEL ? html`<span class=${'rozet ' + (o && !degisen.length ? 'iyi' : '')}>${o && !degisen.length ? cevir("Yönetim onayladı", "Approved by management") : cevir("Yönetim onayı bekliyor", "Awaiting management approval")}</span>`
+          : html`<button class=${'d ' + (o && !degisen.length ? '' : 'ana-d')} onClick=${() => K.ac(OnayPenceresi, { ay })}><${Ikon} ad="daire_tik" boyut=${15} />${o ? (degisen.length ? cevir("Yeniden onayla") : cevir("Onaylı")) : cevir("Ayı onayla")}</button>`}`}>
         ${cevir("Hücreye tıklayıp o günün kaydını girin veya açın. + işte, sayı fazla mesai saati, HT hafta tatili, RT resmî tatil.")}<//>
       <${AySecici} ay=${ay} setAy=${setAy} />
       ${o && html`<div class=${'uyari-kutu ' + (degisen.length ? 'kritik' : 'iyi')} style="margin-bottom:14px"><${Ikon} ad=${degisen.length ? 'uyari' : 'daire_tik'} /><span>
         ${Y.ayAdi(ay)} <b>${o._degistiren}</b> ${cevir("tarafından onaylandı (")}${NT.c.zamanYaz(o._degisim)}).${degisen.length ? NT.dil.m(" Onaydan sonra {0} kayıt değişti; kontrol edip yeniden onaylayın.", degisen.length) : ''}${o.notlar ? NT.dil.m(" Not: {0}", o.notlar) : ''}</span></div>`}
-      ${!o && ayBitti && ozet.length > 0 && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${Y.ayAdi(ay)} ${cevir("bitti ama onaylanmadı. Kontrol edip “Ayı onayla” deyin; sonra Excel’i İK’ya verin.")}</span></div>`}
+      ${!PERSONEL && !o && ayBitti && ozet.length > 0 && html`<div class="uyari-kutu kritik" style="margin-bottom:14px"><${Ikon} ad="uyari" /><span>${Y.ayAdi(ay)} ${cevir("bitti ama onaylanmadı. Kontrol edip “Ayı onayla” deyin; sonra Excel’i İK’ya verin.")}</span></div>`}
       ${ozet.length ? html`<div class="yk-cizelge-kap"><table class="yk-cizelge">
         <thead><tr><th class="ad">${cevir("Personel")}</th>${gunler.map((t) => html`<th class=${(T.isGunu(t) ? '' : 'kapali') + (t === bg ? ' bugun' : '')} title=${cevir(T.tatil(t) || T.yarimGun(t) || '')}><span>${+t.slice(8)}</span><small>${Y.gunKisa(t)}</small></th>`)}</tr></thead>
         <tbody>${ozet.map((x) => html`<tr><th class="ad">${x.kisi.ad}</th>${gunler.map((t) => {
@@ -219,7 +255,7 @@
     return html`<${K.Selam} baslik=${cevir("Kayıtlar")} sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => yeniKayit({ kisi })}><${Ikon} ad="arti" />${cevir("Kayıt gir")}</button>`}>
         ${cevir("Girilen bütün izin, rapor, gelmeme ve fazla mesai kayıtları.")}<//>
       <div class="tz-cipler">
-        <select class="girdi kisa" value=${kisi} onChange=${(e) => setKisi(e.target.value)}><option value="">${cevir("Herkes")}</option>${Y.kisiler(d, { hepsi: true }).map((k) => html`<option value=${k.id}>${k.ad}</option>`)}</select>
+        ${!PERSONEL && html`<select class="girdi kisa" value=${kisi} onChange=${(e) => setKisi(e.target.value)}><option value="">${cevir("Herkes")}</option>${Y.kisiler(d, { hepsi: true }).map((k) => html`<option value=${k.id}>${k.ad}</option>`)}</select>`}
         <select class="girdi kisa" value=${tr} onChange=${(e) => setTr(e.target.value)}><option value="">${cevir("Bütün türler")}</option>${Y.TURLER.map((t) => html`<option value=${t.id}>${cevir(t.ad)}</option>`)}</select>
         <input class="girdi" style="max-width:260px;border-radius:99px" placeholder=${cevir("Açıklamada ara…")} value=${q} onInput=${(e) => setQ(e.target.value)} />
       </div>
@@ -332,6 +368,27 @@
   }
 
   NT.yoklamaUI = { IstisnaPenceresi, KisiPenceresi, OnayPenceresi };
+  const eylemler = [
+    { ad: 'Kayıt gir', alt: 'İzin, rapor, gelmedi, fazla mesai', ikon: 'arti', tus: 'K', fn: () => yeniKayit({}) },
+    { ad: 'Fazla mesai', alt: 'Bugün için fazla mesai saati', ikon: 'saat', tus: 'M', fn: () => yeniKayit({ tur: T.isGunu(bugun()) ? 'mesai' : 'tatil' }) },
+  ];
+  if (PERSONEL) {
+    /* Personel paneli › Yoklama: Bugün, kendi çizelgesi ve kayıtları. Başkalarının değişikliği bildirilmez (uzakKoleksiyonlar boş). */
+    b.modul.ad = 'Yoklamam';
+    K.calistir({
+      sekmeler: [
+        { id: 'genel', ad: 'Bugün', ikon: 'ozet' },
+        { id: 'cizelge', ad: 'Aylık çizelge', ikon: 'takvim' },
+        { id: 'kayitlar', ad: 'Kayıtlarım', ikon: 'liste' },
+      ],
+      sayfalar: { genel: GenelBakis, cizelge: Cizelge, kayitlar: Kayitlar },
+      eylemler,
+      arama: (_, metin) => arama(depo(), metin).filter((x) => x.tur !== 'Personel'),
+      uzakKoleksiyonlar: [],
+      geri: { yazi: cevir('Personel paneli', 'Staff panel'), adres: NT.c.adres('personel', { kullanici: q.get('kullanici') || b.kullanici }) },
+    });
+    return;
+  }
   K.calistir({
     sekmeler: [
       { id: 'genel', ad: 'Bugün', ikon: 'ozet' },
@@ -341,10 +398,7 @@
       { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
     ],
     sayfalar: { genel: GenelBakis, cizelge: Cizelge, kayitlar: Kayitlar, personel: Personel, ayarlar: Ayarlar },
-    eylemler: [
-      { ad: 'Kayıt gir', alt: 'İzin, rapor, gelmedi, fazla mesai', ikon: 'arti', tus: 'K', fn: () => yeniKayit({}) },
-      { ad: 'Fazla mesai', alt: 'Bugün için fazla mesai saati', ikon: 'saat', tus: 'M', fn: () => yeniKayit({ tur: T.isGunu(bugun()) ? 'mesai' : 'tatil' }) },
-    ],
+    eylemler,
     arama,
     uzakKoleksiyonlar: ['istisna', 'kisi', 'onay'],
   });

@@ -96,10 +96,24 @@
       this.bildir();
     },
 
+    /* Kişisel hesap (context/kararlar.md 2026-11-16): giriş ad soyad + şifreyle yapılır; ad hesaptan gelir, değiştirilemez.
+       Ortak erişim kodu yalnız eski sürümler ve hesap kurulumu için sunucuda geçerli kalır. */
+    hesap: null,
+    hesapUygula() {
+      const k = NT.oturum.kim();
+      this.hesap = k;
+      if (!k) return false;
+      if (k.ad && k.ad !== this.kullanici) this.kullaniciAyarla(k.ad);
+      // Güncelleyici (yukleyici.js, klasörde sabit) yalnız nt.kod doluysa güncelleme arar; hesapla girenlerde boş kalmasın.
+      if (!this.kod) { this.kod = 'HESAP'; ls.yaz('nt.kod', this.kod); }
+      return true;
+    },
+
     async baslat() {
       try {
         if (NT.demo && NT.demo.aktif) return await NT.demo.kur(this);
-        if (!this.kullanici || !this.kod) return this.durumYap('kurulum');
+        if (!this.hesapUygula()) return this.durumYap('kurulum');
+        if (!this.hesap.sifreBelirlendi) return this.durumYap('sifre');
         if (M.depoYok) return this.durumYap('hazir');
         await this.bulutAc();
       } catch (e) {
@@ -107,19 +121,16 @@
       }
     },
 
-    /* İlk açılış: ad + erişim kodu. Kod sunucuda doğrulanmadan kaydedilmez. */
-    async girisYap(ad, kod) {
-      kod = kod.trim().toUpperCase();
-      let dogru;
-      try { dogru = await NT.bulut.kodDogrula(kod); } catch (e) {
+    async girisYap(ad, sifre) {
+      try { await NT.oturum.girisYap(ad, sifre); } catch (e) {
         throw Object.assign(new Error(e.message), { detay: e.detay });
       }
-      if (!dogru) throw new Error('Erişim kodu yanlış. Kodu uygulamayı kuran kişiden alın.');
-      this.kullaniciAyarla(ad);
-      this.kod = kod;
-      ls.yaz('nt.kod', kod);
-      if (M.depoYok) return this.durumYap('hazir');
-      await this.bulutAc();
+      await this.baslat();
+    },
+
+    async sifreBelirle(yeni) {
+      await NT.oturum.sifreBelirle(yeni);
+      await this.baslat();
     },
 
     async bulutAc() {
@@ -130,8 +141,10 @@
     async ayril() {
       this.durdur();
       for (const m of Object.values(MODULLER)) await idbSil(onbellekAdi(m)).catch(() => {});
+      await NT.oturum.cikis();
       ls.sil('nt.kod');
       this.kod = '';
+      this.hesap = null;
       this.depo = null;
       this.mod = null;
       this.durumYap('kurulum');

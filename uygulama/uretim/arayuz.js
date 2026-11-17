@@ -21,10 +21,18 @@
   const yaz = (v) => (v == null || v === '' ? '—' : String(v));
 
   /* ---------------- Çizgi grafik (kütüphanesiz SVG) ---------------- */
-  function Cizgi({ seriler, yukseklik = 220, birim = '°C' }) {
+  /* Fare ya da parmakla grafikte gezilince en yakın ölçüm anı seçilir: dikey çizgi, vurgulu noktalar ve her serinin o andaki değeri
+     (sekreter isteği, 2026-11-17). sure: x ekseni partinin başından geçen süredir (partileri üst üste karşılaştırmak için). */
+  const saatYaz = (dk) => `${String(Math.floor(dk / 60) % 24).padStart(2, '0')}:${String(Math.round(dk) % 60).padStart(2, '0')}`;
+  const sureYaz = (dk) => (dk % 60 ? `+${Math.floor(dk / 60)}:${String(Math.round(dk) % 60).padStart(2, '0')}` : `+${dk / 60} ${c('sa', 'h')}`);
+  const sayiYaz = (v) => Number(v).toLocaleString(NT.dil.yerel(), { maximumFractionDigits: 1 });
+  function Cizgi({ seriler, yukseklik = 220, birim = '°C', sure = false }) {
+    const [imlec, setImlec] = useState(null);
     const dolu = seriler.filter((s) => s.noktalar.length);
     if (!dolu.length) return html`<p class="soluk kucuk">${c('Grafik için ölçüm yok.', 'No readings to chart.')}</p>`;
-    const W = 640, H = yukseklik, sol = 40, alt = 24, ust = 10, sag = 10;
+    /* Telefonda daha dar çizim alanı: yazılar ve noktalar okunur büyüklükte kalır. */
+    const dar = typeof innerWidth === 'number' && innerWidth < 640;
+    const W = dar ? 380 : 640, H = dar ? Math.round(yukseklik * 0.95) : yukseklik, sol = dar ? 34 : 40, alt = 24, ust = 10, sag = 10;
     const xs = dolu.flatMap((s) => s.noktalar.map((n) => n.x)), ys = dolu.flatMap((s) => s.noktalar.map((n) => n.y));
     const x0 = Math.min(...xs), x1 = Math.max(...xs) || x0 + 1;
     let y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -32,15 +40,38 @@
     const X = (x) => sol + ((x - x0) / Math.max(1, x1 - x0)) * (W - sol - sag);
     const Y = (y) => ust + (1 - (y - y0) / Math.max(1, y1 - y0)) * (H - ust - alt);
     const yCizgi = [0, 1, 2, 3, 4].map((i) => y0 + ((y1 - y0) * i) / 4);
-    const adim = (x1 - x0) > 900 ? 240 : 120;
+    const adim = (x1 - x0) > 900 ? (dar ? 360 : 240) : (dar ? 180 : 120);
     const xCizgi = []; for (let x = Math.ceil(x0 / adim) * adim; x <= x1; x += adim) xCizgi.push(x);
-    const saat = (dk) => `${String(Math.floor(dk / 60) % 24).padStart(2, '0')}:${String(dk % 60).padStart(2, '0')}`;
-    return html`<div class="ur-cizgi"><svg viewBox=${`0 0 ${W} ${H}`} role="img" aria-label=${dolu.map((s) => s.ad).join(', ')}>
+    const eksen = sure ? sureYaz : saatYaz;
+    const anlar = [...new Set(xs)].sort((a, b) => a - b);
+    const tolerans = Math.max(10, (x1 - x0) / 30);
+    /* Her serinin seçilen ana en yakın ölçümü (tolerans içinde); yoksa o seri ipucunda "—" görünür. */
+    const deger = (s, x) => { let en = null; for (const n of s.noktalar) if (Math.abs(n.x - x) <= tolerans && (!en || Math.abs(n.x - x) < Math.abs(en.x - x))) en = n; return en; };
+    function bul(e) {
+      const r = e.currentTarget.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width) * W;
+      const xv = x0 + ((px - sol) / (W - sol - sag)) * Math.max(1, x1 - x0);
+      let en = anlar[0];
+      for (const x of anlar) if (Math.abs(x - xv) < Math.abs(en - xv)) en = x;
+      setImlec(en);
+    }
+    const birak = (e) => { if (e.pointerType === 'mouse') setImlec(null); };
+    const secili = imlec == null ? [] : dolu.map((s) => ({ s, n: deger(s, imlec) }));
+    const konum = imlec == null ? 0 : (X(imlec) / W) * 100;
+    return html`<div class="ur-cizgi"><svg viewBox=${`0 0 ${W} ${H}`} role="img" aria-label=${dolu.map((s) => s.ad).join(', ')}
+        onPointerMove=${bul} onPointerDown=${bul} onPointerLeave=${birak}>
       ${yCizgi.map((y) => html`<g><line x1=${sol} x2=${W - sag} y1=${Y(y)} y2=${Y(y)} class="kilavuz" /><text x=${sol - 6} y=${Y(y) + 4} text-anchor="end">${Math.round(y)}</text></g>`)}
-      ${xCizgi.map((x) => html`<text x=${X(x)} y=${H - 6} text-anchor="middle">${saat(x)}</text>`)}
+      ${xCizgi.map((x) => html`<text x=${X(x)} y=${H - 6} text-anchor="middle">${eksen(x)}</text>`)}
       ${dolu.map((s) => html`<g style=${{ color: s.renk }}><polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" points=${s.noktalar.map((n) => `${X(n.x)},${Y(n.y)}`).join(' ')} />
-        ${s.noktalar.map((n) => html`<circle cx=${X(n.x)} cy=${Y(n.y)} r=${n.uyari ? 5 : 2.6} fill=${n.uyari ? 'var(--kritik)' : 'currentColor'}><title>${`${s.ad} · ${n.saat} · ${n.y} ${birim}`}</title></circle>`)}</g>`)}
-    </svg><div class="ur-lejant">${dolu.map((s) => html`<span><i style=${{ background: s.renk }} />${s.ad}</span>`)}</div></div>`;
+        ${s.noktalar.map((n) => html`<circle cx=${X(n.x)} cy=${Y(n.y)} r=${n.uyari ? 5 : 2.6} fill=${n.uyari ? 'var(--kritik)' : 'currentColor'} />`)}</g>`)}
+      ${imlec != null && html`<g class="ur-imlec"><line x1=${X(imlec)} x2=${X(imlec)} y1=${ust} y2=${H - alt} />
+        ${secili.filter((x) => x.n).map(({ s, n }) => html`<circle cx=${X(n.x)} cy=${Y(n.y)} r="5.5" style=${{ fill: n.uyari ? 'var(--kritik)' : s.renk }} />`)}</g>`}
+    </svg>
+    ${imlec != null && html`<div class=${'ur-ipucu' + (konum > 62 ? ' sag' : '')} style=${konum > 62 ? { right: `${100 - konum}%` } : { left: `${konum}%` }} role="status">
+      <b>${eksen(imlec)}</b>
+      ${secili.map(({ s, n }) => html`<span><i style=${{ background: s.renk }} />${s.ad}<b class=${n?.uyari ? 'kirmizi' : ''}>${n ? `${sayiYaz(n.y)} ${birim}` : '—'}</b>${sure && n?.saat ? html`<small>${n.saat}</small>` : ''}</span>`)}
+    </div>`}
+    <div class="ur-lejant">${dolu.map((s) => html`<span><i style=${{ background: s.renk }} />${s.ad}</span>`)}</div></div>`;
   }
 
   /* ---------------- Tarama görünümü ---------------- */
@@ -407,6 +438,71 @@
   }
   const partiAc = (ad) => K.ac(PartiDosyasi, { ad });
 
+  /* ---------------- Grafikler: partiye göre ve forma göre ---------------- */
+  /* Formlardaki ölçüm sütunları; "forma göre" görünümde seçilen ölçüm, partiler üst üste çizilir (x = partinin başından geçen süre). */
+  const OLCUMLER = [
+    { id: 'reaktorT', form: 'FR-011-1', alan: 'reaktorT', birim: '°C', ad: ['Reaktör sıcaklığı', 'Reactor temperature'], uyari: true },
+    { id: 'yagT', form: 'FR-011-1', alan: 'yagT', birim: '°C', ad: ['Kızgın yağ sıcaklığı', 'Hot oil temperature'] },
+    { id: 'agirlik', form: 'FR-011-1', alan: 'agirlik', birim: 'kg', ad: ['Reaktör ağırlığı', 'Reactor weight'], suz: (n) => n.y > 1000 },
+    { id: 'e2T', form: 'FR-011-2', alan: 'e2T', birim: '°C', ad: ['E2 tankı sıcaklığı', 'E2 tank temperature'] },
+    { id: 'suT', form: 'FR-011-2', alan: 'suT', birim: '°C', ad: ['Soğutma suyu sıcaklığı', 'Cooling water temperature'] },
+  ];
+  const PARTI_RENK = ['var(--gr-1)', 'var(--gr-2)', 'var(--gr-3)', 'var(--gr-4)', 'var(--gr-5)', 'var(--gr-7)', 'var(--gr-8)', 'var(--gr-6)'];
+  const formKisa = (f) => (f === 'FR-035' ? 'FR-035' : f.replace('-1', ' 1/2').replace('-2', ' 2/2'));
+  function olcumNoktalari(p, o) {
+    const k = p.kayitlar.find((x) => x.form === o.form && x.durum !== 'taslak');
+    if (!k) return [];
+    const t = U.FORMLAR[o.form].tablolar[0];
+    let l = U.seri(U.satirlar(k, t), o.alan);
+    if (o.suz) l = l.filter(o.suz);
+    if (o.uyari) { const su = t.sutunlar.find((s) => s.id === o.alan); l = l.map((n) => ({ ...n, uyari: !!U.degerDurumu(su, n.y, {}) })); }
+    return l;
+  }
+  function Grafikler() {
+    const d = depo();
+    const tum = U.partiler(d).filter((p) => OLCUMLER.some((o) => olcumNoktalari(p, o).length));
+    const [gorunum, setGorunum] = useState(() => (location.hash.includes('form') ? 'form' : 'parti'));
+    const [partiAd, setParti] = useState('');
+    const [olcumId, setOlcum] = useState('reaktorT');
+    const [secili, setSecili] = useState(null);
+    if (!tum.length) return html`<${K.Selam} baslik=${c('Grafikler', 'Charts')} /><${BosDurum} ikon="ozet" baslik=${c('Grafik için işlenmiş FR-011 yok', 'No entered FR-011 to chart')} />`;
+    const p = tum.find((x) => x.ad === partiAd) || tum[0];
+    const o = OLCUMLER.find((x) => x.id === olcumId) || OLCUMLER[0];
+    const adaylar = tum.filter((x) => olcumNoktalari(x, o).length);
+    const secim = (secili || adaylar.slice(0, 4).map((x) => x.ad)).filter((ad) => adaylar.some((x) => x.ad === ad));
+    const renk = (ad) => PARTI_RENK[adaylar.findIndex((x) => x.ad === ad) % PARTI_RENK.length];
+    const ustUste = adaylar.filter((x) => secim.includes(x.ad)).map((x) => {
+      const l = olcumNoktalari(x, o);
+      const bas = l[0].x;
+      return { ad: x.ad, renk: renk(x.ad), noktalar: l.map((n) => ({ ...n, x: n.x - bas })), ham: l, parti: x };
+    });
+    const g = gorunum === 'parti' && partiGrafikleri(p);
+    return html`<${K.Selam} baslik=${c('Grafikler', 'Charts')}>${c('Grafikte fareyle gezinin (telefonda parmakla dokunun); o andaki değerler görünür. Partiye göre: bir partinin bütün grafikleri. Forma göre: bir ölçüm, partiler üst üste.', 'Move over a chart (tap on a phone) to see the values at that moment. By batch: all charts of one batch. By form: one reading, batches overlaid.')}<//>
+      <${K.Cipler} secenekler=${[['parti', c('Partiye göre', 'By batch'), tum.length], ['form', c('Forma göre', 'By form'), OLCUMLER.length]]} deger=${gorunum} degis=${setGorunum} />
+      ${gorunum === 'parti' ? html`
+        <div class="ur-secim"><span class="kucuk soluk">${c('Parti', 'Batch')}</span>
+          ${tum.map((x) => html`<button type="button" class=${'secenek' + (x.ad === p.ad ? ' secili' : '')} onClick=${() => setParti(x.ad)}>${x.ad}</button>`)}</div>
+        <${K.Kart} baslik=${`${p.ad} · ${p.urun || c('Ürün yok', 'No product')}`} sag=${html`<button class="d kucuk-d" onClick=${() => partiAc(p.ad)}>${c('Parti dosyası', 'Batch file')} →</button>`}>
+          <div class="kart-ic"><div class="ur-grafikler">
+            <section><h3>${c('Reaksiyon sıcaklıkları', 'Reaction temperatures')} <span class="ur-form-etiket"><b>FR-011</b> 1/2</span></h3><${Cizgi} seriler=${g.reaksiyon} /></section>
+            <section><h3>${c('Reaktör ağırlığı', 'Reactor weight')} <span class="ur-form-etiket"><b>FR-011</b> 1/2</span></h3><${Cizgi} seriler=${g.agirlik} birim="kg" /></section>
+            <section><h3>${c('E2 tankı soğutma', 'E2 tank cooling')} <span class="ur-form-etiket"><b>FR-011</b> 2/2</span></h3><${Cizgi} seriler=${g.sogutma} /></section>
+          </div></div><//>`
+      : html`
+        <div class="ur-secim"><span class="kucuk soluk">${c('Ölçüm', 'Reading')}</span>
+          ${OLCUMLER.map((x) => html`<button type="button" class=${'secenek' + (x.id === o.id ? ' secili' : '')} onClick=${() => setOlcum(x.id)}><span class="ur-form-etiket"><b>${formKisa(x.form)}</b></span> ${c(...x.ad)}</button>`)}</div>
+        <div class="ur-secim"><span class="kucuk soluk">${c('Partiler', 'Batches')}</span>
+          ${adaylar.map((x) => html`<button type="button" class=${'secenek ur-parti-sec' + (secim.includes(x.ad) ? ' secili' : '')} style=${{ '--renk': renk(x.ad) }}
+            onClick=${() => setSecili(secim.includes(x.ad) ? secim.filter((a) => a !== x.ad) : [...secim, x.ad])}><i />${x.ad}</button>`)}</div>
+        <${K.Kart} baslik=${`${c(...o.ad)} · ${formKisa(o.form)}`} sag=${html`<span class="kucuk soluk">${c('x: partinin başından geçen süre', 'x: time since batch start')}</span>`}>
+          <div class="kart-ic">${ustUste.length ? html`<${Cizgi} seriler=${ustUste} birim=${o.birim} sure yukseklik=${260} />
+            <div class="tablo-kap"><table class="tablo ur-karsilastir"><thead><tr><th>${c('Parti', 'Batch')}</th><th>${c('Ürün', 'Product')}</th><th>${c('Başlangıç', 'Start')}</th><th class="sag">${c('Süre', 'Duration')}</th><th class="sag">${c('En düşük', 'Min')}</th><th class="sag">${c('En yüksek', 'Max')}</th><th class="sag">${c('Son', 'Last')}</th></tr></thead><tbody>
+              ${ustUste.map((s) => { const ys = s.ham.map((n) => n.y); const son = s.noktalar[s.noktalar.length - 1]; return html`<tr class="tik" key=${s.ad} onClick=${() => partiAc(s.ad)}>
+                <td><i class="ur-renk" style=${{ background: s.renk }} /><b>${s.ad}</b></td><td class="kucuk">${s.parti.urun || '—'}</td><td class="kucuk">${s.parti.bas ? tarihYaz(s.parti.bas) : '—'} ${s.ham[0].saat}</td>
+                <td class="sag sayi">${sureYaz(son.x).replace('+', '')}</td><td class="sag sayi">${sayiYaz(Math.min(...ys))}</td><td class="sag sayi">${sayiYaz(Math.max(...ys))}</td><td class="sag sayi">${sayiYaz(son.y)} ${o.birim}</td></tr>`; })}
+            </tbody></table></div>` : html`<${BosDurum} ikon="ozet" baslik=${c('Parti seçin', 'Choose batches')} />`}</div><//>`}`;
+  }
+
   /* ---------------- Liste parçaları ---------------- */
   function KayitListesi({ liste, bos }) {
     if (!liste.length) return html`<${BosDurum} ikon="belge" baslik=${bos || c('Kayıt yok', 'No records')} />`;
@@ -414,8 +510,7 @@
       <span class="ur-kayit-ikon"><${Ikon} ad=${U.formAl(k.form)?.ikon || 'belge'} boyut=${18} /></span>
       <span class="ne"><b>${k.form ? html`<${FormEtiket} form=${k.form} /> ${c(U.formAl(k.form).ad, U.formAl(k.form).en)}` : c('Form türü seçilmedi', 'Form type not chosen')}${k.parti ? ' · ' + k.parti : ''}</b>
         <small>${k.no} · ${tarihYaz(k.alanlar?.tarih || k.tarih)}${k.isleyen ? ' · ' + k.isleyen : ''}${(k.tarama || []).length || k.ornekTarama ? ' · ' + c('taramalı', 'scanned') : ''}</small></span>
-      ${den && den.disari.length > 0 && html`<span class="rozet yok"><${Ikon} ad="uyari" />${den.disari.length}</span>`}
-      <${Durum} d=${k.durum} /></li>`; })}</ul>`;
+      <span class="ur-kayit-rozet">${den && den.disari.length > 0 && html`<span class="rozet yok" title=${c('Sınır dışı değer', 'Out-of-range value')}><${Ikon} ad="uyari" />${den.disari.length}</span>`}<${Durum} d=${k.durum} /></span></li>`; })}</ul>`;
   }
 
   /* ---------------- Sayfalar ---------------- */
@@ -477,13 +572,31 @@
     const [secilen, setSuz] = useState(null);
     const suz = secilen || (yetkili() && !U.kayitlar(d).some((k) => k.durum === 'taslak') && U.kayitlar(d).some((k) => k.durum === 'islendi') ? 'kontrol' : 'bekleyen');
     const [form, setForm] = useState('');
+    const [grup, setGrup] = useState('');
     const tum = U.kayitlar(d).filter((k) => !form || (k.form || '').startsWith(form));
     const liste = suz === 'bekleyen' ? tum.filter((k) => k.durum === 'taslak') : suz === 'kontrol' ? tum.filter((k) => k.durum === 'islendi') : tum;
     return html`<${K.Selam} baslik=${c('Formlar', 'Forms')} sag=${html`<button class="d" onClick=${elleGir}><${Ikon} ad="kalem" />${c('Elle gir', 'Enter manually')}</button><button class="d ana-d" onClick=${taraAc}><${Ikon} ad="kamera" />${c('Form tara', 'Scan forms')}</button>`}>
         ${c('Taranan her sayfa önce “işlenmeyi bekliyor” olur. Değerler girilince kontrol bekler; Yönetici kontrol edince kilitlenir.', 'Each scanned page first awaits entry. Once values are entered it awaits a check; after a manager checks it, it is locked.')}<//>
       <${K.Cipler} secenekler=${[['bekleyen', c('İşlenmeyi bekleyen', 'Awaiting entry'), tum.filter((k) => k.durum === 'taslak').length], ['kontrol', c('Kontrol bekleyen', 'Awaiting check'), tum.filter((k) => k.durum === 'islendi').length], ['hepsi', c('Tümü', 'All'), tum.length]]} deger=${suz} degis=${setSuz}>
-        <select class="girdi" style="max-width:220px;margin-left:8px;border-radius:99px" value=${form} onChange=${(e) => setForm(e.target.value)}><option value="">${c('Bütün formlar', 'All forms')}</option>${['FR-011', 'FR-035', 'FR-005', 'FR-032'].map((x) => html`<option value=${x}>${x}</option>`)}</select><//>
-      <${K.Kart}><div class="kart-ic"><${KayitListesi} liste=${liste} bos=${suz === 'bekleyen' ? c('İşlenmeyi bekleyen form yok', 'Nothing awaiting entry') : c('Kayıt yok', 'No records')} /></div><//>`;
+        <select class="girdi ur-form-sec" value=${form} onChange=${(e) => setForm(e.target.value)}><option value="">${c('Bütün formlar', 'All forms')}</option>${['FR-011', 'FR-035', 'FR-005', 'FR-032'].map((x) => html`<option value=${x}>${x}</option>`)}</select><//>
+      <div class="ur-secim"><span class="kucuk soluk">${c('Grupla', 'Group')}</span>
+        ${[['', c('Sıraya göre', 'In order')], ['form', c('Forma göre', 'By form')], ['parti', c('Partiye göre', 'By batch')]].map(([id, yazi]) => html`<button type="button" class=${'secenek' + (grup === id ? ' secili' : '')} onClick=${() => setGrup(id)}>${yazi}</button>`)}</div>
+      ${!grup || !liste.length ? html`<${K.Kart}><div class="kart-ic"><${KayitListesi} liste=${liste} bos=${suz === 'bekleyen' ? c('İşlenmeyi bekleyen form yok', 'Nothing awaiting entry') : c('Kayıt yok', 'No records')} /></div><//>`
+        : gruplar(liste, grup).map(([ad, l]) => html`<${K.Kart} key=${ad} baslik=${ad} sag=${html`${grup === 'parti' && ad !== bosGrup() ? html`<button class="d kucuk-d" onClick=${() => partiAc(ad)}>${c('Parti dosyası', 'Batch file')} →</button>` : ''}<span class="rozet">${l.length}</span>`}>
+          <div class="kart-ic"><${KayitListesi} liste=${l} /></div><//>`)}`;
+  }
+  const bosGrup = () => c('Partisiz', 'No batch');
+  /* Kayıtları form türüne (FR-011 1/2, 2/2 …) ya da partiye göre gruplar; parti grupları en yeni parti üstte. */
+  function gruplar(liste, grup) {
+    const m = new Map();
+    for (const k of liste) {
+      const ad = grup === 'form' ? (k.form ? `${formKisa(k.form.startsWith('FR-035') ? 'FR-035' : k.form)} · ${c(U.formAl(k.form).ad, U.formAl(k.form).en)}` : c('Form türü seçilmedi', 'Form type not chosen'))
+        : (U.partiAdi(k.parti || k.alanlar?.parti) || bosGrup());
+      if (!m.has(ad)) m.set(ad, []);
+      m.get(ad).push(k);
+    }
+    const l = [...m.entries()];
+    return grup === 'parti' ? l.sort(([a], [b2]) => (a === bosGrup()) - (b2 === bosGrup()) || U.partiNo(b2) - U.partiNo(a)) : l.sort(([a], [b2]) => a.localeCompare(b2, 'tr'));
   }
 
   function Hammadde() {
@@ -526,12 +639,13 @@
     sekmeler: [
       { id: 'genel', ad: 'Genel Bakış', ikon: 'ozet' },
       { id: 'partiler', ad: 'Partiler', ikon: 'dolum' },
+      { id: 'grafikler', ad: 'Grafikler', ikon: 'grafik' },
       { id: 'formlar', ad: 'Formlar', ikon: 'belge', sayac: (d) => U.bekleyenTaramalar(d).length + U.kontrolBekleyen(d).length },
       { id: 'hammadde', ad: 'Hammadde kabul', ikon: 'alim' },
       { id: 'vardiya', ad: 'Vardiya devri', ikon: 'saat' },
       { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
     ],
-    sayfalar: { genel: GenelBakis, partiler: Partiler, formlar: Formlar, hammadde: Hammadde, vardiya: Vardiya,
+    sayfalar: { genel: GenelBakis, partiler: Partiler, grafikler: Grafikler, formlar: Formlar, hammadde: Hammadde, vardiya: Vardiya,
       ayarlar: () => html`<${K.AyarlarSayfasi} cop=${{ kayit: { ad: 'Üretim kaydı', ozet: (r) => `${r.form || ''} ${r.parti || ''}` } }} />` },
     eylemler: [
       { ad: 'Form tara', alt: 'PDF ya da fotoğraf', ikon: 'kamera', tus: 'T', fn: taraAc },

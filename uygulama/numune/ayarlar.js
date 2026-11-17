@@ -32,7 +32,7 @@
     const [t, setT] = useState(tema());
     return html`<${Kart} baslik=${cevir("Profil")} aciklama=${cevir("Adınız her kaydın geçmişinde “kim yaptı” olarak görünür.")}>
       <div class="form-izgara">
-        <${Alan} etiket=${cevir("Adınız")} sinif="s6">${NT.numunePersonel ? html`<b>${b.kullanici}</b>` : html`<div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
+        <${Alan} etiket=${cevir("Adınız")} sinif="s6">${NT.numunePersonel || b.hesap ? html`<b>${b.kullanici}</b>` : html`<div style="display:flex;gap:8px"><input class="girdi" value=${ad} onInput=${(e) => setAd(e.target.value)} />
           <button class="d" disabled=${!ad.trim() || ad.trim() === b.kullanici} onClick=${() => { b.kullaniciAyarla(ad); bildir(cevir("Adınız güncellendi.")); }}>${cevir("Kaydet")}</button></div>`}<//>
         <${Alan} etiket=${cevir("Görünüm")} sinif="s6"><${Segment} secenekler=${[['oto', cevir('Sistem', 'System')], ['acik', cevir('Açık', 'Light')], ['koyu', cevir('Koyu', 'Dark')]]} deger=${t} degis=${(v) => { setT(v); try { localStorage.setItem('nt.tema', v); } catch { /* yoksay */ } temaUygula(v); }} /><//>
       </div>
@@ -63,7 +63,7 @@
               <td>${cevrimici ? html`<span class="rozet iyi"><${Ikon} ad="daire_tik" />${cevir("Çevrimiçi")}</span>` : html`<span class="soluk kucuk">${k ? onceYaz(k.t) : '—'}</span>`}</td></tr>`;
           })}</tbody></table></div></div>
         ${b.mod === 'bulut' && html`<div class="s12 dugmeler">
-          <button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayardaki erişim kodu silinir; uygulama bir dahaki açılışta kodu yeniden ister. Buluttaki kayıtlara dokunulmaz."), { baslik: cevir("Bağlantıyı kes"), evet: cevir("Bağlantıyı kes") })) b.ayril(); }}>${cevir("Bu bilgisayarın bağlantısını kes")}</button>
+          <button class="d hayalet" onClick=${async () => { if (await onayla(cevir("Bu bilgisayarda oturumunuz kapanır (bütün sistemler için); bir dahaki açılışta ad soyad ve şifre yeniden sorulur. Buluttaki kayıtlara dokunulmaz.", "You will be signed out on this computer (all trackers); your name and password will be asked again next time. Cloud records are not touched."), { baslik: cevir("Oturumu kapat", "Sign out"), evet: cevir("Oturumu kapat", "Sign out") })) b.ayril(); }}>${cevir("Oturumu kapat", "Sign out")}</button>
         </div>`}
       </div>
     <//>`;
