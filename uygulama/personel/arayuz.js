@@ -18,7 +18,11 @@
   const cm = (tr, en, ...a) => c(tr, en).replace(/\{(\d+)\}/g, (_, i) => String(a[i] ?? ''));
 
   const url = new URLSearchParams(location.search);
-  const YONETIM = url.get('gorunum') === 'yonetim' && !NT.personelDemo.personelMi(url.get('kullanici'));
+  const DEMO = url.has('demo');
+  /* Görünüm: sunumda ?gorunum=yonetim (personel adları hariç). Canlıda personel rolü (mimar değil) her zaman personel görünümünü,
+     yönetim kadrosu ?gorunum=personel denmedikçe yönetim görünümünü açar; Kamil (personel + mimar) ?gorunum=yonetim ile yönetimi görür. */
+  const YONETIM = DEMO ? url.get('gorunum') === 'yonetim' && !NT.personelDemo.personelMi(url.get('kullanici'))
+    : !NT.c.personelRolu() && (url.get('gorunum') === 'yonetim' || (url.get('gorunum') !== 'personel' && NT.c.hesap()?.rol === 'yonetici'));
   /* Onay yalnız Yönetici'de (Kamil, Farukcan). Canlıda rol tablosundan gelecek; şimdilik mevcut ad kuralı. */
   const yonetici = () => K.yetkili();
   const anonimAnahtar = () => 'nt.sunum.anonim.' + b.kullanici;
@@ -90,7 +94,7 @@
           ${f.izinTur === 'yillik' && durum && durum.kalan - durum.bekleyen - gun < 0 && html`<span class="kirmizi">${c('Hakkınızdan fazla gün istiyorsunuz; yönetim ayrıca değerlendirir.', 'This exceeds your entitlement; management will review it.')}</span>`}
         </div>
         <${Alan} etiket=${c('Açıklama', 'Note')}><textarea class="girdi" rows="3" value=${f.aciklama} onInput=${(e) => s('aciklama')(e.target.value)} placeholder=${c('İsteğe bağlı', 'Optional')} /><//>
-        ${f.izinTur === 'raporlu' && html`<div class="pn-gizli-ek"><${BelgeKutusu} foto baslik=${c('Rapor fotoğrafı', 'Sick note photo')} ekler=${f.rapor} degis=${s('rapor')} ipucu=${c('Fotoğrafını çekip ekleyin', 'Take a photo and attach it')} />
+        ${f.izinTur === 'raporlu' && html`<div class="pn-gizli-ek"><${BelgeKutusu} foto gizli talep baslik=${c('Rapor fotoğrafı', 'Sick note photo')} ekler=${f.rapor} degis=${s('rapor')} ipucu=${c('Fotoğrafını çekip ekleyin', 'Take a photo and attach it')} />
           <span class="pn-kilit"><${Ikon} ad="goz" boyut=${14} />${c('Yalnız yönetim görür (sağlık bilgisi).', 'Only management can see it (health data).')}</span></div>`}
       </div><//>`;
   }
@@ -154,7 +158,7 @@
     return html`<${Modal} baslik=${c('Arıza bildir', 'Report a fault')} kapat=${kapat} sinif="pn-form"
       alt=${html`<button class="d hayalet" onClick=${kapat}>${c('Vazgeç', 'Cancel')}</button><button class="d ana-d pn-gonder" onClick=${gonder}><${Ikon} ad="tik" />${c('Bildir', 'Report')}</button>`}>
       <div class="modal-ic pn-alanlar">
-        <${BelgeKutusu} foto baslik=${c('Fotoğraf', 'Photo')} ekler=${f.foto} degis=${s('foto')} ipucu=${c('Arızanın fotoğrafını çekin', 'Take a photo of the fault')} />
+        <${BelgeKutusu} foto talep baslik=${c('Fotoğraf', 'Photo')} ekler=${f.foto} degis=${s('foto')} ipucu=${c('Arızanın fotoğrafını çekin', 'Take a photo of the fault')} />
         <${Alan} etiket=${c('Nerede?', 'Where?')} hata=${denendi && hata.yer}>
           <div class="pn-yerler">${YERLER.map((y) => html`<button type="button" class=${'tz-cip' + (f.yer === y ? ' secili' : '')} onClick=${() => s('yer')(y)}>${c(y, { 'Dolum alanı': 'Filling area', Depo: 'Warehouse', 'Üretim / reaktör': 'Production / reactor', 'Kazan dairesi': 'Boiler room', Laboratuvar: 'Laboratory', Ofis: 'Office', 'Bahçe / dış alan': 'Yard / outside' }[y])}</button>`)}</div>
           <input class="girdi" value=${f.yer} onInput=${(e) => s('yer')(e.target.value)} placeholder=${c('Ya da yazın: ekipman, makine…', 'Or type: equipment, machine…')} /><//>
@@ -174,10 +178,16 @@
       setDenendi(true);
       if (kisa) return;
       const kod = P.takipKodu();
-      await d.numuneIslem(() => [{ c: 'bildirim', k: uid(), u: f.isimsiz ? 'İsimsiz' : b.kullanici, v: {
-        no: K.yeniNo(d, 'bildirim', 'BD'), tur: f.tur, isimsiz: f.isimsiz, sahip: f.isimsiz ? '' : b.kullanici,
-        takipKodu: kod, tarih: bugun(), metin: f.metin.trim(), yer: f.yer.trim(), foto: f.foto, durum: 'yeni',
-      } }]);
+      const no = await yeniNumara(d, 'bildirim', 'BD');
+      const v = { no, tur: f.tur, isimsiz: f.isimsiz, sahip: f.isimsiz ? '' : b.kullanici,
+        takipKodu: kod, tarih: bugun(), metin: f.metin.trim(), yer: f.yer.trim(), foto: f.foto, durum: 'yeni' };
+      // Canlıda isimsiz bildirim sunucu işleviyle yazılır: tabloda gönderenin adı ve cihazı hiç bulunmaz (asama2.sql).
+      if (f.isimsiz && !DEMO) {
+        await d.rpc('isimsiz_bildirim', { olay: { id: uid(12), c: 'bildirim', k: uid(), v } });
+        await isimsizleriGetir(d, [kod]);
+      } else {
+        await d.numuneIslem(() => [{ c: 'bildirim', k: uid(), u: f.isimsiz ? 'İsimsiz' : b.kullanici, v }]);
+      }
       if (f.isimsiz) {
         try { localStorage.setItem(anonimAnahtar(), JSON.stringify([...anonimKodlar(), kod])); } catch { /* Takip kodu aşağıda gösterilir. */ }
       }
@@ -224,12 +234,34 @@
   /* Yönetim › Taleplerim (sekreter onayı, 2026-11-17): yönetim kadrosu kendi taleplerini yönetim panelinden verir, kararı onay yetkilisi
      (Farukcan Bey) verir. Onay yetkilisinin kendi talebi onaya düşmez, doğrudan kayıt olarak işlenir; kimse kendi talebine karar veremez.
      Canlıda onay yetkisi hesaptan (app_metadata.onay) gelir; sunumda ad kuralı. */
+  /* Talep/bildirim numarası: canlıda sunucudan (personel yalnız kendi kayıtlarını görür, yerelde sayarsa numaralar çakışır). */
+  async function yeniNumara(d, koleksiyon, onEk) {
+    if (DEMO || !d.rpc) return K.yeniNo(d, koleksiyon, onEk);
+    try { return (await d.rpc('personel_no', { onek: onEk })) || K.yeniNo(d, koleksiyon, onEk); } catch { return K.yeniNo(d, koleksiyon, onEk); }
+  }
+  /* İsimsiz bildirimler canlıda kimseye ait değildir; kişi takip koduyla sunucudan ister, gelen olaylar yerel kopyaya eklenir. */
+  async function isimsizleriGetir(d, kodlar) {
+    if (DEMO || !d.rpc || !kodlar.length) return;
+    let yeni = false;
+    for (const kod of [...new Set(kodlar)]) {
+      try {
+        for (const { sira, ...e } of (await d.rpc('isimsiz_sorgula', { kod })) || []) {
+          void sira;
+          if (e.u === null) delete e.u;
+          if (e.v === null) delete e.v;
+          if (d.ekle(e)) yeni = true;
+        }
+      } catch (err) { console.warn('isimsiz bildirim sorgusu', err); }
+    }
+    if (yeni) { d.yenidenHesapla(); d.bildir({}); }
+  }
   const onayYetkilisi = () => (b.hesap ? !!b.hesap.onay : yonetici());
   const kendiKaydi = () => YONETIM && onayYetkilisi();
   async function talepYaz(d, tur, ayrinti) {
     const dogrudan = kendiKaydi();
+    const no = await yeniNumara(d, 'talep', 'TL');
     const [olay] = await d.numuneIslem(() => [{ c: 'talep', k: uid(), v: {
-      no: K.yeniNo(d, 'talep', 'TL'), tur, sahip: b.kullanici, tarih: bugun(), durum: dogrudan ? 'onaylandi' : 'bekliyor', ...ayrinti,
+      no, tur, sahip: b.kullanici, tarih: bugun(), durum: dogrudan ? 'onaylandi' : 'bekliyor', ...ayrinti,
       ...(dogrudan ? { karar: { kim: b.kullanici, tarih: bugun(), not: c('Onay yetkilisinin kendi talebi; doğrudan kayıt', 'Approver’s own request; recorded directly') } } : {}),
     } }]);
     return olay.v.no;
@@ -327,22 +359,45 @@
       <${Rozet} durum=${t.durum} /></li>`;
   }
 
-  function YemekKartiNotu() {
+  /* Başka modülün kaydı (salt okunur): sunumda bu tarayıcıdaki paylaşılan örnek depo, canlıda bulut deposu (30 sn'de bir taranır).
+     Canlıda sunucu yalnız kişinin görebileceğini verir (Yemek: menü; Numune: ortak kayıt). */
+  function canliDepoAc(modul) {
+    return (async () => {
+      const nd = b.depoOlustur(modul, b.kod, b.kullanici);
+      const k = await nd.onbellek.al().catch(() => null);
+      if (k && k.olaylar) { for (const e of k.olaylar) nd.ekle(e); nd.sonSira = k.sonSira || 0; nd.yenidenHesapla(); }
+      nd.cevrimici = true;
+      await nd.tara().catch(() => {});
+      return nd;
+    })();
+  }
+  function sunumDepoAc(modul) {
+    if (modul === 'yemek') return NT.yemekDemo.depoAc(b.kullanici);
+    // Numune hiç açılmadıysa kayıt yoktur; örnek veri burada kurulmaz.
+    return NT.idb.al('nt.sunum.v1.' + modul).then((olaylar) => { const nd = new NT.SunumDepo(modul, b.kullanici); if (olaylar) nd.uygula(olaylar); return nd; });
+  }
+  function useModulDeposu(modul) {
     const [depo, setDepo] = useState(null);
     const [, yenile] = useState(0);
     useEffect(() => {
+      if (DEMO && (!NT.SunumDepo || !NT.idb)) return undefined;
       let aktif = true;
       let kapat;
-      NT.yemekDemo.depoAc(b.kullanici).then((d) => {
-        if (!aktif) { d.kapat(); return; }
+      (DEMO ? sunumDepoAc(modul) : canliDepoAc(modul)).then((d) => {
+        if (!aktif) { d.kapat?.(); return; }
         const guncelle = () => yenile((n) => n + 1);
         const birak = d.abone(guncelle);
-        const zaman = setInterval(guncelle, 60000);
-        kapat = () => { clearInterval(zaman); birak(); d.kapat(); };
+        const zaman = setInterval(() => (DEMO ? guncelle() : d.tara().catch(() => {})), DEMO ? 60000 : 30000);
+        kapat = () => { clearInterval(zaman); birak(); d.kapat?.(); };
         setDepo(d);
       }).catch(console.error);
       return () => { aktif = false; kapat?.(); };
     }, []);
+    return depo;
+  }
+
+  function YemekKartiNotu() {
+    const depo = useModulDeposu('yemek');
     const bugunTarihi = bugun();
     const yemekler = depo ? NT.yemek.yemekler(depo, bugunTarihi, 'ogle').slice(0, 3) : [];
     const resimde = depo && NT.yemek.menu(depo, bugunTarihi.slice(0, 7), 'ogle')?.ek;
@@ -354,25 +409,11 @@
 
   /* Ortak Numune kaydındaki açık iş emirleri (salt okunur). Kayıt yoksa (Numune hiç açılmadıysa) boş döner; örnek veri burada kurulmaz. */
   function useDolumEmirleri() {
-    const [liste, setListe] = useState([]);
-    useEffect(() => {
-      if (!NT.SunumDepo || !NT.idb) return undefined;
-      let aktif = true;
-      let nd;
-      let birak;
-      // 2026-11-16: bir iş emri birden çok satırdır (grup) ve hazırlama işi de içerebilir; emir sayısı grup başına sayılır.
-      const oku = () => setListe([...new Set(nd.kayitlar('isemri').filter((e) => e.durum === 'bekliyor' || (e.durum === 'ustlenildi' && e.ustlenen === b.kullanici))
-        .map((e) => e.grup || e.id))]);
-      NT.idb.al('nt.sunum.v1.numune').then((olaylar) => {
-        if (!aktif) return;
-        nd = new NT.SunumDepo('numune', b.kullanici);
-        if (olaylar) nd.uygula(olaylar);
-        birak = nd.abone(oku);
-        oku();
-      }).catch(console.error);
-      return () => { aktif = false; birak?.(); nd?.kapat(); };
-    }, []);
-    return liste;
+    const nd = useModulDeposu('numune');
+    if (!nd) return [];
+    // 2026-11-16: bir iş emri birden çok satırdır (grup) ve hazırlama işi de içerebilir; emir sayısı grup başına sayılır.
+    return [...new Set(nd.kayitlar('isemri').filter((e) => e.durum === 'bekliyor' || (e.durum === 'ustlenildi' && e.ustlenen === b.kullanici))
+      .map((e) => e.grup || e.id))];
   }
 
   const duyuruYazi = (v) => (Array.isArray(v) ? c(...v) : v || '');
@@ -479,6 +520,11 @@
     const kodlar = new Set(anonimKodlar());
     const benim = P.bildirimler(d).filter((x) => x.isimsiz ? kodlar.has(x.takipKodu) : x.sahip === b.kullanici);
     const temiz = kod.trim().toUpperCase().replace(/\s/g, '');
+    useEffect(() => {
+      if (DEMO || temiz.length < 6) return undefined;
+      const z = setTimeout(() => isimsizleriGetir(d, [temiz]), 400);
+      return () => clearTimeout(z);
+    }, [temiz]);
     const bulunan = temiz.length >= 6 ? P.bildirimler(d).find((x) => x.isimsiz && x.takipKodu.replace('-', '') === temiz.replace('-', '')) : null;
     return html`<div class="pn-sayfa-bas"><h1>${c('Bildirdiklerim', 'My reports')}</h1></div>
       <div class="pn-yeni-bildirim"><button type="button" class="d ana-d" onClick=${() => K.ac(BildirimFormu, { ramak: true })}><${Ikon} ad="uyari" boyut=${16} />${c('Ramak kala bildir', 'Report a near miss')}</button>
@@ -508,7 +554,8 @@
         <div class="uyari-kutu bilgi pn-izin-test"><${Ikon} ad="bilgi" /><span>${IZIN_TEST()}</span></div>
         <p class="soluk kucuk">${cm('İzin yılı {0} – {1} · kıdem {2} yıl.', 'Leave year {0} – {1} · {2} years of service.', tarihYaz(izin.bas), tarihYaz(izin.bit), izin.kidem)}</p></section>`}
       <section class="pn-bolum"><h2>${c('Görünüm', 'Display')}</h2><div class="pn-ayar"><${NT.dil.DilSecimi} /><${K.TemaDugmesi} /></div></section>
-      <section class="pn-bolum"><h2>${c('Gizlilik', 'Privacy')}</h2><p class="kucuk">${c('Sunumda kendi talepleriniz gösterilir. Gerçek kayıtlara erişim kişisel hesaplarla tanımlanacak.', 'The demo shows your own requests. Access to live records will be set up with personal accounts.')}</p></section>`;
+      <section class="pn-bolum"><h2>${c('Gizlilik', 'Privacy')}</h2><p class="kucuk">${c('Talep ve bildirimlerinizi yalnız siz ve yönetim görürsünüz. İsimsiz bildirimlerde adınız hiçbir yerde tutulmaz; takip kodunu saklayın. Sağlık raporu görsellerini yalnız yönetim görür.', 'Only you and management see your requests and reports. Anonymous reports never store your name; keep the tracking code. Only management sees sick-note images.')}</p></section>
+      ${!DEMO && html`<section class="pn-bolum"><h2>${c('Hesap', 'Account')}</h2><button class="d" onClick=${async () => { if (await NT.ui.onayla(c('Bu cihazdaki oturum kapatılsın mı?', 'Sign out on this device?'), { evet: c('Çıkış yap', 'Sign out') })) b.ayril(); }}><${Ikon} ad="kapat" boyut=${15} />${c('Çıkış yap', 'Sign out')}</button></section>`}`;
   }
 
   const SEKMELER = [
@@ -522,6 +569,14 @@
   function PersonelKabuk() {
     const [sekme, setSekme] = useState(sekmeAl());
     useEffect(() => { const f = () => { setSekme(sekmeAl()); window.scrollTo(0, 0); }; window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f); }, []);
+    // Canlıda kendi isimsiz bildirimlerinin durumu takip kodlarıyla sunucudan alınır (dakikada bir).
+    useEffect(() => {
+      if (DEMO) return undefined;
+      const getir = () => isimsizleriGetir(depo(), anonimKodlar());
+      getir();
+      const z = setInterval(getir, 60000);
+      return () => clearInterval(z);
+    }, []);
     useEffect(() => {
       if (location.hash === '#/stok-bildir') {
         history.replaceState(null, '', '#/ana');
@@ -627,21 +682,22 @@
       <a class="d ana-d tz-buyuk" href=${NT.c.adres('personel', { demo: true })}>${c('Sunumu aç', 'Open demo')}</a></div></div>`;
   }
 
-  if (!(NT.demo && NT.demo.aktif)) {
-    render(html`<${Hazirlaniyor} />`, document.getElementById('uygulama'));
-    return;
-  }
+  void Hazirlaniyor; // canlıya geçildi (2026-11-18, 2. aşama); hesapsız açılışta giriş ekranı gelir
   if (YONETIM) {
     b.modul.ad = 'Personel talepleri'; // yönetim panelinin modülü; personel tarafı ayrı paneldir
+    /* Talepler kişisel olabilir: sistem mimarı (Kamil) başkasının talebini görmez (sekreter kararı 2026-11-18; sunucu da vermez).
+       Ona yalnız bildirimler (ramak kala, öneri/şikâyet) ve ayarlar kalır; kendi taleplerini personel panelinden verir. */
+    const h = NT.c.hesap();
+    const talepGizli = !DEMO && !!h && !h.onay && h.rol !== 'yonetici';
     K.calistir({
       sekmeler: [
-        { id: 'onaylar', ad: 'Bekleyen onaylar', ikon: 'saat', sayac: (d) => P.dikkatSayisi(d) },
+        { id: 'onaylar', ad: talepGizli ? 'Yeni bildirimler' : 'Bekleyen onaylar', ikon: 'saat', sayac: (d) => P.dikkatSayisi(d) },
         { id: 'talepler', ad: 'Talepler', ikon: 'liste' },
         { id: 'bildirimler', ad: 'Bildirimler', ikon: 'uyari' },
         { id: 'izin', ad: 'İzin durumu', ikon: 'takvim' },
         { id: 'taleplerim', ad: 'Taleplerim', ikon: 'kisi', sayac: (d) => P.benimTaleplerim(d, b.kullanici).filter((t) => t.durum === 'bekliyor').length },
         { id: 'ayarlar', ad: 'Ayarlar', ikon: 'ayar' },
-      ],
+      ].filter((s) => !talepGizli || !['talepler', 'izin', 'taleplerim'].includes(s.id)),
       sayfalar: { onaylar: Onaylar, talepler: TumTalepler, bildirimler: TumBildirimler, izin: IzinDurumu, taleplerim: YonetimTaleplerim, ayarlar: () => html`<${K.AyarlarSayfasi} />` },
     });
     return;
@@ -654,7 +710,9 @@
     // Sunum verisi ekran dinlemeye başlamadan hazır olabilir: abone olur olmaz bir kez yenile.
     useEffect(() => { const birak = b.abone(tik); tik(); return birak; }, []);
     useEffect(() => { if (!b.depo) return undefined; tik(); return b.depo.abone(tik); }, [b.depo]);
-    const ic = b.durum === 'hazir' && b.depo ? html`<${PersonelKabuk} />` : html`<div style="display:grid;place-items:center;height:100vh;color:var(--soluk)">${c('Yükleniyor…', 'Loading…')}</div>`;
+    const ic = b.durum === 'hazir' && b.depo ? html`<${PersonelKabuk} />`
+      : b.durum === 'basliyor' || DEMO ? html`<div style="display:grid;place-items:center;height:100vh;color:var(--soluk)">${c('Yükleniyor…', 'Loading…')}</div>`
+        : html`<${K.Kurulum} />`;
     return html`${ic}<${K.Katman} /><${GlobalKatman} />`;
   }
   render(html`<${Kok} />`, document.getElementById('uygulama'));

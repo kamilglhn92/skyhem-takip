@@ -14,11 +14,13 @@
   const { bugun, uid, sayi, tarihYaz, gunEkle, ara, AYLAR, onceYaz } = NT.c;
   const b = NT.baglanti;
   const q = new URLSearchParams(location.search);
-  const PERSONEL = q.has('demo') && (q.get('gorunum') === 'personel' || /^(ahmet|ali|hasan|mehmet)(\s|$)/i.test((q.get('kullanici') || '').trim()));
+  const PERSONEL = NT.c.personelGorunumu();
 
   /* Personel görünümünde depo, yalnız kişinin kendi kişi kaydını ve kendi istisnalarını döndüren bir görünümle sarılır;
      yazma, abonelik vb. aynı depoya gider (senkron bozulmaz). Kişi, Yoklama'daki adıyla eşleşir (büyük/küçük harf fark etmez). */
-  const adAyni = (a, x) => NT.c.kucuk(String(a || '').trim()) === NT.c.kucuk(String(x || '').trim());
+  // Kullanıcı adı biçiminde karşılaştırılır ("Onur ÖZDEMİR" = "Onur Özdemir" = onur.ozdemir); sunucudaki ad_anahtari ile aynı.
+  const anahtar = (s) => (NT.oturum ? NT.oturum.kullaniciAdi(s) : NT.c.kucuk(String(s || '').trim()));
+  const adAyni = (a, x) => !!anahtar(a) && anahtar(a) === anahtar(x);
   function benimId(d) {
     const l = d.kayitlar('kisi');
     const tam = l.find((k) => adAyni(k.ad, b.kullanici));
@@ -112,7 +114,7 @@
         ${uyari && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${uyari}</span></div>`}
         ${cakisan.length > 0 && html`<div class="s12 uyari-kutu kritik"><${Ikon} ad="uyari" /><span>${cevir("Bu tarihlerde zaten kayıt var:")} ${cakisan.map((c) => `${kisiAdi(c.kisi)} · ${cevir(Y.tur(c.tur).ad)} (${aralik(c)})`).join('; ')}</span></div>`}
         <${Alan} etiket=${cevir("Açıklama")}><input class="girdi" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${f.tur === 'yillik' ? cevir("Örn: Yıllık izin, 3 gün") : f.tur === 'izin' ? cevir("Örn: Mahkemesi var") : f.tur === 'rapor' ? cevir("Örn: 2 günlük rapor") : ''} /><//>
-        <${Alan} etiket=${cevir("Ekler")} ipucu=${f.tur === 'rapor' ? cevir("Rapor görseli / fotoğrafı") : cevir("İsteğe bağlı")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        <${Alan} etiket=${cevir("Ekler")} ipucu=${f.tur === 'rapor' ? cevir("Rapor görseli / fotoğrafı") : cevir("İsteğe bağlı")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} gizli=${f.tur === 'rapor'} /><//>
         ${kayit && html`<${GecmisBolumu} kayit=${kayit} />`}
         <button type="submit" class="gizli" />
       </form>

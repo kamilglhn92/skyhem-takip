@@ -699,7 +699,7 @@
 
   NT.yemekUI = { GunPenceresi, MenuYukle, FaturaPenceresi, Kesit, KafePenceresi, KafeFaturaPenceresi };
   const q = new URLSearchParams(location.search);
-  if (q.has('demo') && (q.get('gorunum') === 'personel' || /^(ahmet|ali|hasan|mehmet)(\s|$)/i.test((q.get('kullanici') || '').trim()))) {
+  if (NT.c.personelGorunumu()) {
     const { render } = window.htmPreact;
     function Kok() {
       const [, yenile] = useState(0);
@@ -707,7 +707,7 @@
       useEffect(() => { const birak = b.abone(guncelle); guncelle(); return birak; }, []);
       useEffect(() => { if (b.depo) return b.depo.abone(guncelle); }, [b.depo]);
       return b.durum === 'hazir' ? html`<${PersonelMenusu} />`
-        : b.durum === 'hata' ? html`<${NT.ui.HataKutusu} hata=${b.hataMesaji} />` : html`<p>${cevir('Yükleniyor…')}</p>`;
+        : b.durum === 'basliyor' ? html`<p>${cevir('Yükleniyor…')}</p>` : html`<${K.Kurulum} /><${K.Katman} /><${NT.ui.GlobalKatman} />`;
     }
     document.documentElement.classList.add('tezgah');
     render(html`<${Kok} />`, document.getElementById('uygulama'));

@@ -98,5 +98,23 @@
      aynı günkü düzeltmesi), 14 = 1.1, 15 = 1.2 … */
   const surumYaz = (n) => (n >= 12 ? `1.${Math.max(0, n - 13)}` : `0.${n}`);
 
-  NT.c = { surumYaz, adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
+  /* Kişisel hesap bilgisi (oturum bu tarayıcıda nt.oturum'da; sayfa açılır açılmaz okunabilir). Yetkiyi asıl sunucu (RLS) uygular;
+     burası yalnız doğru ekranı açmak içindir. Sunum modunda hesap yok sayılır. */
+  function hesap() {
+    if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')) return null;
+    try {
+      const o = JSON.parse(localStorage.getItem('nt.oturum') || 'null');
+      const a = (o && o.user && o.user.app_metadata) || null;
+      return a && a.rol ? { ad: a.ad || '', rol: a.rol, mimar: !!a.mimar, onay: !!a.onay, kullanici: a.kullanici || '' } : null;
+    } catch { return null; }
+  }
+  /* Personel rolü (mimar değilse): yalnız Personel ve Üretim panelleri; Numune, Yemek, Yoklama personel görünümünde açılır. */
+  const personelRolu = () => { const h = hesap(); return !!h && h.rol === 'personel' && !h.mimar; };
+  function personelGorunumu() {
+    const q = new URLSearchParams(location.search);
+    if (q.has('demo')) return q.get('gorunum') === 'personel' || /^(ahmet|ali|hasan|mehmet)(\s|$)/i.test((q.get('kullanici') || '').trim());
+    return q.get('gorunum') === 'personel' || personelRolu();
+  }
+
+  NT.c = { hesap, personelRolu, personelGorunumu, surumYaz, adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
 })(typeof window !== 'undefined' ? window : globalThis);

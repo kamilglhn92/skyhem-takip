@@ -25,7 +25,9 @@
   const yetkili = () => YAZICILAR.includes(NT.c.kucuk(String(b.kullanici || '').trim().split(/\s+/)[0]));
   const yazabilir = () => !kisit.var || yetkili();
   /* gizli: sistem yetkili olmayanlara hiç gösterilmez (Enerji); karşılama ekranı da kartı gizler (portal.js › ozel). */
-  const gorebilir = () => !kisit.gizli || yetkili();
+  /* Canlıda personel rolü (mimar değil) yönetim modüllerini açamaz (sunucu da vermez; context/personel-paneli.md 2. aşama). */
+  const YONETIM_MODULLERI = ['satis', 'su', 'enerji', 'klips'];
+  const gorebilir = () => (!kisit.gizli || yetkili()) && !(NT.c.personelRolu() && YONETIM_MODULLERI.includes(b.modul.id));
   function yazmaKisitla({ ek = '', gizli = false } = {}) {
     kisit.var = true;
     kisit.ek = ek;
@@ -306,7 +308,7 @@
     const durum = d.hata ? 'hata' : d.bekleyen.length ? 'bekliyor' : '';
     const Sayfa = sayfalar[sekme] || sayfalar[sekmeler[0].id];
     if (!gorebilir()) return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}><div class="tz-ana"><main class="tz-icerik" style="max-width:560px;margin:12vh auto 0">
-      <${BosDurum} ikon="yasak" baslik=${NT.dil.m("{0} size açık değil", cevir(b.modul.ad))} aciklama=${cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
+      <${BosDurum} ikon="yasak" baslik=${NT.dil.m("{0} size açık değil", cevir(b.modul.ad))} aciklama=${NT.c.personelRolu() ? cevir("Bu sistem yönetim panelindedir.", "This tracker is in the management panel.") : cevir("Bu sistemi yalnız Kamil ve Farukcan görebilir.")} />
       <div style="display:flex;justify-content:center;margin-top:16px"><${AnaEkranLinki} /></div></main></div></div>`;
     return html`<div class=${'tz-iskelet tz-m-' + b.modul.id}>
       <aside class="tz-yan">

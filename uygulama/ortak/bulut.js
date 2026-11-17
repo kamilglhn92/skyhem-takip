@@ -255,7 +255,23 @@
     }
 
     // İş emri ve stok işlemleri sunucu doğrulamadan yerel günlüğe eklenmez.
+    // Numune dışındaki tablolarda (Personel talepleri vb.) güncel kayıtla hazırlanan olaylar doğrudan o tabloya yazılır;
+    // sunucu (RLS) reddederse işlem hata verir, yerel günlüğe eklenmez.
     async numuneIslem(hazirla) {
+      if (this.tablo !== 'olaylar') {
+        await this.tara();
+        if (!this.cevrimici || this.bekleyen.length) throw new Error('İşlem için sunucu bağlantısı gerekir.');
+        if (this.sirali.length !== this.olaylar.size) this.yenidenHesapla();
+        const olaylar = this.olayOlustur(hazirla(this));
+        if (!olaylar.length) return olaylar;
+        await this.kilit(() => istek(this.kod, `${this.tablo}?on_conflict=id`, {
+          method: 'POST', govde: olaylar.map((e) => Object.fromEntries(ALANLAR.map((a) => [a, e[a] ?? null]))), prefer: 'resolution=ignore-duplicates,return=minimal',
+        }));
+        for (const e of olaylar) this.ekle(e);
+        this.yenidenHesapla();
+        this.bildir({ yerel: olaylar });
+        return olaylar;
+      }
       for (let deneme = 0; deneme < 3; deneme++) {
         await this.tara();
         if (!this.cevrimici || this.bekleyen.length) {
@@ -327,12 +343,19 @@
       return this.kisiler;
     }
 
-    async ekYaz(dosya) {
+    /* Sunucu işlevi (ör. isimsiz bildirim); hesap ya da erişim koduyla. */
+    rpc(ad, govde = {}) {
+      return istek(this.kod, 'rpc/' + ad, { method: 'POST', govde });
+    }
+
+    /* gizli: sağlık raporu gibi görseller; sunucuda yalnız yönetim ve ekleyen görür. talep: personel talebinin görseli;
+       talepler gibi yalnız yönetim kadrosu, onay yetkilisi ve ekleyen görür (asama2.sql › ekler). */
+    async ekYaz(dosya, { gizli = false, talep = false } = {}) {
       if (dosya.size > EK_SINIRI) throw new Error(`Dosya çok büyük (${Math.round(dosya.size / 1048576)} MB). En fazla 8 MB yüklenebilir.`);
       const uzanti = (dosya.name.match(/\.[a-z0-9]{1,5}$/i) || [''])[0].toLowerCase();
       const ad = `${NT.c.uid(12)}${uzanti}`;
       const bilgi = { dosya: ad, ad: dosya.name, tur: dosya.type || '', boyut: dosya.size };
-      await istek(this.kod, 'ekler', { method: 'POST', govde: { ...bilgi, veri: await base64(dosya) }, prefer: 'return=minimal', sure: 120000 });
+      await istek(this.kod, 'ekler', { method: 'POST', govde: { ...bilgi, veri: await base64(dosya), ...(gizli ? { gizli: true } : {}), ...(talep ? { talep: true } : {}) }, prefer: 'return=minimal', sure: 120000 });
       this.ekOnbellek.set(ad, dosya);
       return bilgi;
     }

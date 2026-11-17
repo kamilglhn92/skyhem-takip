@@ -631,10 +631,7 @@
       <p>${c('Bu bölüm şimdilik yalnız sunum modunda açılır. Canlı kayıt tablosu onaydan sonra kurulacak.', 'For now this section opens in demo mode only. The live record table will be set up after approval.')}</p>
       <a class="d ana-d tz-buyuk" href=${NT.c.adres('uretim', { demo: true })}>${c('Sunumu aç', 'Open demo')}</a></div></div>`;
   }
-  if (!(NT.demo && NT.demo.aktif)) {
-    render(html`<${Hazirlaniyor} />`, document.getElementById('uygulama'));
-    return;
-  }
+  void Hazirlaniyor; void render; // canlıya geçildi (2026-11-18, 2. aşama): kayıtlar olaylar_uretim tablosunda
   K.calistir({
     sekmeler: [
       { id: 'genel', ad: 'Genel Bakış', ikon: 'ozet' },
@@ -653,6 +650,8 @@
     ],
     arama: (d, q) => U.kayitlar(d).filter((k) => ara(`${k.no} ${k.form} ${k.parti} ${k.alanlar?.isotank || ''}`, q)).map((k) => ({ tur: 'Form', ad: `${k.no} · ${U.formAdi(k.form)}`, ek: k.parti || '', fn: () => isle(k) })),
     uzakKoleksiyonlar: ['kayit'],
+    // Üretim ayrı bir paneldir (karşılamanın 1. seviyesi); geri bağlantısı panel seçimine gider.
+    geri: { yazi: c('Paneller', 'Panels'), adres: NT.c.adres('portal', { kullanici: new URLSearchParams(location.search).get('kullanici') }) },
   });
   void useMemo; void onceYaz;
 })();

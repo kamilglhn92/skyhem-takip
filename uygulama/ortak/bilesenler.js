@@ -320,7 +320,7 @@
   }
 
   /* Dosya ekleri: veri deposuna (bulut) kaydedilir. */
-  function Ekler({ ekler = [], degis, salt }) {
+  function Ekler({ ekler = [], degis, salt, gizli }) {
     const [yukleniyor, setYukleniyor] = useState(false);
     const girdi = useRef();
     const depo = NT.baglanti.depo;
@@ -334,7 +334,7 @@
       setYukleniyor(true);
       try {
         const yeni = [];
-        for (const f of dosyalar) yeni.push(await depo.ekYaz(f));
+        for (const f of dosyalar) yeni.push(await depo.ekYaz(f, { gizli: !!gizli }));
         degis([...ekler, ...yeni]);
       } catch (err) { bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' }); }
       setYukleniyor(false);
@@ -370,7 +370,7 @@
   /* Belirli bir belge için yükleme kutusu (CoA, irsaliye, kargo belgesi…): boşken kesik çizgili, yüklenince yeşil.
      Dosya sürükle-bırak da olur. Değer, Ekler ile aynı biçimde dosya listesidir. `eski`: eski kayıtlardaki numara vb. */
   /* kamera: telefonda dosya seçici yerine doğrudan arka kamerayı açar (capture="environment"); masaüstünde dosya seçimi kalır. */
-  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, eski, children }) {
+  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, eski, gizli, talep, children }) {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [surukle, setSurukle] = useState(false);
     const girdi = useRef();
@@ -379,7 +379,7 @@
       setYukleniyor(true);
       try {
         const yeni = [];
-        for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f)));
+        for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f), { gizli: !!gizli, talep: !!talep }));
         degis([...ekler, ...yeni]);
       } catch (err) { bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' }); }
       setYukleniyor(false);
@@ -411,7 +411,8 @@
 
   /* Her modülün sol menüsünde: karşılama ekranına (tüm sistemler) dönüş. Sunum modunda sunum modunda kalır. */
   function AnaEkranLinki() {
-    return html`<a class="tz-anaekran" href=${NT.c.adres('portal', { panel: 'yonetim', kullanici: new URLSearchParams(location.search).get('kullanici') })} title=${cevir("Karşılama ekranına dön")}><${Ikon} ad="geri" boyut=${15} />${cevir("Tüm sistemler")}</a>`;
+    // Personel rolü yönetim karşılamasına giremez; panel seçimine döner.
+    return html`<a class="tz-anaekran" href=${NT.c.adres('portal', { panel: NT.c.personelRolu() ? undefined : 'yonetim', kullanici: new URLSearchParams(location.search).get('kullanici') })} title=${cevir("Karşılama ekranına dön")}><${Ikon} ad="geri" boyut=${15} />${cevir("Tüm sistemler")}</a>`;
   }
 
   /* Adım adım kurulum hatası: başlık + ne yapmalı + teknik ayrıntı (bize iletmek için) */

@@ -16,7 +16,8 @@
   const demoKim = q.get('kullanici') || 'Farukcan Bey';
   const yonetici = () => demo ? NT.hesap.emirAcabilir(demoKim) : K.yetkili();
   const demoAdres = (adres, ad = q.get('kullanici')) => adres + (ad ? '&kullanici=' + encodeURIComponent(ad) : '');
-  const personelTalepleri = () => demoAdres(NT.c.adres('personel', { demo: true }) + '&gorunum=yonetim', demo ? demoKim : b.kullanici);
+  const personelTalepleri = () => (demo ? demoAdres(NT.c.adres('personel', { demo: true }) + '&gorunum=yonetim', demoKim) : NT.c.adres('personel') + '&gorunum=yonetim');
+  const personelRolu = NT.c.personelRolu();
 
   /* Numune özeti numune/hesap.js'in kurallarıyla hesaplanır (numune koduna dokunmadan). */
   function numuneOzet(d) {
@@ -40,9 +41,11 @@
     { id: 'yoklama', ad: 'Yoklama', aciklama: 'Raporlu, izinli günler ve fazla mesai; İK için aylık çizelge', ikon: 'takvim', hazir: true, ozet: (d) => NT.yoklama.ozet(d), dikkat: (d) => NT.yoklama.dikkat(d) },
     { id: 'enerji', ad: 'Enerji', aciklama: 'Elektrik ve doğalgaz: tüketim, maliyet ve birim fiyat karşılaştırması', ikon: 'simsek', hazir: true, ozel: true, ozet: (d) => NT.enerji.ozet(d), dikkat: (d) => NT.enerji.dikkat(d) },
     /* sunum: bulut tablosu yok; kart doğrudan sunum modunu açar, özet sabittir (context/personel-paneli.md). Personel panelindeki taleplerin yönetim tarafı. */
-    { id: 'personel', ad: 'Personel talepleri', aciklama: 'İzin, malzeme, arıza talepleri ve ramak kala / öneri bildirimleri; onaylar ve izin durumu', ikon: 'kisi', hazir: true, sunum: true,
+    { id: 'personel', ad: 'Personel talepleri', aciklama: 'İzin, malzeme, arıza talepleri ve ramak kala / öneri bildirimleri; onaylar ve izin durumu', ikon: 'kisi', hazir: true, sunum: demo,
       adres: personelTalepleri,
-      ozet: () => [cevir('Sunum · örnek verilerle açılır', 'Demo · opens with sample data'), cevir('Onaydan sonra kişisel hesaplarla canlıya geçer', 'Goes live with personal accounts after approval')] },
+      ozet: (d) => (demo || !d ? [cevir('Sunum · örnek verilerle açılır', 'Demo · opens with sample data')]
+        : [NT.personel.bekleyenler(d).length ? NT.dil.m('{0} talep karar bekliyor', NT.personel.bekleyenler(d).length) : cevir('Karar bekleyen talep yok', 'No requests awaiting a decision'),
+          NT.personel.yeniBildirimler(d).length ? NT.dil.m('{0} yeni bildirim', NT.personel.yeniBildirimler(d).length) : ''].filter(Boolean)) },
   ];
   /* Karşılamanın 1. seviyesi: panel seçimi. Kişisel hesaplar gelince herkes yalnız kendi panelini görecek (context/personel-paneli.md). */
   const panel = new URLSearchParams(location.search).get('panel');
@@ -50,12 +53,17 @@
     location.replace(NT.c.adres('personel', { kullanici: demoKim }));
     return;
   }
+  // Canlıda personel rolü (mimar değil) yönetim karşılamasına giremez; panel seçimine döner (yetkiyi asıl sunucu uygular).
+  if (!demo && panel === 'yonetim' && personelRolu) {
+    location.replace(NT.c.adres('portal'));
+    return;
+  }
   const PANELLER = [
-    { id: 'personel', ad: 'Personel', aciklama: 'İzin, malzeme isteği, arıza, ramak kala, öneri ve numune işleri', adres: () => NT.c.adres('personel', { demo: true, kullanici: demo && NT.personelDemo.personelMi(demoKim) ? demoKim : '' }), sunum: true },
-    { id: 'uretim', ad: 'Üretim', aciklama: 'Reaksiyon ve proses takip formları, hammadde kabul, vardiya devri; sahada doldurulan formların taranıp dijitale işlenmesi', adres: () => NT.c.adres('uretim', { demo: true }), sunum: true },
+    { id: 'personel', ad: 'Personel', aciklama: 'İzin, malzeme isteği, arıza, ramak kala, öneri ve numune işleri', adres: () => NT.c.adres('personel', { kullanici: demo && NT.personelDemo.personelMi(demoKim) ? demoKim : '' }), sunum: demo },
+    { id: 'uretim', ad: 'Üretim', aciklama: 'Reaksiyon ve proses takip formları, hammadde kabul, vardiya devri; sahada doldurulan formların taranıp dijitale işlenmesi', adres: () => NT.c.adres('uretim'), sunum: demo },
     { id: 'yonetim', ad: 'Yönetim', aciklama: 'Numune, satış, içme suyu, yemek, yoklama, enerji ve personel talepleri',
       adres: () => NT.c.adres('portal', { panel: 'yonetim', kullanici: demo && NT.personelDemo.personelMi(demoKim) ? 'Kamil' : q.get('kullanici') }) },
-  ];
+  ].filter((p) => !(p.id === 'yonetim' && personelRolu));
 
   /* ozel: yalnız yetkililerin (Kamil, Farukcan) gördüğü sistem; diğerlerinde kartı, özeti ve uyarıları hiç yüklenmez. */
   // Sunum modunda yalnız örnek içerik vardır; yeni modülün görseli de incelenebilir.
@@ -154,12 +162,29 @@
     </div>`;
   }
 
+  /* Personel tablosu: sunumda paylaşılan örnek depo, canlıda bulut deposu (salt okunur açılır, 30 sn'de bir taranır; duyuru yazılabilir). */
+  function personelDeposuAc() {
+    if (demo) return NT.personelDemo.depoAc(demoKim);
+    const d = b.depoOlustur('personel', b.kod, b.kullanici);
+    let zaman;
+    const asilKapat = d.kapat ? d.kapat.bind(d) : () => {};
+    d.kapat = () => { clearTimeout(zaman); asilKapat(); };
+    return (async () => {
+      const kayitli = await d.onbellek.al().catch(() => null);
+      if (kayitli && kayitli.olaylar) { for (const e of kayitli.olaylar) d.ekle(e); d.sonSira = kayitli.sonSira || 0; d.yenidenHesapla(); }
+      d.cevrimici = true;
+      const dongu = async () => { await d.tara().catch(() => {}); zaman = setTimeout(dongu, 30000); };
+      dongu();
+      return d;
+    })();
+  }
+
   function PersonelBekleyen() {
     const [talepler, setTalepler] = useState([]);
     useEffect(() => {
       let aktif = true;
       let kapat;
-      NT.personelDemo.depoAc(demo ? demoKim : b.kullanici).then((d) => {
+      personelDeposuAc().then((d) => {
         if (!aktif) { d.kapat(); return; }
         const guncelle = () => setTalepler(NT.personel.bekleyenler(d));
         const birak = d.abone(guncelle);
@@ -172,7 +197,7 @@
     return html`<a class="pt-personel-bekleyen" href=${personelTalepleri() + '#/onaylar'}>
       <${Ikon} ad="uyari" boyut=${24} /><span><strong>${talepler.length} ${cevir('personel talebi karar bekliyor', 'staff requests awaiting a decision')}</strong>
       <span class="pt-personel-ozet">${talepler.slice(0, 3).map((t) => html`<span key=${t.id}>${t.sahip} · ${NT.personel.talepOzet(t)}</span>`)}</span>
-      <small>${cevir('Sunum', 'Demo')}</small></span>
+      ${demo && html`<small>${cevir('Sunum', 'Demo')}</small>`}</span>
       <b>${cevir('Personel taleplerini aç', 'Open staff requests')} →</b></a>`;
   }
 
@@ -180,10 +205,10 @@
     const [depo, setDepo] = useState(null);
     const [liste, setListe] = useState([]);
     useEffect(() => {
-      if (!demo) return undefined;
+      if (!demo && b.durum !== 'hazir') return undefined;
       let aktif = true;
       let kapat;
-      NT.personelDemo.depoAc(demoKim).then((d) => {
+      personelDeposuAc().then((d) => {
         if (!aktif) { d.kapat(); return; }
         const yenile = () => setListe(d.kayitlar('duyuru').sort((a, b) => b._olusturma - a._olusturma));
         const birak = d.abone(yenile);
@@ -280,7 +305,7 @@
         </div>
       </header>
       <main class="pt-icerik">
-        ${demo && yonetici() && html`<${PersonelBekleyen} />`}
+        ${yonetici() && html`<${PersonelBekleyen} />`}
         ${duyuruDeposu && html`<div class="pt-duyuru-eylem"><button class="d" onClick=${() => setYeniDuyuru(true)}><${Ikon} ad="arti" boyut=${16} />${cevir('Yeni duyuru', 'New announcement')}</button></div>`}
         <div class="pt-kartlar">${gorunen().map((m, i) => {
           const o = ozet[m.id];
@@ -344,11 +369,11 @@
       <main class="pt-icerik"><div class="pt-kartlar pt-panel-kartlar">${PANELLER.map((p, i) => html`<button class="pt-kart" data-modul=${'panel-' + p.id} style=${{ '--i': i }} onClick=${() => { location.href = p.adres(); }}>
           <span class="pt-baslik">${cevir(p.ad, { personel: 'Staff', uretim: 'Production', yonetim: 'Management' }[p.id])}${p.sunum && html` <span class="rozet">${cevir('Sunum', 'Demo')}</span>`}</span>
           <span class="pt-aciklama">${cevir(p.aciklama)}</span>
-          <span class="pt-ozet"><span class="soluk">${p.sunum ? cevir('Örnek verilerle açılır; kişisel hesaplar kurulunca canlıya geçer', 'Opens with sample data; goes live with personal accounts') : cevir('Bugün kullandığınız sistemler', 'The trackers you use today')}</span></span>
+          <span class="pt-ozet"><span class="soluk">${p.sunum ? cevir('Örnek verilerle açılır', 'Opens with sample data') : { personel: cevir('Talepleriniz, bildirimleriniz ve işleriniz', 'Your requests, reports and tasks'), uretim: cevir('Üretim formları ve partiler', 'Production forms and batches') }[p.id] || cevir('Bugün kullandığınız sistemler', 'The trackers you use today')}</span></span>
           <span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span></button>`)}</div>
         <section class="pt-duyurular" aria-labelledby="pt-duyuru-baslik">
           <h2 id="pt-duyuru-baslik"><${Ikon} ad="bilgi" boyut=${20} />${cevir('Duyuru panosu', 'Notice board')}</h2>
-          ${demo ? html`<ul>${[...liste, ...ORNEK_DUYURULAR].map((x) => html`<li key=${x.id || x.baslik[0]}>
+          ${demo || liste.length ? html`<ul>${[...liste, ...(demo ? ORNEK_DUYURULAR : [])].map((x) => html`<li key=${x.id || x.baslik[0]}>
             <button type="button" onClick=${() => setDuyuru(x)}>
               <span class="pt-duyuru-tarih"><time dateTime=${x.tarih}>${NT.c.tarihYaz(x.tarih)}</time><${Ikon} ad="ok" boyut=${15} /></span>
               <span class="pt-duyuru-govde"><span><b>${cevir(...x.baslik)}</b><small>${cevir(...x.ozet)}</small></span>
@@ -357,7 +382,7 @@
             : html`<p>${cevir('Henüz duyuru yok.', 'No announcements yet.')}</p>`}
         </section>
       </main>
-      <footer class="pt-not">${cevir('Personel ve yönetim panelleri aynı kayıtlarla çalışır. Kişisel hesaplar kurulunca herkes yalnız kendi panelini görecek.', 'Both panels share the same records. Once personal accounts are set up, everyone sees only their own panel.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)}` : ''}</footer>
+      <footer class="pt-not">${cevir('Paneller aynı kayıtlarla çalışır; herkes hesabının yetkisindeki panelleri görür.', 'The panels share the same records; everyone sees the panels their account allows.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)}` : ''}</footer>
       ${duyuru && html`<${NT.ui.Modal} baslik=${cevir(...duyuru.baslik)} kapat=${() => setDuyuru(null)}>
         <div class="modal-ic"><time class="soluk kucuk" dateTime=${duyuru.tarih}>${NT.c.tarihYaz(duyuru.tarih)}</time>
           <p class="pt-duyuru-metin">${cevir(...duyuru.metin)}</p>

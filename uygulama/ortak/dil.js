@@ -117,6 +117,7 @@
     "Değerler →": "Values →",
     "Personel talepleri": "Staff requests",
     "Bekleyen onaylar": "Pending approvals",
+    "Yeni bildirimler": "New reports",
     "Talepler": "Requests",
     "Bildirimler": "Reports",
     "Ana sayfa": "Home",
