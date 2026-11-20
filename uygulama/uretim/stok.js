@@ -294,7 +294,7 @@
     return html`<${K.Selam} bant baslik=${NT.ui.karsilama(b.kullanici)}>
       ${c('Dolu ambalaj')} <b>${doluSayisi}</b> · ${c('Boş ambalaj')} <b>${bosSayisi}</b><//>
       <div class="ur-pano-araclar"><${Konum} tumu deger=${konum} degis=${setKonum} /><div class="us-islemler">
-      ${!yogunSunum && html`<a class="d" href=${NT.c.adres('uretimstok',{demo:true,kullanici:b.kullanici})+'&ornek=yogun'}>${c('Yoğun sunumu aç','Open sample inventory','Открыть демоверсию с примерами')}</a>`}
+      ${!NT.c.sunumKapali && !yogunSunum && html`<a class="d" href=${NT.c.adres('uretimstok',{demo:true,kullanici:b.kullanici})+'&ornek=yogun'}>${c('Yoğun sunumu aç','Open sample inventory','Открыть демоверсию с примерами')}</a>`}
       ${yogunSunum && K.yetkili() && html`<a class="d" href=${NT.c.adres('satis',{kullanici:b.kullanici})+'#/sevkiyatlar'}>${c('Satış Takip')}</a>`}
       ${dugme('Boş ambalaj girişi','kutu',() => formAc(BosGiris,{ilkKonum:konum}))}
       ${dugme('Stok girişi','arti',() => girisAc(),true)}</div></div>

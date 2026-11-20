@@ -2,6 +2,17 @@
 (function (kok) {
   'use strict';
   const NT = (kok.NT = kok.NT || {});
+  const sunumKapali = kok.NT_MODUL?.sunumKapali === true;
+  if (sunumKapali && kok.location) {
+    const adres = new URL(kok.location.href);
+    if (adres.searchParams.has('demo') || adres.searchParams.has('ornek')) {
+      adres.searchParams.delete('demo');
+      adres.searchParams.delete('ornek');
+      adres.searchParams.delete('kullanici');
+      try { kok.history.replaceState(kok.history.state, '', adres.href); }
+      catch { kok.location.replace(adres.href); }
+    }
+  }
 
   const ALFABE = 'abcdefghijkmnpqrstuvwxyz23456789';
   function uid(n = 10) {
@@ -87,6 +98,7 @@
   /* Sistemler arası geçiş: hepsi tek giriş dosyasından açılır (SKYHEM Takip.html?modul=satis). Sunum modu korunur. */
   /* panel: karşılama ekranında hangi panel ('yonetim' | boş = panel seçimi). Modüllerden dönüş yönetim karşılamasına gider. */
   function adres(modul, { demo = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo'), panel, kullanici } = {}) {
+    demo = demo && !sunumKapali;
     const p = [];
     if (modul && modul !== 'portal') p.push('modul=' + encodeURIComponent(modul));
     if (panel) p.push('panel=' + encodeURIComponent(panel));
@@ -120,5 +132,5 @@
     return q.get('gorunum') === 'personel' || personelRolu();
   }
 
-  NT.c = { hesap, personelRolu, personelGorunumu, surumYaz, adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
+  NT.c = { hesap, personelRolu, personelGorunumu, sunumKapali, surumYaz, adres, uid, bugun, gunEkle, gunFarki, tarihYaz, zamanYaz, onceYaz, kucuk, trSirala, ara, sayi, adetYaz, basHarfler, csv, indir, AYLAR };
 })(typeof window !== 'undefined' ? window : globalThis);
