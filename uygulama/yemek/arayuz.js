@@ -68,12 +68,27 @@
   }
 
   /* Bir öğünün menüsü: yazı + (varsa) resimden kesit */
-  function MenuKutusu({ tarih, ogun, resim = false, genislik = 240 }) {
+  function MenuKutusu({ tarih, ogun, resim = false, genislik = 240, gunluk = false }) {
     const d = depo();
     const l = Y.yemekler(d, tarih, ogun);
     const k = Y.kesit(d, tarih, ogun);
-    const [goster, setGoster] = useState(resim);
+    const [secim, setGoster] = useState(null);
+    const goster = secim ?? (resim || (gunluk && !l.length));
     const o = Y.OGUNLER.find((x) => x.id === ogun);
+    if (gunluk) {
+      const gorsel = !k && !l.length ? Y.menu(d, tarih.slice(0, 7), ogun)?.ek : null;
+      const baslik = html`<span class="ym-gunluk-baslik">
+        <span class="ym-gunluk-ikon"><${Ikon} ad=${ogun === 'ogle' ? 'gunes' : 'ay'} boyut=${18} /></span>
+        <span>${cevir(o.ad)} ${cevir("menüsü")}</span>
+      </span>`;
+      const eylem = k && l.length ? html`<button type="button" class="d kucuk-d" onClick=${() => setGoster(!goster)}><${Ikon} ad="goz" boyut=${15} />${goster ? cevir("Yazıyı göster") : cevir("Resmi göster")}</button>`
+        : gorsel && html`<button type="button" class="d kucuk-d" onClick=${() => ekAc(gorsel)}><${Ikon} ad="goz" boyut=${15} />${cevir("Resmi aç")}</button>`;
+      return html`<${K.Kart} sinif=${'ym-gunluk-kart ym-gunluk-' + ogun} baslik=${baslik} sag=${eylem}>
+        ${goster && k ? html`<${Kesit} tarih=${tarih} ogun=${ogun} genislik=${genislik} />`
+          : l.length ? html`<ul class="ym-gunluk-liste">${l.map((yemek) => html`<li>${yemek}</li>`)}</ul>`
+          : html`<p class="soluk">${gorsel ? cevir('Bugünün menüsü aylık görselde.', 'Today’s menu is in the monthly image.', 'Меню на сегодня доступно на изображении за месяц.') : cevir("Menü yüklenmemiş")}</p>`}
+      <//>`;
+    }
     return html`<div class="ym-menu">
       <div class="ym-menu-bas"><b>${cevir(o.ad)} ${cevir("menüsü")}</b>${k && html`<button type="button" class="d hayalet kucuk-d" onClick=${() => setGoster(!goster)}><${Ikon} ad="goz" boyut=${14} />${goster ? cevir("Yazıyı göster") : cevir("Resmi göster")}</button>`}</div>
       ${goster && k ? html`<${Kesit} tarih=${tarih} ogun=${ogun} genislik=${genislik} />`
@@ -689,7 +704,9 @@
           <div class="s6"><button class="d" onClick=${ogunAc} disabled=${aciliyor}><${Ikon} ad="yemek" />${cevir('Ek Desbaş yemeği', 'Extra Desbaş meals', 'Дополнительное питание Desbaş')}</button></div>
           <div class="s6"><button class="d" onClick=${() => K.ac(PersonelYemekFormu, { tarih: sahaTarihi(), tur: 'kafe' })}><${Ikon} ad="kahve" />${cevir('Kafe siparişi', 'Café order')}</button></div>
         </div><//>`}
-      <div class="form-izgara">${Y.MENULU.map((o) => html`<div class="s6"><${MenuKutusu} tarih=${bg} ogun=${o.id} /></div>`)}</div>
+      <div class="ym-personel-bugun">
+        ${Y.MENULU.map((o) => html`<${MenuKutusu} key=${bg + o.id} tarih=${bg} ogun=${o.id} gunluk genislik=${360} />`)}
+      </div>
       <section id="aylik-menu"><${MenuSayfasi} personel /></section>
     </main></div><${K.Katman} /><${NT.ui.GlobalKatman} />`;
   }
