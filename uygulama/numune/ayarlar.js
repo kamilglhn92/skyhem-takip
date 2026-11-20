@@ -181,7 +181,7 @@
     const AD = { dolum: 'Dolum', sevk: 'Sevkiyat', alim: 'Alım', sayim: 'Sayım' };
     return html`<${Kart} ic=${false} baslik=${cevir("Çöp kutusu")} aciklama=${cevir("Silinen kayıtlar kalıcı olarak kaybolmaz; buradan geri alınabilir.")}>
       ${silinen.length ? html`<div class="tablo-kap" style="max-height:340px"><table class="tablo"><thead><tr><th>${cevir("Kayıt")}</th><th>${cevir("Tür")}</th><th>${cevir("İçerik")}</th><th>${cevir("Silen")}</th><th></th></tr></thead><tbody>
-        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td><span class="etiket-kod">${r.no}</span></td><td>${cevir(AD[c])}</td>
+        ${silinen.map(({ c, r }) => html`<tr key=${r.id}><td><span class="etiket-kod">${r.no}</span></td><td>${c === 'sayim' && H.bosCikisMi(r) ? cevir('Boş Kap Çıkışı', 'Empty Container Withdrawal') : c === 'sevk' && H.labSevkMi(r) ? cevir('Lab Analizi', 'Lab Analysis') : cevir(AD[c])}</td>
           <td>${c === 'sevk' ? r.firma : c === 'alim' ? `${r.adet} × ${H.ambalajAdi(d, r.ambalaj)}` : `${r.adet ?? r.fark} × ${r.urun || ''} ${r.parti || ''} ${H.ambalajAdi(d, r.ambalaj)}`} <span class="soluk kucuk">· ${tarihYaz(r.tarih)}</span></td>
           <td>${r._degistiren} <span class="soluk kucuk">· ${onceYaz(r._degisim)}</span></td>
           <td class="sag"><button class="d kucuk-d" onClick=${async () => { if (await NT.form.kayitDurumu(c, r, 'undel')) bildir(NT.dil.m("{0} geri alındı.", r.no)); }}><${Ikon} ad="geri" boyut=${15} />${cevir("Geri al")}</button></td></tr>`)}

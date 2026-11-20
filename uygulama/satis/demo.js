@@ -44,5 +44,5 @@
       } }], gunEkle(tarih, -3));
       n++;
     }
-  });
+  }, { paylas: true, depoAdi: new URLSearchParams(location.search).get('ornek') === 'yogun' ? 'satis-yogun' : 'satis' });
 })();

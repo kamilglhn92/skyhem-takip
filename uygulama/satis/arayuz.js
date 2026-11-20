@@ -30,13 +30,7 @@
   NT.ui.DEGER_YAZ.musteri = (v) => depo()?.kayit('musteri', v)?.ad || v;
 
   /* ---------------- Ambalaj çizimleri (numunedeki şişeler gibi) ---------------- */
-  const R = { f: 'var(--ana-cizgi)', s: 'var(--ana)', k: 'var(--ana-koyu)', z: 'var(--yuzey)' };
-  function AmbalajCizimi({ tur, boyut = 1 }) {
-    const tip = { IBC: 'IBC', Varil: 'Varil', 'İsotank': 'isotank', 'Dökme': 'dokme' }[tur];
-    if (!tip) return html`<${NT.ui.Sise} litre=${5} boyut=${boyut} />`;
-    const genis = tip === 'isotank' || tip === 'dokme';
-    return html`<span class=${'amb-cizim nt-amb-resim nt-amb-' + tip} aria-hidden="true" style=${{ width: (genis ? 62 : 42) * boyut, height: 42 * boyut }}></span>`;
-  }
+  const AmbalajCizimi = NT.ui.AmbalajCizimi;
 
   /* ---------------- Durum ---------------- */
   const ROZET = { Sipariş: ['mor', 'saat'], Hazırlanıyor: ['kritik', 'kutu'], Yolda: ['bilgi', 'sevk'], 'Teslim edildi': ['iyi', 'daire_tik'] };
@@ -56,6 +50,7 @@
     const d = depo();
     const sonraki = S.DURUMLAR[S.DURUMLAR.indexOf(s.durum) + 1];
     if (!sonraki) return;
+    if (s.stokTakip && !s.stokPlan && ['Yolda','Teslim edildi'].includes(sonraki)) { bildir(cevir("Stok çıkışı için siparişi kaydedip Stoktan hazırla adımını tamamlayın."),{tur:'hata'}); return; }
     const eksik = S.belgeZamani({ ...s, durum: sonraki }) ? S.eksikler(s) : [];
     if (eksik.length) {
       const c = await eksikHatirlat(eksik, { evet: NT.dil.m('Yine de “{0}” yap', cevir(sonraki)), hayir: 'Vazgeç', alternatif: 'Belgeleri ekle' });
@@ -65,13 +60,14 @@
     const v = { durum: sonraki };
     if (sonraki === 'Yolda' && !s.sevkTarihi) v.sevkTarihi = bugun();
     if (sonraki === 'Teslim edildi') { v.teslimTarihi = bugun(); if (!s.sevkTarihi) v.sevkTarihi = bugun(); }
-    await d.kaydet([{ c: 'sevk', k: s.id, v }]);
+    if (!await sevkDegistir(s,v)) return;
+    if (s.stokPlan) { bildir(s.no + ' · ' + cevir(sonraki)); return; }
     bildir(`${s.no} · ${s.firma}: ${cevir(sonraki)}`, { eylem: { yazi: 'Geri al', fn: () => d.kaydet([{ c: 'sevk', k: s.id, v: { durum: s.durum, sevkTarihi: s.sevkTarihi || '', teslimTarihi: s.teslimTarihi || '' } }]) } });
   }
   function IptalPenceresi({ s, kapat }) {
     const [neden, setNeden] = useState('');
     return html`<${Modal} dar baslik=${NT.dil.m("{0} iptal edilsin mi?", s.no)} kapat=${kapat} alt=${html`<button class="d hayalet" onClick=${kapat}>${cevir("Vazgeç")}</button>
-      <button class="d tehlike" onClick=${async () => { await depo().kaydet([{ c: 'sevk', k: s.id, v: { iptal: true, iptalNeden: neden.trim(), iptalTarihi: bugun() } }]); bildir(NT.dil.m("{0} iptal edildi.", s.no)); kapat(); }}>${cevir("İptal et")}</button>`}>
+      <button class="d tehlike" onClick=${async () => { if (!await sevkDegistir(s,{ iptal: true, iptalNeden: neden.trim(), iptalTarihi: bugun() })) return; bildir(NT.dil.m("{0} iptal edildi.", s.no)); kapat(); }}>${cevir("İptal et")}</button>`}>
       <div class="modal-ic"><p style="margin:0 0 12px">${cevir("Kayıt silinmez; Sevkiyatlar › İptal’de kalır ve rapora girmez.")}</p>
         <${Alan} etiket=${cevir("Neden (isteğe bağlı)")}><input class="girdi" value=${neden} onInput=${(e) => setNeden(e.target.value)} autofocus placeholder=${cevir("Örn: Müşteri siparişi erteledi")} /><//></div>
     <//>`;
@@ -172,7 +168,7 @@
     const { KayitDetay, DetayBolumu } = NT.ui;
     const baslik = [s.no, s.firma].filter(Boolean).join(' · ');
     const bilgiler = [
-      [cevir('Yetkili'), s.yetkili], [cevir('Ülke'), cevir(s.ulke)],
+      [cevir('Yetkili'), s.yetkili], [cevir('Ülke'), NT.dil.ulkeYaz(s.ulke)],
       [cevir('Sipariş tarihi'), s.siparisTarihi && tarihYaz(s.siparisTarihi)],
       [cevir('Sevk tarihi'), s.sevkTarihi && tarihYaz(s.sevkTarihi)],
       [cevir('Teslim tarihi'), s.teslimTarihi && tarihYaz(s.teslimTarihi)],
@@ -222,7 +218,45 @@
     <//>`;
   }
 
-  function SevkKarti({ s }) {
+  function HazirlamaPlani({ s, kapat }) {
+    const [stok,setStok] = useState(null), [hazir,setHazir] = useState([]), [kaynak,setKaynak] = useState('');
+    const [hata,setHata] = useState(''), [bekle,setBekle] = useState(false);
+    const A = NT.stokAkisi, k = s.kalemler[0];
+    useEffect(() => {
+      let acik = true;
+      A.depoAc().then((d) => {
+        if (acik) setStok(NT.uretimStoku.hesapla(d));
+        d.kapat?.();
+      }).catch((e) => { if (acik) setHata(e.message); });
+      return () => { acik=false; };
+    }, []);
+    const hazirlar = stok ? [...stok.ibcler.values()].filter((i) => i.durum==='serbest' && i.ambalaj===k.ambalaj && A.eslesir(k,i.urun,i.partiler)) : [];
+    const tanklar = stok ? [...stok.kaynaklar.values()].filter((x) => x.tur==='isotank' && x.cins==='urun' && x.gram>0 && A.eslesir(k,x.urun,x.partiler.keys())) : [];
+    const eksik = k.adet-hazir.length;
+    async function kaydet() {
+      setBekle(true);
+      try {
+        await A.satisYaz(depo(),[{c:'sevk',k:s.id,v:{stokPlan:{hazir,kaynak:eksik?kaynak:''},durum:'Hazırlanıyor'}}]);
+        kapat(); bildir(cevir('Hazırlama planı kaydedildi.'));
+      } catch(e) { setHata(stokHatasi(e)); } finally { setBekle(false); }
+    }
+    return html`<${Modal} baslik=${cevir('Stoktan hazırla')} kapat=${kapat} alt=${html`<button class="d ana-d" disabled=${!stok || bekle || (eksik>0 && !kaynak)} onClick=${kaydet}>${cevir('Kaydet')}</button>`}>
+      <div class="modal-ic"><b>${s.no} · ${s.firma} · ${k.adet} × ${cevir(k.ambalaj)} · ${k.urun}</b>
+      <p>${cevir('Hazır stoktan ayır')} · ${hazir.length} / ${k.adet}</p>
+      ${hazirlar.map((i) => html`<label style="display:block"><input type="checkbox" checked=${hazir.includes(i.no)} disabled=${!eksik && !hazir.includes(i.no)}
+        onChange=${(ev) => setHazir(ev.currentTarget.checked?[...hazir,i.no]:hazir.filter((n)=>n!==i.no))} /> ${i.no} · ${kg(i.gram/1000)} · ${cevir(i.konum || 'Konum belirtilmedi')}</label>`)}
+      <p>${cevir('Doldurulacak ambalaj')} · ${eksik}</p>${eksik>0 && html`<label>${cevir('Dolum kaynağı')}<select class="girdi" value=${kaynak} onChange=${(ev)=>setKaynak(ev.currentTarget.value)}>
+        <option value="">${cevir('Seçin')}</option>${tanklar.map((x)=>html`<option value=${x.id}>${x.yer} · ${kg(x.gram/1000)}</option>`)}</select></label>`}
+      ${hata && html`<p role="alert" class="hata-yazi">${cevir(hata)}</p>`}</div><//>`;
+  }
+  function stokHatasi(e) {
+    try { return JSON.parse(e.detay).message || e.message; } catch { return e.message; }
+  }
+  async function sevkDegistir(s,v) {
+    try { await NT.stokAkisi.satisYaz(depo(),[{c:'sevk',k:s.id,v}]); return true; }
+    catch(e) { bildir(cevir(stokHatasi(e)),{tur:'hata'}); return false; }
+  }
+  function SevkKarti({ s, hazir }) {
     const yer = S.DURUMLAR.indexOf(s.durum);
     const sonraki = s.iptal ? null : S.DURUMLAR[yer + 1];
     const net = S.sevkNet(s);
@@ -234,7 +268,7 @@
     const detayAc = () => K.ac(SevkDetayi, { s });
     return html`<div class="tz-gonderi st-kart tz-detay-kart" style=${s.iptal ? 'opacity:.72' : ''}>
       <div class="bas"><span class="etiket-kod">${s.no}</span><${NT.ui.KartDetayDugmesi} no=${s.no} firma=${s.firma} ac=${detayAc} />
-        ${s.ulke && s.ulke !== 'Türkiye' && html`<span class="soluk kucuk">${cevir(s.ulke)}</span>`}
+        ${s.ulke && s.ulke !== 'Türkiye' && html`<span class="soluk kucuk">${NT.dil.ulkeYaz(s.ulke)}</span>`}
         <span class=${'gun' + (!s.iptal && yer < 2 && gun >= 10 ? ' gec' : '')}>${bilgi}</span></div>
       <div class="st-kalemler">${(s.kalemler || []).map((k, i) => html`<${KalemCip} key=${i} k=${k} />`)}
         <span class="st-toplam">${kg(net)}${S.tutar(s) > 0 ? html`<small>${paraYaz(S.tutar(s), s.paraBirimi)}</small>` : ''}</span></div>
@@ -245,14 +279,42 @@
           : html`<span class="soluk kucuk">${[s.plaka, s.sofor, s.konteyner].filter(Boolean).join(' · ')}</span>`}
         ${eksik.length > 0 && html`<button class="tz-alarm" style="border:0;cursor:pointer" title=${cevir('Eksik', 'Missing') + ': ' + eksik.map((x) => cevir(x)).join(', ')} onClick=${() => sevkAc(s)}><${Ikon} ad="uyari" />${eksik.length} ${cevir("eksik belge")}</button>`}
         <span class="bosluk" />
+        ${!s.iptal && yer<2 && yaz() && !s.stokPlan && NT.stokAkisi.destekler(s) && html`<button class="d kucuk-d" onClick=${()=>K.ac(HazirlamaPlani,{s})}>${cevir('Stoktan hazırla')}</button>`}
+        ${s.stokPlan && html`<span class="rozet bilgi">${cevir('Üretim Stoku')}${hazir && !s.iptal && yer<2 && ' · ' + cevir('Hazır') + ' ' + (hazir.get(NT.stokAkisi.bag(s.id)) || 0) + ' / ' + s.kalemler[0].adet + ' ' + cevir(s.kalemler[0].ambalaj)}</span>`}
         ${!s.iptal && html`<${KlipsDugmesi} s=${s} />`}
-        ${!yaz() ? '' : s.iptal ? html`<button class="d hayalet kucuk-d" onClick=${() => depo().kaydet([{ c: 'sevk', k: s.id, v: { iptal: false } }])}><${Ikon} ad="geri" boyut=${15} />${cevir("İptali geri al")}</button>`
+        ${!yaz() ? '' : s.iptal ? !s.stokPlan && html`<button class="d hayalet kucuk-d" onClick=${() => depo().kaydet([{ c: 'sevk', k: s.id, v: { iptal: false } }])}><${Ikon} ad="geri" boyut=${15} />${cevir("İptali geri al")}</button>`
           : s.durum !== 'Teslim edildi' && html`<button class="d hayalet kucuk-d" onClick=${() => K.ac(IptalPenceresi, { s })}><${Ikon} ad="kapat" boyut=${15} />${cevir("İptal et")}</button>`}
         <button class="d hayalet kucuk-d" onClick=${yaz() ? () => sevkAc(s) : detayAc}><${Ikon} ad=${yaz() ? 'kalem' : 'goz'} boyut=${15} />${yaz() ? cevir('Düzenle') : cevir('Görüntüle', 'View')}</button>
       </div>
     </div>`;
   }
-  const KartIzgara = ({ liste }) => html`<div class="st-izgara">${liste.map((s) => html`<${SevkKarti} key=${s.id} s=${s} />`)}</div>`;
+  function KartIzgara({ liste }) {
+    const etkin = liste.some((s) => s.stokPlan && !s.iptal && !S.satildi(s));
+    const [hazir,setHazir] = useState(null);
+    useEffect(() => {
+      if (!etkin) { setHazir(null); return; }
+      let acik=true, d, birak, saat;
+      AyniStoguAc();
+      async function AyniStoguAc() {
+        try {
+          d=await NT.stokAkisi.depoAc();
+          if (!acik) { d.kapat?.(); return; }
+          const guncelle=()=>{
+            if (d.cevrimici===false && NT.baglanti.mod!=='demo') { setHazir(null); return; }
+            const sayilar=new Map();
+            for (const i of NT.uretimStoku.hesapla(d).ibcler.values()) {
+              if (i.durum==='ayrildi' && i.siparis.startsWith('EMIR/')) sayilar.set(i.siparis,(sayilar.get(i.siparis)||0)+1);
+            }
+            setHazir(sayilar);
+          };
+          guncelle(); birak=d.abone(guncelle);
+          if (NT.baglanti.mod!=='demo') saat=setInterval(()=>d.tara().catch(()=>setHazir(null)),15000);
+        } catch { if (acik) setHazir(null); }
+      }
+      return ()=>{acik=false;birak?.();clearInterval(saat);d?.kapat?.();};
+    },[etkin]);
+    return html`<div class="st-izgara">${liste.map((s) => html`<${SevkKarti} key=${s.id} s=${s} hazir=${hazir} />`)}</div>`;
+  }
 
   /* ---------------- Sevkiyat formu ---------------- */
   const bosKalem = (d, on = {}) => {
@@ -339,6 +401,7 @@
     async function kaydet() {
       setDenendi(true);
       if (Object.values(hatalar).some(Boolean)) return;
+      if ((!kayit ? NT.stokAkisi.destekler({...f,kalemler:f.kalemler.map(k=>({...k,adet:+k.adet}))}) : kayit.stokTakip) && !kayit?.stokPlan && yer>=2) { bildir(cevir("Stok çıkışı için siparişi kaydedip Stoktan hazırla adımını tamamlayın."),{tur:'hata'}); return; }
       // Eksik belge/bilgi varsa hatırlat (araç yola çıktıysa); kullanıcı isterse yine de kaydeder.
       if (S.belgeZamani(f) && eksik.length && (await eksikHatirlat(eksik)) !== true) return;
       setMesgul(true);
@@ -363,9 +426,10 @@
         // Firma adı kayıtlı bir müşteriyle eşleşiyorsa ona bağlanır; eşleşmiyorsa yeni müşteri oluşturulur.
         const m = S.musteriIslemleri(d, { ...v, musteri: kayitli ? kayitli.id : '' }, uid);
         v.musteri = m.id;
+        if (!kayit && NT.stokAkisi.destekler(v)) v.stokTakip = true;
         const yeniMusteri = m.ops.some((o) => !d.kayit('musteri', o.k));
         if (kayit) {
-          await d.kaydet([...m.ops, { c: 'sevk', k: kayit.id, v }]);
+          await NT.stokAkisi.satisYaz(d,[...m.ops, { c: 'sevk', k: kayit.id, v }]);
           bildir(NT.dil.m("{0} güncellendi.", kayit.no));
         } else {
           const no = K.yeniNo(d, 'sevk', 'SV', v.siparisTarihi || bugun());
@@ -373,7 +437,7 @@
           bildir(NT.dil.m('{0} kaydedildi · {1} · {2}', no, v.firma, kg(net)) + (yeniMusteri ? ' · ' + cevir('müşteri listesine eklendi', 'added to the customer list') : ''));
         }
         kapat();
-      } finally { setMesgul(false); }
+      } catch (e) { bildir(cevir(stokHatasi(e)),{tur:'hata'}); } finally { setMesgul(false); }
     }
     const silFn = async () => (await K.sil('sevk', kayit, `${kayit.no} (${kayit.firma})`)) && kapat();
     return html`<${Modal} genis baslik=${kayit ? `${cevir('Sevkiyat')} ${kayit.no}` : cevir('Yeni sevkiyat')} kapat=${kapat} sag=${kayit && html`<${DurumRozeti} s=${kayit} />`}
@@ -475,7 +539,7 @@
         <${Alan} etiket=${cevir("E-posta")} sinif="s6"><input class="girdi" type="email" value=${f.eposta} onInput=${s('eposta')} /><//>
         <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${s('notlar')} /><//>
         ${kayit && html`<div class="s12 form-bolum">${cevir("Sevkiyatlar")}</div>
-          <div class="s12">${sevkler.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>No</th><th>${cevir("Tarih")}</th><th>${cevir("Kalemler")}</th><th class="sag">Net</th><th>${cevir("Durum")}</th></tr></thead><tbody>
+          <div class="s12">${sevkler.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${NT.dil.t("No")}</th><th>${cevir("Tarih")}</th><th>${cevir("Kalemler")}</th><th class="sag">${NT.dil.t("Net")}</th><th>${cevir("Durum")}</th></tr></thead><tbody>
             ${sevkler.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x)}><td><span class="etiket-kod">${x.no}</span></td><td>${tarihYaz(S.sevkTarihi(x))}</td>
               <td>${(x.kalemler || []).map((k) => `${k.adet} ${cevir(k.ambalaj)} ${k.urun} ${k.parti || ''}`).join(', ')}</td><td class="sag sayi">${kg(S.sevkNet(x))}</td><td><${DurumRozeti} s=${x} /></td></tr>`)}
           </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Henüz sevkiyat yok.")}</p>`}</div>`}
@@ -503,7 +567,7 @@
         <${Alan} etiket=${cevir("Üretim tarihi")} sinif="s4" ipucu=${cevir("İsteğe bağlı bilgi")}><input class="girdi" type="date" value=${f.uretimTarihi} onInput=${(e) => setF({ ...f, uretimTarihi: e.target.value })} /><//>
         <${Alan} etiket=${cevir("Not")} sinif="s8"><input class="girdi" value=${f.notlar} onInput=${(e) => setF({ ...f, notlar: e.target.value })} placeholder=${cevir("Örn: Batch #17 + #21 karışımı")} /><//>
         <div class="s12 form-bolum">${cevir("Bu partiden sevkiyatlar")}</div>
-        <div class="s12">${sevkler.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>No</th><th>${cevir("Tarih")}</th><th>${cevir("Müşteri")}</th><th class="sag">Net</th></tr></thead><tbody>
+        <div class="s12">${sevkler.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${NT.dil.t("No")}</th><th>${cevir("Tarih")}</th><th>${cevir("Müşteri")}</th><th class="sag">${NT.dil.t("Net")}</th></tr></thead><tbody>
           ${sevkler.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x)}><td><span class="etiket-kod">${x.no}</span></td><td>${tarihYaz(S.sevkTarihi(x))}</td><td>${x.firma}</td>
             <td class="sag sayi">${kg((x.kalemler || []).filter((k) => k.urun === p.urun).flatMap(S.kalemPartileri).filter((y) => y.parti === p.parti).reduce((t, y) => t + y.net, 0))}</td></tr>`)}
         </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Bu partiden henüz sevkiyat yok.")}</p>`}</div>
@@ -530,7 +594,7 @@
         <button class="d ana-d" onClick=${kapat}>${cevir("Kapat")}</button>`}>
       <div class="modal-ic">
         <div class="st-ozet-serit" style="margin-bottom:14px"><div><small>${cevir("Toplam net")}</small><b>${kg(toplam)}</b></div><div><small>${cevir("Sevkiyat")}</small><b>${sevkSay}</b></div><div><small>${cevir("Müşteri")}</small><b>${musteriSay}</b></div></div>
-        ${sirali.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Sevk tarihi")}</th><th>No</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">Net</th></tr></thead><tbody>
+        ${sirali.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Sevk tarihi")}</th><th>${NT.dil.t("No")}</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">${NT.dil.t("Net")}</th></tr></thead><tbody>
           ${sirali.map((x, i) => html`<tr key=${i} class="tik" onClick=${() => sevkAc(x.s)}><td>${tarihYaz(x.tarih)}</td><td><span class="etiket-kod">${x.s.no}</span></td><td>${x.s.firma}</td>
             <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${cevir(x.k.ambalaj)}</td><td class="sag sayi">${kg(x.net)}</td></tr>`)}
         </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Bu seçimde sevkiyat yok.")}</p>`}
@@ -657,7 +721,7 @@
         <${PanoKpi} ikon="saat" ad="Devam eden" deger=${aktifler.length} alt=${aktifler.length ? hat.filter((x) => x.l.length).map((x) => `${x.l.length} ${cevir(x.durum).toLocaleLowerCase(NT.dil.yerel())}`).join(' · ') : cevir("Bekleyen iş yok")} tikla=${() => { location.hash = '#/sevkiyatlar'; }} />
       </div>
       <div class="pano-izgara">
-        <${K.Kart} sinif="p7" baslik=${donem ? cevir("Aylık sevkiyat") : cevir("Yıllık sevkiyat")} sag=${html`<span class="soluk kucuk">ton</span>`}>
+        <${K.Kart} sinif="p7" baslik=${donem ? cevir("Aylık sevkiyat") : cevir("Yıllık sevkiyat")} sag=${html`<span class="soluk kucuk">${cevir("ton")}</span>`}>
           <${G.Sutunlar} veri=${sutunlar} seriler=${donem ? [donem, String(+donem - 1)] : null} tikla=${sutunTikla} olcekYaz=${(n) => ton(n)} yukseklik=${230} />
         <//>
         <${K.Kart} sinif="p5" baslik=${cevir("Kime sattık?")} sag=${html`<a href="#/musteriler" style="color:var(--ana)">${cevir("Tümü →")}</a>`}>
@@ -725,8 +789,8 @@
         ${cevir("Sevkiyatta yeni yazılan her firma buraya kendiliğinden eklenir. Karta tıklayıp iletişim bilgilerini ve geçmiş sevkiyatları görün.")}<//>
       <div class="tz-cipler"><input class="girdi" style="max-width:360px;border-radius:99px" placeholder=${cevir("Firma, ülke, yetkili…")} value=${q} onInput=${(e) => setQ(e.target.value)} /><span class="soluk kucuk">${liste.length} ${cevir("müşteri")}</span></div>
       ${liste.length ? html`<div class="st-musteriler">${liste.map((m) => { const x = bilgi.get(m.id); return html`<button class="st-musteri" onClick=${() => musteriAc(m)}>
-          <span class="ad">${m.ad}</span><span class="soluk kucuk">${[m.ulke && cevir(m.ulke), m.yetkili].filter(Boolean).join(' · ') || '—'}</span>
-          <span class="alt">${x ? html`<b>${ton(x.net)} ton</b> · ${x.n} ${cevir("sevkiyat · son")} ${tarihYaz(x.son)}` : html`<span class="soluk">${cevir("Henüz sevkiyat yok")}</span>`}</span></button>`; })}</div>`
+          <span class="ad">${m.ad}</span><span class="soluk kucuk">${[m.ulke && NT.dil.ulkeYaz(m.ulke), m.yetkili].filter(Boolean).join(' · ') || '—'}</span>
+          <span class="alt">${x ? html`<b>${ton(x.net)} ${cevir("ton")}</b> · ${x.n} ${cevir("sevkiyat · son")} ${tarihYaz(x.son)}` : html`<span class="soluk">${cevir("Henüz sevkiyat yok")}</span>`}</span></button>`; })}</div>`
         : html`<${BosDurum} ikon="bina" baslik=${cevir("Müşteri bulunamadı")} />`}`;
   }
 
@@ -779,8 +843,8 @@
       </div>
       <div class="tz-izgara">
         <${K.Kart} baslik=${cevir("Sevkiyat kalemleri")}>
-          ${satirlar.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Tarih")}</th><th>No</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">Net</th><th class="sag">${cevir("Tutar")}</th></tr></thead><tbody>
-            ${satirlar.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x.s)}><td>${tarihYaz(x.tarih)}</td><td><span class="etiket-kod">${x.s.no}</span></td><td>${x.s.firma}${x.s.ulke && x.s.ulke !== 'Türkiye' ? html`<div class="soluk kucuk">${cevir(x.s.ulke)}</div>` : ''}</td>
+          ${satirlar.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Tarih")}</th><th>${NT.dil.t("No")}</th><th>${cevir("Müşteri")}</th><th>${cevir("Ürün / parti")}</th><th>${cevir("Ambalaj")}</th><th class="sag">${NT.dil.t("Net")}</th><th class="sag">${cevir("Tutar")}</th></tr></thead><tbody>
+            ${satirlar.map((x) => html`<tr class="tik" onClick=${() => sevkAc(x.s)}><td>${tarihYaz(x.tarih)}</td><td><span class="etiket-kod">${x.s.no}</span></td><td>${x.s.firma}${x.s.ulke && x.s.ulke !== 'Türkiye' ? html`<div class="soluk kucuk">${NT.dil.ulkeYaz(x.s.ulke)}</div>` : ''}</td>
               <td>${x.k.urun} <span class="parti">${S.partiYazi(x.k, true) || cevir("Partisiz")}</span></td><td>${x.k.adet} × ${cevir(x.k.ambalaj)}</td><td class="sag sayi">${kg(x.net)}</td><td class="sag sayi">${x.tutar ? paraYaz(x.tutar, x.para) : html`<span class="soluk">—</span>`}</td></tr>`)}
             <tr><td colspan="5"><b>${cevir("Toplam")}</b></td><td class="sag sayi"><b>${kg(toplam)}</b></td><td></td></tr>
           </tbody></table></div>` : html`<p class="soluk" style="margin:0">${cevir("Bu süzgeçte satış yok.")}</p>`}

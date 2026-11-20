@@ -25,9 +25,9 @@
     const yuvalar = H.siseSlotlari(kayit.kalemler || [], kayit.siseler || []);
     const toplam = (kayit.kalemler || []).reduce((n, k) => n + (Number(k.adet) || 0), 0);
     return html`<div class="etiket buyuk-etiket">
-      <div class="e-bas"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><div class="tur">Numune gönderisi<br/>Sample shipment${koli ? html`<br/><b class="e-koli">${cevir('Koli', 'Box')} ${koli}</b>` : ''}</div></div>
+      <div class="e-bas"><img src="uygulama/ortak/logo.svg" alt="SKYHEM" /><div class="tur">${NT.dil.yerel() === 'ru-RU' ? cevir('Numune gönderisi') : html`Numune gönderisi<br/>Sample shipment`}${koli ? html`<br/><b class="e-koli">${cevir('Koli', 'Box')} ${koli}</b>` : ''}</div></div>
       <div class="e-alici"><span class="e-k">${cevir('Alıcı', 'Recipient')}</span>
-        <b>${kayit.firma}</b>${kayit.yetkili && html`<div>${kayit.yetkili}</div>`}${kayit.telefon && html`<div>Tel: ${kayit.telefon}</div>`}${kayit.adres && html`<div style="white-space:pre-line">${kayit.adres}</div>`}${kayit.ulke && kayit.ulke !== 'Türkiye' && html`<div><b>${cevir(kayit.ulke).toLocaleUpperCase(NT.dil.yerel())}</b></div>`}
+        <b>${kayit.firma}</b>${kayit.yetkili && html`<div>${kayit.yetkili}</div>`}${kayit.telefon && html`<div>${cevir('Tel:')} ${kayit.telefon}</div>`}${kayit.adres && html`<div style="white-space:pre-line">${kayit.adres}</div>`}${kayit.ulke && kayit.ulke !== 'Türkiye' && html`<div><b>${NT.dil.ulkeYaz(kayit.ulke).toLocaleUpperCase(NT.dil.yerel())}</b></div>`}
       </div>
       <div class="e-izgara">
         <div class="e-alan"><div class="k">${cevir('Tarih')}</div><div class="v">${tarihYaz(kayit.tarih)}</div></div>

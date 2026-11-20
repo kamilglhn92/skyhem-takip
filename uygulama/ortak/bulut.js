@@ -315,10 +315,13 @@
         }
         this.sonEsitleme = Date.now();
         this.cevrimici = true;
+        this.tabloEksik = false;
         if (this.hata && !this.bekleyen.length) this.hata = null;
       } catch (e) {
         this.cevrimici = false;
-        this.hata = e.name === 'KodHatasi' ? e.message : 'Sunucuya ulaşılamadı (' + (e.detay || e.message) + '). Son indirilen kayıtlar gösteriliyor.';
+        this.tabloEksik = this.tablo === 'olaylar_uretim_stok' && e.name === 'SunucuHatasi' && /"code"\s*:\s*"PGRST205"/.test(e.detay);
+        this.hata = this.tabloEksik ? 'Üretim Stoku’nun bulut kurulumu bekleniyor.'
+          : e.name === 'KodHatasi' ? e.message : 'Sunucuya ulaşılamadı (' + (e.detay || e.message) + '). Son indirilen kayıtlar gösteriliyor.';
       }
       if (this.bekleyen.length) await this.gonder();
       if (yeni.length) this.yenidenHesapla();
@@ -373,5 +376,17 @@
   }
 
   NT.BulutDepo = BulutDepo;
-  NT.bulut = { kodDogrula, SUNUCU };
+  const uygulamaOnerisiYaz = (panel, metin) => istek('', 'uygulama_onerileri', {
+    method: 'POST', govde: { panel, metin }, prefer: 'return=minimal',
+  });
+  const uygulamaOnerileriniOku = (offset, limit) => istek('', `uygulama_onerileri?select=id,panel,metin,gonderen,olusturuldu&order=olusturuldu.desc,id.desc&offset=${offset}&limit=${limit}`);
+  const surumOkunduMu = async (surum) =>
+    (await istek('', 'uygulama_surum_okuma?select=surum&surum=eq.' + encodeURIComponent(surum), { sure: 7000 })).length > 0;
+  const surumOkunduYaz = (surum) => istek('', 'uygulama_surum_okuma', {
+    method: 'POST', govde: { surum }, prefer: 'resolution=ignore-duplicates,return=minimal', sure: 7000,
+  });
+  const surumNotlari = async (surum, kod) => (
+    await istek(kod, 'uygulama_surum?select=notlar&surum=eq.' + encodeURIComponent(surum), { sure: 7000 })
+  )[0]?.notlar || '';
+  NT.bulut = { kodDogrula, SUNUCU, uygulamaOnerisiYaz, uygulamaOnerileriniOku, surumOkunduMu, surumOkunduYaz, surumNotlari };
 })();

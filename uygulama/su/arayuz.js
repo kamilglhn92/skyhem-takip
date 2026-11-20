@@ -426,7 +426,7 @@
         <select class="girdi kisa" value=${yil} onChange=${(e) => setYil(e.target.value)}>${yillar.map((y) => html`<option value=${y}>${y}</option>`)}</select>`}>
         ${cevir("Her ay gelen sular, siparişin tarihindeki fiyatla hesaplanır. Ay sonunda gelen faturanın tutarını aya tıklayıp girin; tutmazsa kırmızı görünür.")}<//>
       <div class="kpi-sira">
-        <${K.Kpi} vurgu ikon="dolum" ad=${`${yil} su`} deger=${K.sayiYaz(top((x) => x.litre))} birim="L" alt=${adetYazi({ damacana: top((x) => x.adet.damacana), bardak: top((x) => x.adet.bardak), limonata: top((x) => x.adet.limonata) })} />
+        <${K.Kpi} vurgu ikon="dolum" ad=${NT.dil.m('{0} su', yil)} deger=${K.sayiYaz(top((x) => x.litre))} birim="L" alt=${adetYazi({ damacana: top((x) => x.adet.damacana), bardak: top((x) => x.adet.bardak), limonata: top((x) => x.adet.limonata) })} />
         <${K.Kpi} ikon="fatura" ad="Hesaplanan" deger=${tl(top((x) => x.toplam))} alt=${cevir("KDV dahil")} />
         <${K.Kpi} ikon="tik" ad="Girilen faturalar" deger=${tl(faturali.reduce((t, x) => t + sayi(x.fatura.tutar), 0))} alt=${NT.dil.m("{0} ay", faturali.length)} />
         <${K.Kpi} ikon="uyari" ad="Kontrol" deger=${satirlar.filter((x) => x.kontrol === 'fark').length} alt=${NT.dil.m("ayda fark · {0} ay fatura bekleniyor", satirlar.filter((x) => x.kontrol === 'bekliyor' && x.ay < bgAy).length)} />

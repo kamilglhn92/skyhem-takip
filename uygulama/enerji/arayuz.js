@@ -153,7 +153,7 @@
               <span class="miktar">${usd(x.usd, 2)}</span></li>`)}</ul>
           <//>
           <${K.Kart} baslik=${cevir("Yıllık karşılaştırma")}>
-            <div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Yıl")}</th><th class="sag">Elek. $/kWh</th><th class="sag">${cevir("Gaz $/m³")}</th><th class="sag">${cevir("Toplam")}</th></tr></thead><tbody>
+            <div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Yıl")}</th><th class="sag">${cevir("Elek. $/kWh")}</th><th class="sag">${cevir("Gaz $/m³")}</th><th class="sag">${cevir("Toplam")}</th></tr></thead><tbody>
               ${yillar.map((y) => html`<tr><td><b>${y.yil}</b></td><td class="sag sayi">${y.elFiyat == null ? cizgi : K.sayiYaz(y.elFiyat, 3)}</td>
                 <td class="sag sayi">${y.gazFiyatM3 == null ? cizgi : K.sayiYaz(y.gazFiyatM3, 3)}</td><td class="sag sayi"><b>${usd(y.usd)}</b></td></tr>`)}
             </tbody></table></div>
@@ -183,7 +183,7 @@
         <input class="girdi" style="max-width:260px;margin-left:8px;border-radius:99px" placeholder=${cevir("No, dönem, not…")} value=${q} onInput=${(e) => setQ(e.target.value)} />
       <//>
       <${K.Kart}>
-        ${liste.length ? html`<div class="tablo-kap"><table class="tablo en-tablo"><thead><tr><th>No</th><th>${cevir("Dönem")}</th><th>${cevir("Tür")}</th><th class="sag">${cevir("Tüketim")}</th><th class="sag">kWh</th><th class="sag">${cevir("Tutar")}</th><th class="sag">${cevir("Birim fiyat")}</th><th>${cevir("Belge")}</th><th>${cevir("Not")}</th></tr></thead><tbody>
+        ${liste.length ? html`<div class="tablo-kap"><table class="tablo en-tablo"><thead><tr><th>${NT.dil.t("No")}</th><th>${cevir("Dönem")}</th><th>${cevir("Tür")}</th><th class="sag">${cevir("Tüketim")}</th><th class="sag">kWh</th><th class="sag">${cevir("Tutar")}</th><th class="sag">${cevir("Birim fiyat")}</th><th>${cevir("Belge")}</th><th>${cevir("Not")}</th></tr></thead><tbody>
           ${liste.map((x) => html`<tr class="tik" key=${x.k.id} onClick=${() => kayitAc(x.k)}>
             <td><span class="etiket-kod">${x.k.no || '—'}</span></td><td><b>${E.ayAdi(x.ay)}</b> <span class="soluk kucuk">${tarihYaz(x.k.tarih)}</span></td><td><${TipRozeti} tip=${x.k.tip} /></td>
             <td class="sag sayi">${miktarYaz(x.k)}</td><td class="sag sayi soluk">${K.sayiYaz(x.kwh)}</td><td class="sag sayi"><b>${usd(x.usd, 2)}</b></td>

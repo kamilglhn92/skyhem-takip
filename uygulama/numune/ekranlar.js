@@ -68,13 +68,15 @@
               <button class="d kucuk-d tehlike" onClick=${() => F.acikIslem(hedef, 'atik')}><${Ikon} ad="cop" boyut=${14} />${cevir("Atığa ayır")}</button>
             </span></span></div>`}
         ${satirlar.length ? html`<ul class="tz-akis defter-akis">${satirlar.map((x) => {
-          const acilir = ['dolum', 'sevk', 'alim'].includes(x.c) && !(personel && x.c === 'sevk');
+          const bosCikis = x.c === 'sayim' && H.bosCikisMi(x.r);
+          const acilir = bosCikis || (['dolum', 'sevk', 'alim'].includes(x.c) && !(personel && x.c === 'sevk'));
           const stokCikisi = personel && x.c === 'sevk';
           const tur = x.adet > 0 ? 'arti' : x.adet < 0 ? 'eksi' : 'notr';
-          return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(x.c, x.r)}>
-            <span class=${'ik ' + x.c}><${Ikon} ad=${IKON[x.c] || x.c} /></span>
+          const etiket = bosCikis ? cevir('Boş Kap Çıkışı', 'Empty Container Withdrawal') : cevir(TUR[x.c], x.c === 'isemri' ? 'Work order' : undefined);
+          return html`<li class=${acilir ? '' : 'sabit'} onClick=${() => acilir && F.kayitAc(bosCikis ? 'bosCikis' : x.c, x.r)}>
+            <span class=${'ik ' + x.c}><${Ikon} ad=${bosCikis ? 'sevk' : IKON[x.c] || x.c} /></span>
             <span class="ne">${stokCikisi ? cevir('Gönderim kaynaklı stok çıkışı', 'Stock deducted for shipment') : personel && x.c === 'alim' ? cevir('Şişe girişi') : x.aciklama}${x.rezerve ? html` <span class="rozet bilgi">${x.rezerve} ${cevir("ayrıldı")}</span>` : ''}
-              <small>${tarihYaz(x.tarih)}${!stokCikisi && html` · ${cevir(TUR[x.c], x.c === 'isemri' ? 'Work order' : undefined)}${x.r.no ? ' · ' + x.r.no : ''}`}</small></span>
+              <small>${tarihYaz(x.tarih)}${!stokCikisi && html` · ${etiket}${x.r.no ? ' · ' + x.r.no : ''}`}</small></span>
             <span class="defter-sag"><span class=${'miktar ' + tur}>${x.adet > 0 ? '+' : ''}${x.adet || '—'}</span><small>${cevir("bakiye")} ${x.bakiye}</small></span>
           </li>`;
         })}</ul>`
@@ -131,7 +133,7 @@
        edilen gönderiler (iptaller üstü çizili, şablondaki gibi). */
     sevk() {
       const d = depo();
-      const gonderiler = d.kayitlar('sevk').filter((s) => s.durum === 'Gönderildi' || s.iptal)
+      const gonderiler = H.musteriSevkleri(d).filter((s) => s.durum === 'Gönderildi' || s.iptal)
         .sort((a, b) => (a.tarih < b.tarih ? -1 : a.tarih > b.tarih ? 1 : (a.no || '') < (b.no || '') ? -1 : 1));
       const benzersiz = (l) => [...new Set(l.filter(Boolean))];
       const hucreler = (s, n) => {

@@ -24,9 +24,9 @@
   const T = NT.tatil;
 
   const OGUNLER = [
-    { id: 'ogle', ad: 'Öğle', kisa: 'Ö', menu: true },
-    { id: 'kahvalti', ad: 'Kahvaltı', kisa: 'K', menu: false },
-    { id: 'aksam', ad: 'Akşam', kisa: 'A', menu: true },
+    { id: 'ogle', ad: 'Öğle', kisa: 'Ö', kisaRu: 'О', menu: true },
+    { id: 'kahvalti', ad: 'Kahvaltı', kisa: 'K', kisaRu: 'З', menu: false },
+    { id: 'aksam', ad: 'Akşam', kisa: 'A', kisaRu: 'У', menu: true },
   ];
   const MENULU = OGUNLER.filter((o) => o.menu);
   const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
@@ -44,6 +44,14 @@
   const ayar = (d) => ({ eksikBaslangic: '', otoOgle: 9, otoBaslangic: '2026-10-13', ...(d.kayit('ayar', 'genel') || {}) });
 
   function gun(d, t) { const g = d.kayit('gun', t); return g && !g._silindi ? g : null; }
+  function personelIlavesi(d, tarih) {
+    const ilave = { ogle: 0, kahvalti: 0, aksam: 0 };
+    for (const kayit of d.kayitlar('personel_ogun')) {
+      if (kayit.tarih !== tarih) continue;
+      for (const { id } of OGUNLER) ilave[id] += sayi(kayit[id]);
+    }
+    return ilave;
+  }
   const girildiMi = (g) => !!g && (g.yemekYok || OGUNLER.some((o) => g[o.id] !== '' && g[o.id] != null));
   const toplam = (g) => (g ? OGUNLER.reduce((t, o) => t + sayi(g[o.id]), 0) : 0);
 
@@ -62,11 +70,15 @@
      Dönen nesnede oto: true (öğle otomatik), kural: o güne düşen geçici sayı kaydı. */
   function etkin(d, t, a = ayar(d)) {
     const g = gun(d, t);
-    if (g && g.yemekYok) return g;
-    const n = t <= bugun() ? otoOgle(d, t, a) : null;
+    const n = !g?.yemekYok && t <= bugun() ? otoOgle(d, t, a) : null;
     const elle = g && g.ogle !== '' && g.ogle != null;
-    if (elle || n == null) return g;
-    return { kahvalti: 0, aksam: 0, ...(g || {}), tarih: t, ogle: n, oto: true, kural: otoKural(d, t) };
+    const temel = elle || n == null ? g
+      : { kahvalti: 0, aksam: 0, ...(g || {}), tarih: t, ogle: n, oto: true, kural: otoKural(d, t) };
+    const ilave = personelIlavesi(d, t);
+    if (!toplam(ilave)) return temel;
+    const sonuc = { ...temel, tarih: t, yemekYok: false };
+    for (const { id } of OGUNLER) sonuc[id] = (g?.yemekYok ? 0 : sayi(temel?.[id])) + ilave[id];
+    return sonuc;
   }
   /* Başlangıçtan itibaren n'inci iş günü (başlangıç iş günüyse o da sayılır). */
   function isGunuSonu(bas, n) {
@@ -78,7 +90,7 @@
 
   /* Eksik gün: iş günü, bugünden önce, uyarı başlangıcından sonra, hiç girilmemiş ve otomatik sayılmayan. */
   function eksikMi(d, t, a = ayar(d)) {
-    return T.isGunu(t) && t < bugun() && (!a.eksikBaslangic || t >= a.eksikBaslangic) && !girildiMi(gun(d, t)) && otoOgle(d, t, a) == null;
+    return T.isGunu(t) && t < bugun() && (!a.eksikBaslangic || t >= a.eksikBaslangic) && !girildiMi(etkin(d, t, a));
   }
   function eksikGunler(d, ay) {
     const a = ayar(d);
@@ -118,6 +130,7 @@
   function aylar(d) {
     const s = new Set([bugun().slice(0, 7)]);
     for (const g of d.kayitlar('gun')) if (g.tarih) s.add(g.tarih.slice(0, 7));
+    for (const g of d.kayitlar('personel_ogun')) if (g.tarih) s.add(g.tarih.slice(0, 7));
     for (const f of d.kayitlar('fatura')) if (f.ay) s.add(f.ay);
     return [...s].sort();
   }
@@ -200,8 +213,13 @@
   function ozet(d) {
     const bg = bugun();
     const g = etkin(d, bg);
-    const ilk = g && g.oto ? (NT.dil?.m("Bugün {0} öğle (otomatik)", sayi(g.ogle)) ?? `Bugün ${sayi(g.ogle)} öğle (otomatik)`) : !girildiMi(g) ? (T.isGunu(bg) ? (NT.dil?.t('Bugün henüz girilmedi') ?? 'Bugün henüz girilmedi') : (NT.dil?.m("Bugün {0}", T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`))
-      : g.yemekYok ? (NT.dil?.t('Bugün yemek yok') ?? 'Bugün yemek yok') : `Bugün ${OGUNLER.filter((o) => sayi(g[o.id]) > 0).map((o) => `${sayi(g[o.id])} ${o.ad.toLocaleLowerCase('tr')}`).join(' · ')}`;
+    const ogunSayilari = () => OGUNLER.filter((o) => sayi(g[o.id]) > 0).map((o) => {
+      const adet = sayi(g[o.id]);
+      const ad = o.ad.toLocaleLowerCase('tr');
+      return NT.dil?.m(`{0} ${ad}`, adet) ?? `${adet} ${ad}`;
+    }).join(' · ');
+    const ilk = g && g.oto ? (NT.dil?.m("Bugün {0} öğle (otomatik)", sayi(g.ogle)) ?? `Bugün ${sayi(g.ogle)} öğle (otomatik)`) : !girildiMi(g) ? (T.isGunu(bg) ? (NT.dil?.t('Bugün henüz girilmedi') ?? 'Bugün henüz girilmedi') : (NT.dil?.m("Bugün {0}", NT.dil.t(T.tatil(bg) || 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`))
+      : g.yemekYok ? (NT.dil?.t('Bugün yemek yok') ?? 'Bugün yemek yok') : (NT.dil?.m("Bugün {0}", ogunSayilari()) ?? `Bugün ${ogunSayilari()}`);
     const ay = ayOzet(d, bg.slice(0, 7));
     const eksik = tumEksikler(d).length;
     const ogleMenu = yemekler(d, bg, 'ogle');
@@ -209,5 +227,5 @@
     return [ilk, [(NT.dil?.m("Bu ay {0} öğün", ay.toplam) ?? `Bu ay ${ay.toplam} öğün`), kafe && (NT.dil?.m("{0} kafe siparişi", kafe) ?? `${kafe} kafe siparişi`), eksik && (NT.dil?.m("{0} gün girilmedi", eksik) ?? `${eksik} gün girilmedi`), ogleMenu.length && (NT.dil?.m("Öğle: {0}", ogleMenu.slice(0, 2).join(', ')) ?? `Öğle: ${ogleMenu.slice(0, 2).join(', ')}`)].filter(Boolean).join(' · ')];
   }
 
-  NT.yemek = { otoKurallar, otoKural, otoOgle, etkin, isGunuSonu, isGunuSay, OGUNLER, MENULU, AY_ADLARI, ayAdi, gunAdi, ayGunSayisi, ayGunleri, ayKaydir, menuAnahtari, menuGunAnahtari, faturaAnahtari, ayar, gun, girildiMi, toplam, eksikMi, eksikGunler, tumEksikler, ayOzet, aylar, oneri, menu, menuGun, yemekler, kesit, sonrakiIsGunu, kafeler, kafeOzet, kafeOnerileri, kafeBirimFiyat, ozet, dikkat };
+  NT.yemek = { otoKurallar, otoKural, otoOgle, etkin, personelIlavesi, isGunuSonu, isGunuSay, OGUNLER, MENULU, AY_ADLARI, ayAdi, gunAdi, ayGunSayisi, ayGunleri, ayKaydir, menuAnahtari, menuGunAnahtari, faturaAnahtari, ayar, gun, girildiMi, toplam, eksikMi, eksikGunler, tumEksikler, ayOzet, aylar, oneri, menu, menuGun, yemekler, kesit, sonrakiIsGunu, kafeler, kafeOzet, kafeOnerileri, kafeBirimFiyat, ozet, dikkat };
 })(typeof window !== 'undefined' ? window : globalThis);

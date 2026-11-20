@@ -1,5 +1,5 @@
 window.NT_SURUM = {
-  "surum": 20,
+  "surum": 21,
   "sayfalar": {
     "portal": {
       "baslik": "SKYHEM Takip",
@@ -20,7 +20,7 @@ window.NT_SURUM = {
       "modul": { "id": "satis" },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/satis/satis.css", "uygulama/klips/klips.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/ortak/grafik.js", "uygulama/satis/hesap.js", "uygulama/satis/demo.js", "uygulama/klips/hesap.js", "uygulama/klips/formlar.js", "uygulama/klips/arayuz.js", "uygulama/satis/arayuz.js"]
+        "uygulama/ortak/grafik.js", "uygulama/satis/hesap.js", "uygulama/uretim/stok-hesap.js", "uygulama/uretim/stok-akisi.js", "uygulama/satis/demo.js", "uygulama/klips/hesap.js", "uygulama/klips/formlar.js", "uygulama/klips/arayuz.js", "uygulama/satis/arayuz.js"]
     },
     "klips": {
       "baslik": "Klips Takip · SKYHEM",
@@ -64,12 +64,19 @@ window.NT_SURUM = {
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
         "uygulama/uretim/hesap.js", "uygulama/uretim/demo.js", "uygulama/uretim/tara.js", "uygulama/uretim/arayuz.js"]
     },
+    "uretimstok": {
+      "baslik": "Üretim Stoku · SKYHEM",
+      "modul": { "id": "uretimstok" },
+      "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/uretim/uretim.css"],
+      "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
+        "uygulama/uretim/stok-hesap.js", "uygulama/uretim/stok-akisi.js", "uygulama/uretim/stok-demo.js", "uygulama/uretim/stok.js"]
+    },
     "personel": {
       "baslik": "Personel · SKYHEM",
       "modul": { "id": "personel" },
       "css": ["uygulama/ortak/stil.css", "uygulama/ortak/tezgah.css", "uygulama/personel/personel.css"],
       "js": ["uygulama/ortak/preact-htm.js", "uygulama/ortak/cekirdek.js", "uygulama/ortak/dil.js", "uygulama/ortak/xlsx.js", "uygulama/ortak/depo.js", "uygulama/ortak/bulut.js", "uygulama/ortak/baglanti.js", "uygulama/ortak/bilesenler.js", "uygulama/ortak/kabuk.js",
-        "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yemek/demo.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/personel/arayuz.js"]
+        "uygulama/ortak/tatiller.js", "uygulama/yemek/hesap.js", "uygulama/yemek/demo.js", "uygulama/yoklama/hesap.js", "uygulama/personel/hesap.js", "uygulama/personel/demo.js", "uygulama/uretim/stok-hesap.js", "uygulama/uretim/stok-akisi.js", "uygulama/personel/arayuz.js"]
     }
   }
 };

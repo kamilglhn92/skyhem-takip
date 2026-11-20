@@ -325,8 +325,8 @@
           ${b.mod === 'bulut' && html`<div class="kisiler" title=${cevrimici.map((k) => k.ad).join(', ')}>
             ${cevrimici.slice(0, 5).map((k) => html`<${Avatar} key=${k.cihaz} ad=${k.ad} kucuk />`)}
             <span class="yazi">${cevrimici.length <= 1 ? cevir("Şu an sadece siz") : cevir(`${cevrimici.length} kişi çevrimiçi`, `${cevrimici.length} people online`)}</span></div>`}
-          <button class=${'tz-canli ' + durum} onClick=${() => d.tara()} title=${d.hata || cevir("Şimdi eşitle")}><span class="nokta" />
-            <span><b>${b.mod === 'demo' ? cevir("Sunum modu") : d.hata ? cevir("Bağlantı sorunu") : d.bekleyen.length ? NT.dil.m("{0} değişiklik bekliyor", d.bekleyen.length) : cevir("Eşitlendi")}</b>
+          <button class=${'tz-canli ' + durum} onClick=${() => d.tara()} title=${cevir(d.hata || "Şimdi eşitle")}><span class="nokta" />
+            <span><b>${b.mod === 'demo' ? cevir("Sunum modu") : d.tabloEksik ? cevir("Bulut kurulumu bekleniyor") : d.hata ? cevir("Bağlantı sorunu") : d.bekleyen.length ? NT.dil.m("{0} değişiklik bekliyor", d.bekleyen.length) : cevir("Eşitlendi")}</b>
               ${b.mod === 'demo' ? cevir("Örnek veri · kaydedilmez") : NT.dil.m("Bulut · {0}", d.sonEsitleme ? onceYaz(d.sonEsitleme) : '—')}</span></button>
           <a class="tz-kullanici" href=${ayar.sayfalar.ayarlar ? '#/ayarlar' : '#/' + sekmeler[0].id}><${Avatar} ad=${b.kullanici || '?'} kucuk /><span>${b.kullanici}</span></a>
         </div>
@@ -365,7 +365,7 @@
     async *entries() { yield* this.c.entries(); }
   }
   /* senaryo(depo, { kim, zamanla }) — kim(ad): kaydı yapan kişi; zamanla(evs, tarih): olayları o güne taşır. */
-  function demoTanimla(senaryo, { paylas = false } = {}) {
+  function demoTanimla(senaryo, { paylas = false, depoAdi } = {}) {
     async function doldur(d) {
       const zamanli = [];
       await senaryo(d, {
@@ -390,7 +390,7 @@
       aktif: new URLSearchParams(location.search).has('demo'),
       async kur(bag) {
         bag.kullanici = new URLSearchParams(location.search).get('kullanici') || 'Farukcan Bey';
-        const d = paylas ? await depoAc(bag.modul.id, bag.kullanici)
+        const d = paylas ? await depoAc(depoAdi || bag.modul.id, bag.kullanici)
           : new NT.Depo({ dizin: new BellekDizin('Demo'), cihaz: bag.cihaz, kullanici: bag.kullanici });
         if (paylas) {
           bag.depo = d;

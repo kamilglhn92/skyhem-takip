@@ -28,6 +28,7 @@
   function tarihYaz(t) {
     if (!t) return '—';
     const [y, m, d] = t.split('-');
+    if (NT.dil?.yerel() === 'ru-RU') return `${d}.${m}.${y}`;
     return `${+d} ${(NT.dil?.t(AYLAR[+m - 1]) ?? AYLAR[+m - 1])} ${y}`;
   }
   function zamanYaz(ms) {
@@ -89,7 +90,10 @@
     const p = [];
     if (modul && modul !== 'portal') p.push('modul=' + encodeURIComponent(modul));
     if (panel) p.push('panel=' + encodeURIComponent(panel));
-    if (demo) p.push('demo');
+    if (demo) {
+      p.push('demo');
+      if (['portal','satis','personel','uretimstok'].includes(modul) && typeof location !== 'undefined' && new URLSearchParams(location.search).get('ornek') === 'yogun') p.push('ornek=yogun');
+    }
     if (demo && kullanici) p.push('kullanici=' + encodeURIComponent(kullanici));
     return 'SKYHEM Takip.html' + (p.length ? '?' + p.join('&') : '');
   }

@@ -139,9 +139,13 @@
     const bg = bugun();
     const ay = ayOzet(d, bg.slice(0, 7));
     const yok = l.filter((x) => x.g.yok);
-    const ilk = T.isGunu(bg) ? (NT.dil?.m("Bugün {0}/{1} kişi işte", l.length - yok.length, l.length) ?? `Bugün ${l.length - yok.length}/${l.length} kişi işte`) : (NT.dil?.m("Bugün {0}", T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`);
+    const ilk = T.isGunu(bg) ? (NT.dil?.m("Bugün {0}/{1} kişi işte", l.length - yok.length, l.length) ?? `Bugün ${l.length - yok.length}/${l.length} kişi işte`) : (NT.dil?.m("Bugün {0}", NT.dil.t(T.tatil(bg) || 'hafta sonu')) ?? `Bugün ${T.tatil(bg) || (NT.dil?.t('hafta sonu') ?? 'hafta sonu')}`);
     const mesai = ay.reduce((s, x) => s + x.mesaiSaat + x.tatilSaat, 0);
-    return [ilk, [yok.length && yok.map((x) => `${x.k.ad.split(' ')[0]}: ${tur(x.g.tur).ad.toLocaleLowerCase('tr')}`).join(', '), (NT.dil?.m("Bu ay {0} saat fazla mesai", saatYaz(mesai)) ?? `Bu ay ${saatYaz(mesai)} saat fazla mesai`)].filter(Boolean).join(' · ')];
+    const yoklamaOzeti = yok.map((x) => {
+      const ad = tur(x.g.tur).ad;
+      return `${x.k.ad.split(' ')[0]}: ${(NT.dil?.t(ad) ?? ad).toLocaleLowerCase(NT.dil?.yerel() ?? 'tr-TR')}`;
+    }).join(', ');
+    return [ilk, [yoklamaOzeti, (NT.dil?.m("Bu ay {0} saat fazla mesai", saatYaz(mesai)) ?? `Bu ay ${saatYaz(mesai)} saat fazla mesai`)].filter(Boolean).join(' · ')];
   }
 
   NT.yoklama = { TURLER, tur, AY_ADLARI, ayAdi, gunKisa, ayGunleri, ayKaydir, saatYaz, onayAnahtari, ayar, kisiler, takipte, istisnalar, kapsar, yarimMi, gunDurum, ayOzet, onay, onaydanSonraDegisen, kayitGunleri, cakisanlar, bugunListe, ozet, dikkat };

@@ -25,7 +25,7 @@
   const idbAl = (k) => idbIslem('readonly', (s) => s.get(k));
   const idbYaz = (k, v) => idbIslem('readwrite', (s) => s.put(v, k));
   const idbSil = (k) => idbIslem('readwrite', (s) => s.delete(k));
-  NT.idb = { al: idbAl, yaz: idbYaz };
+  NT.idb = { al: idbAl, yaz: idbYaz, birlikteYaz: (liste) => idbIslem('readwrite', (s) => { for (const [k,v] of liste) s.put(v,k); }) };
 
   const ls = {
     al(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -49,14 +49,18 @@
     klips: { ad: 'Klips Takip', tablo: 'olaylar_klips', ek: '-klips' },
     enerji: { ad: 'Enerji', tablo: 'olaylar_enerji', ek: '-enerji' },
     personel: { ad: 'Personel', tablo: 'olaylar_personel', ek: '-personel' },
-    uretim: { ad: 'Üretim', tablo: 'olaylar_uretim', ek: '-uretim' }, // şimdilik yalnız sunum modu; tablo henüz yok (context/uretim-paneli.md) // şimdilik yalnız sunum modu; tablo henüz yok
+    uretim: { ad: 'Üretim', tablo: 'olaylar_uretim', ek: '-uretim' },
+    uretimstok: { ad: 'Üretim Stoku', tablo: 'olaylar_uretim_stok', ek: '-uretim-stok' },
   };
   const M = Object.assign({ id: 'numune' }, MODULLER[(window.NT_MODUL || {}).id || 'numune'] || {}, window.NT_MODUL || {});
   const onbellekAdi = (m) => 'bulut-olaylar' + m.ek;
+  const personelYemekOnbellek = 'bulut-olaylar-yemek-personel';
 
   /* Bir modülün bulut deposunu kurar (karşılama ekranı özet için salt okunur olarak da kullanır). */
   function depoOlustur(id, kod, kullanici) {
     const m = { id, ...MODULLER[id] };
+    const sinirliYemek = id === 'yemek' && NT.c.personelRolu();
+    const onbellek = sinirliYemek ? personelYemekOnbellek : onbellekAdi(m);
     const bAnahtar = anahtar('bekleyen' + m.ek);
     let bekleyen = [];
     try { bekleyen = JSON.parse(ls.al(bAnahtar) || '[]'); } catch { /* yoksay */ }
@@ -65,10 +69,10 @@
       cihaz,
       kullanici: kullanici || 'İsimsiz',
       tablo: m.tablo,
-      bekleyen,
-      bekleyenKaydet: (l) => (l.length ? ls.yaz(bAnahtar, JSON.stringify(l)) : ls.sil(bAnahtar)),
+      bekleyen: sinirliYemek ? [] : bekleyen,
+      bekleyenKaydet: sinirliYemek ? undefined : (l) => (l.length ? ls.yaz(bAnahtar, JSON.stringify(l)) : ls.sil(bAnahtar)),
       kilit: navigator.locks ? (fn) => navigator.locks.request('nt-yaz-' + cihaz + m.ek, fn) : undefined,
-      onbellek: { al: () => idbAl(onbellekAdi(m)), yaz: (v) => idbYaz(onbellekAdi(m), v) },
+      onbellek: { al: () => idbAl(onbellek), yaz: (v) => idbYaz(onbellek, v) },
     });
   }
 
@@ -141,6 +145,7 @@
     async ayril() {
       this.durdur();
       for (const m of Object.values(MODULLER)) await idbSil(onbellekAdi(m)).catch(() => {});
+      await idbSil(personelYemekOnbellek).catch(() => {});
       await NT.oturum.cikis();
       ls.sil('nt.kod');
       this.kod = '';

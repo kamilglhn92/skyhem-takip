@@ -60,7 +60,7 @@
   }
   const PANELLER = [
     { id: 'personel', ad: 'Personel', aciklama: 'İzin, malzeme isteği, arıza, ramak kala, öneri ve numune işleri', adres: () => NT.c.adres('personel', { kullanici: demo && NT.personelDemo.personelMi(demoKim) ? demoKim : '' }), sunum: demo },
-    { id: 'uretim', ad: 'Üretim', aciklama: 'Reaksiyon ve proses takip formları, hammadde kabul, vardiya devri; sahada doldurulan formların taranıp dijitale işlenmesi', adres: () => NT.c.adres('uretim'), sunum: demo },
+    { id: 'uretim', ad: 'Üretim', aciklama: 'Üretim kayıtları, hammadde ve son ürün stoku', adres: () => NT.c.adres('portal', { panel: 'uretim', kullanici: q.get('kullanici') }), sunum: demo },
     { id: 'yonetim', ad: 'Yönetim', aciklama: 'Numune, satış, içme suyu, yemek, yoklama, enerji ve personel talepleri',
       adres: () => NT.c.adres('portal', { panel: 'yonetim', kullanici: demo && NT.personelDemo.personelMi(demoKim) ? 'Kamil' : q.get('kullanici') }) },
   ].filter((p) => !(p.id === 'yonetim' && personelRolu));
@@ -74,7 +74,7 @@
     const gecen = new Date(); gecen.setDate(1); gecen.setMonth(gecen.getMonth() - 1);
     const ay = gecen.toLocaleDateString(NT.dil.yerel(), { month: 'long', year: 'numeric' }).replace(/^./, (h) => h.toLocaleUpperCase('tr'));
     return { satis: [{ metin: '1 sevkiyatta eksik belge', sekme: 'sevkiyatlar' }], su: [{ metin: '2 ayın su faturası girilmedi', sekme: 'faturalar' }],
-      yemek: [{ metin: cevir(`${ay} yemek faturası girilmedi`, `Meal invoice missing for ${ay}`), sekme: 'faturalar' }] };
+      yemek: [{ metin: NT.dil.m("{0} yemek faturası girilmedi", ay), sekme: 'faturalar' }] };
   }
 
   /* Bayramlarda ve millî günlerde selam değişir (tatil listesi ortak/tatiller.js'ten). */
@@ -148,14 +148,21 @@
   </svg>`;
 
   /* Bandın altındaki şerit: bütün sistemlerde dikkat bekleyen işler; tıklanınca ilgili sistemin ilgili sayfası açılır. */
-  function DikkatSeridi({ ozet }) {
+  function DikkatSeridi({ ozet, talepler }) {
     const acik = gorunen();
     const listeler = demo ? demoDikkat() : Object.fromEntries(acik.map((m) => [m.id, ozet[m.id]?.d ? dikkatAl(m, ozet[m.id].d) : []]));
     const isler = acik.flatMap((m) => (listeler[m.id] || []).map((x) => ({ ...x, m })));
     const hepsiGeldi = demo || acik.every((m) => m.sunum || (ozet[m.id] && !ozet[m.id].hata));
-    if (!isler.length && !hepsiGeldi) return null;
+    const sayi = isler.length + Number(talepler.length > 0);
+    if (!sayi && !hepsiGeldi) return null;
     return html`<div class="pt-dikkat" role="status">
-      ${isler.length ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />${cevir("Dikkat bekleyen")} ${isler.length}</span>
+      ${sayi ? html`<span class="pt-dikkat-bas"><${Ikon} ad="uyari" boyut=${15} />${cevir("Dikkat bekleyen")} ${sayi}</span>
+        ${talepler.length > 0 && html`<a class="pt-dikkat-cip pt-dikkat-oncelik" href=${personelTalepleri() + '#/onaylar'}
+          title=${talepler.slice(0, 3).map((t) => `${t.sahip} · ${NT.personel.talepOzet(t)}`).join('\n')}>
+          <span class="pt-dikkat-ikon"><${Ikon} ad="uyari" boyut=${15} /></span>
+          ${cevir('{0} personel talebi karar bekliyor', 'Staff requests awaiting a decision: {0}').replace('{0}', talepler.length)}
+          <${Ikon} ad="ok" boyut=${15} />
+        </a>`}
         ${isler.map((x, i) => html`<a class="pt-dikkat-cip" style=${{ '--i': i }} href=${NT.c.adres(x.m.id, { kullanici: q.get('kullanici') }) + '#/' + x.sekme} title=${cevir(x.m.ad) + ' › ' + cevir(x.metin)}>
           <span class=${'pt-dikkat-ikon pt-' + x.m.id}><${Ikon} ad=${x.m.ikon} boyut=${14} /></span>${cevir(x.metin)}<${Ikon} ad="ok" boyut=${14} /></a>`)}`
       : html`<span class="pt-dikkat-bas tamam"><${Ikon} ad="tik" boyut=${15} />${cevir("Her şey yolunda · dikkat bekleyen bir iş yok")}</span>`}
@@ -179,46 +186,27 @@
     })();
   }
 
-  function PersonelBekleyen() {
-    const [talepler, setTalepler] = useState([]);
-    useEffect(() => {
-      let aktif = true;
-      let kapat;
-      personelDeposuAc().then((d) => {
-        if (!aktif) { d.kapat(); return; }
-        const guncelle = () => setTalepler(NT.personel.bekleyenler(d));
-        const birak = d.abone(guncelle);
-        kapat = () => { birak(); d.kapat(); };
-        guncelle();
-      }).catch(console.error);
-      return () => { aktif = false; kapat?.(); };
-    }, []);
-    if (!talepler.length) return null;
-    return html`<a class="pt-personel-bekleyen" href=${personelTalepleri() + '#/onaylar'}>
-      <${Ikon} ad="uyari" boyut=${24} /><span><strong>${talepler.length} ${cevir('personel talebi karar bekliyor', 'staff requests awaiting a decision')}</strong>
-      <span class="pt-personel-ozet">${talepler.slice(0, 3).map((t) => html`<span key=${t.id}>${t.sahip} · ${NT.personel.talepOzet(t)}</span>`)}</span>
-      ${demo && html`<small>${cevir('Sunum', 'Demo')}</small>`}</span>
-      <b>${cevir('Personel taleplerini aç', 'Open staff requests')} →</b></a>`;
-  }
-
-  function useDuyurular() {
+  function useDuyurular(talepleriGoster = false) {
     const [depo, setDepo] = useState(null);
-    const [liste, setListe] = useState([]);
+    const [sonuc, setSonuc] = useState({ liste: [], bekleyenTalepler: [] });
     useEffect(() => {
       if (!demo && b.durum !== 'hazir') return undefined;
       let aktif = true;
       let kapat;
       personelDeposuAc().then((d) => {
         if (!aktif) { d.kapat(); return; }
-        const yenile = () => setListe(d.kayitlar('duyuru').sort((a, b) => b._olusturma - a._olusturma));
+        const yenile = () => setSonuc({
+          liste: d.kayitlar('duyuru').sort((a, b) => b._olusturma - a._olusturma),
+          bekleyenTalepler: talepleriGoster ? NT.personel.bekleyenler(d) : [],
+        });
         const birak = d.abone(yenile);
         kapat = () => { birak(); d.kapat(); };
         yenile();
         setDepo(d);
       }).catch(console.error);
       return () => { aktif = false; kapat?.(); };
-    }, []);
-    return { depo, liste };
+    }, [talepleriGoster]);
+    return { depo, ...sonuc };
   }
 
   function DuyuruFormu({ depo, kapat }) {
@@ -269,20 +257,14 @@
       </form><//>`;
   }
 
-  function Portal() {
-    const { depo: duyuruDeposu } = useDuyurular();
-    const [yeniDuyuru, setYeniDuyuru] = useState(false);
-    const ozet = useOzetler();
+  function PanelBandi({ baslik, soru, acilisBasligi, children }) {
     const simdi = useSimdi();
     const saat = simdi.getHours();
     const ad = (b.kullanici || '').split(' ')[0];
     const ozel = ozelGun(bugun());
-    const git = (m) => { if (m.hazir) location.href = m.adres ? m.adres() : demo ? demoAdres(NT.c.adres(m.id)) : NT.c.adres(m.id); };
     const tarih = simdi.toLocaleDateString(NT.dil.yerel(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const saatYazi = simdi.toLocaleTimeString(NT.dil.yerel(), { hour: '2-digit', minute: '2-digit' });
-    return html`<div class="pt-sayfa pt-yonetim">
-      ${demo && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${cevir('· Sistemler örnek verilerle açılır.', '· Trackers open with sample data.')}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
-      <header class="pt-bant">
+    return html`<header class="pt-bant">
         ${BANT_SUS}
         <div class="pt-bant-ic">
           <div class="pt-ust">
@@ -296,32 +278,66 @@
             <span class="pt-kisi"><${Avatar} ad=${(demo ? demoKim : b.kullanici) || '?'} kucuk />${demo ? demoKim : b.kullanici}</span>
           </div>
           <div class="pt-selam">
-            <a class="pt-panel-geri" href=${NT.c.adres('portal')}><${Ikon} ad="geri" boyut=${14} />${cevir('Paneller', 'Panels')} · <b>${cevir('Yönetim paneli', 'Management panel')}</b></a>
+            <a class="pt-panel-geri" href=${NT.c.adres('portal', { kullanici: q.get('kullanici') })}><${Ikon} ad="geri" boyut=${14} />${cevir('Paneller', 'Panels')} · <b>${baslik}</b></a>
             ${ozel && html`<span class="pt-ozel-gun"><${Ikon} ad="takvim" boyut=${14} />${cevir(ozel.not)}</span>`}
-            <h1>${cevir((ozel && ozel.selam) || (saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar'))}${ad && !demo ? ', ' + ad : ''}.</h1>
-            <p>${tarih} ${cevir("· Hangi sisteme gireceksiniz?")}</p>
+            <h1>${acilisBasligi || (cevir((ozel && ozel.selam) || (saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar')) + (ad && !demo ? ', ' + ad : '') + '.')}</h1>
+            <p>${tarih} ${soru}</p>
           </div>
-          <${DikkatSeridi} ozet=${ozet} />
+          ${children}
         </div>
-      </header>
+      </header>`;
+  }
+
+  function ModulKarti({ modul: m, sira, ac, children }) {
+    return html`<button type="button" class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} data-modul=${m.id} style=${{ '--i': sira }} onClick=${ac} disabled=${!m.hazir}>
+      <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>
+      <span class="pt-baslik">${cevir(m.ad)}${!m.hazir && html`<span class="rozet">${cevir('Hazırlanıyor')}</span>`}</span>
+      <span class="pt-aciklama">${cevir(m.aciklama)}</span>
+      <span class="pt-ozet">${children}</span>
+      ${m.hazir && html`<span class="pt-git">${cevir('Aç')} <${Ikon} ad="ok" boyut=${16} /></span>`}
+    </button>`;
+  }
+
+  function Portal() {
+    const { depo: duyuruDeposu, bekleyenTalepler } = useDuyurular(yonetici());
+    const [yeniDuyuru, setYeniDuyuru] = useState(false);
+    const ozet = useOzetler();
+    const git = (m) => { if (m.hazir) location.href = m.adres ? m.adres() : demo ? demoAdres(NT.c.adres(m.id)) : NT.c.adres(m.id); };
+    return html`<div class="pt-sayfa pt-yonetim">
+      ${demo && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir("SUNUM MODU")}</b> ${cevir('· Sistemler örnek verilerle açılır.', '· Trackers open with sample data.')}</span><a href=${NT.c.adres(b.modul.id, { demo: false })}>${cevir("Gerçek verilerle aç →")}</a></div>`}
+      <${PanelBandi} baslik=${cevir('Yönetim paneli', 'Management panel')} soru=${cevir('· Hangi sisteme gireceksiniz?')}>
+        <${DikkatSeridi} ozet=${ozet} talepler=${bekleyenTalepler} /><//>
       <main class="pt-icerik">
-        ${yonetici() && html`<${PersonelBekleyen} />`}
         ${duyuruDeposu && html`<div class="pt-duyuru-eylem"><button class="d" onClick=${() => setYeniDuyuru(true)}><${Ikon} ad="arti" boyut=${16} />${cevir('Yeni duyuru', 'New announcement')}</button></div>`}
         <div class="pt-kartlar">${gorunen().map((m, i) => {
           const o = ozet[m.id];
-          return html`<button class=${'pt-kart' + (m.hazir ? '' : ' yakinda')} data-modul=${m.id} style=${{ '--i': i }} onClick=${() => git(m)} disabled=${!m.hazir}>
-            <span class=${'pt-ikon pt-' + m.id}><${Ikon} ad=${m.ikon} boyut=${30} /></span>
-            <span class="pt-baslik">${cevir(m.ad)}${!m.hazir && html`<span class="rozet">${cevir("Hazırlanıyor")}</span>`}</span>
-            <span class="pt-aciklama">${cevir(m.aciklama)}</span>
-            <span class="pt-ozet">${!m.hazir ? '' : demo || m.sunum ? html`<span class="soluk">${m.sunum ? m.ozet()[0] : cevir("Örnek verilerle açılır")}</span>`
+          return html`<${ModulKarti} key=${m.id} modul=${m} sira=${i} ac=${() => git(m)}>
+            ${!m.hazir ? '' : demo || m.sunum ? html`<span class="soluk">${m.sunum ? m.ozet()[0] : cevir("Örnek verilerle açılır")}</span>`
               : !o ? html`<span class="soluk">${cevir("Yükleniyor…")}</span>` : o.hata ? html`<span class="pt-hata">${o.hata}</span>`
-              : ozetAl(m, o.d).map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}</span>
-            ${m.hazir && html`<span class="pt-git">${cevir("Aç")} <${Ikon} ad="ok" boyut=${16} /></span>`}
-          </button>`;
+              : ozetAl(m, o.d).map((s, i) => html`<span class=${i ? 'soluk' : ''}>${cevir(s)}</span>`)}
+          <//>`;
         })}</div>
         <p class="pt-not">${cevir('Sistemler birbirinden bağımsızdır; her birinin kayıtları ayrı tutulur. Ad ve erişim kodu hepsinde ortaktır.', 'Each tracker has its own records. Your name and access code are shared across trackers.')}${window.NT_SURUM_AKTIF ? ` · ${cevir('Program sürümü')} ${NT.c.surumYaz(window.NT_SURUM_AKTIF.surum)}` : ''}</p>
       </main>
       ${yeniDuyuru && html`<${DuyuruFormu} depo=${duyuruDeposu} kapat=${() => setYeniDuyuru(false)} />`}
+    </div>`;
+  }
+
+  function UretimPaneli() {
+    const moduller = [
+      { id: 'uretim-kayit', modul: 'uretim', ad: 'Üretim Kayıtları', aciklama: 'Partiler, üretim formları, hammadde kabulü ve vardiya devri',
+        ikon: 'belge', hazir: true, ozet: 'Üretim formları ve partiler' },
+      { id: 'uretim-stok', modul: 'uretimstok', ad: 'Üretim Stoku', aciklama: 'İsotank bakiyeleri, batch’ler, IBC’ler ve variller',
+        ikon: 'stok', hazir: true, ozet: 'CTO · Gliserin · Son ürün' },
+    ];
+    return html`<div class="pt-sayfa pt-yonetim pt-uretim">
+      ${demo && html`<div class="sunum-seridi" role="alert"><${Ikon} ad="uyari" boyut=${16} /><span><b>${cevir('SUNUM MODU')}</b></span></div>`}
+      <${PanelBandi} baslik=${cevir('Üretim paneli')} acilisBasligi=${cevir('Üretim')} soru=${cevir('· Hangi modülü açacaksınız?')} />
+      <main class="pt-icerik"><div class="pt-kartlar pt-uretim-kartlar">
+        ${moduller.map((m, i) => html`<${ModulKarti} key=${m.id} modul=${m} sira=${i}
+          ac=${() => { location.href = NT.c.adres(m.modul, { kullanici: q.get('kullanici') }); }}>
+          <span class="soluk">${cevir(m.ozet)}</span><//>`)}
+      </div></main>
     </div>`;
   }
 
@@ -396,7 +412,8 @@
     const [, y] = useState(0);
     // Abone olduktan sonra bir kez yenile: baslat() bu effect'ten önce bitmiş olabilir (kodu kayıtlı bilgisayarda hemen "hazır" olur).
     useEffect(() => { const birak = b.abone(() => y((x) => x + 1)); y((x) => x + 1); return birak; }, []);
-    const ic = demo || b.durum === 'hazir' ? (panel === 'yonetim' ? html`<${Portal} />` : html`<${PanelSecimi} />`)
+    const Sayfa = panel === 'yonetim' ? Portal : panel === 'uretim' ? UretimPaneli : PanelSecimi;
+    const ic = demo || b.durum === 'hazir' ? html`<${Sayfa} />`
       : b.durum === 'basliyor' ? html`<div style="display:grid;place-items:center;height:100vh;color:var(--soluk)">${cevir("Yükleniyor…")}</div>` : html`<${K.Kurulum} />`;
     return html`${ic}<${GlobalKatman} />`;
   }

@@ -50,9 +50,17 @@
 
   /* Stoku etkileyen gönderi mi? İptal edilenler ve açılış sayımından önceki kayıtlar (gecmis: true) etkilemez. */
   const sevkEtkili = (s) => !s.gecmis && !s.iptal;
+  const labSevkMi = (s) => s.gonderimAmaci === 'lab';
+  const musteriSevkleri = (depo) => depo.kayitlar('sevk').filter((s) => !labSevkMi(s));
+  const bosCikisMi = (r) => r?.tur === 'bos' && r.islem === 'bos-cikis';
+  function fiiliTarihGecerli(tarih) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tarih) || tarih > bugun()) return false;
+    const gun = new Date(tarih + 'T00:00:00Z');
+    return !Number.isNaN(gun.getTime()) && gun.toISOString().slice(0, 10) === tarih;
+  }
   /* Aynı firmaya yeni gönderide doldurulacak alıcı bilgileri: her alan, o alanı dolu olan en son gönderiden. */
   function firmaBilgisi(depo, firma, haricId) {
-    const l = depo.kayitlar('sevk').filter((r) => r.firma === firma && r.id !== haricId)
+    const l = musteriSevkleri(depo).filter((r) => r.firma === firma && r.id !== haricId)
       .sort((a, b) => (a.tarih < b.tarih ? 1 : a.tarih > b.tarih ? -1 : b._olusturma - a._olusturma));
     const al = (k) => l.find((r) => String(r[k] || '').trim())?.[k] || '';
     return { var: l.length > 0, yetkili: al('yetkili'), telefon: al('telefon'), irtibatDetay: al('irtibatDetay'), adres: al('adres'), ulke: al('ulke') };
@@ -573,6 +581,47 @@
     });
   }
 
+  function labSevkYaz(depo, id, tarih, sise, { mevcut = false } = {}) {
+    if (!fiiliTarihGecerli(tarih)) {
+      throw new Error(NT.dil.t('Gönderim tarihini kontrol edin.', 'Check the shipment date.'));
+    }
+    const { urun, parti, ambalaj } = sise;
+    return sevkYaz(depo, id, {
+      firma: 'ORÜSAN', gonderimAmaci: 'lab', durum: 'Gönderildi', tarih,
+      kalemler: [{ urun, parti, ambalaj, adet: 1 }],
+    }, { mevcut });
+  }
+
+  function bosCikisYaz(depo, id, veri, { mevcut = false, op = 'put' } = {}) {
+    return depo.numuneIslem((d) => {
+      const eski = d.kayit('sayim', id);
+      if (!mevcut && eski) return [];
+      if (mevcut && (!bosCikisMi(eski) || !!eski._silindi !== (op === 'undel'))) {
+        throw new Error(NT.dil.t('Boş kap çıkışı artık düzenlenemiyor.', 'This empty container withdrawal can no longer be edited.'));
+      }
+      if (op === 'del') return [{ c: 'sayim', k: id, op }];
+
+      const { ambalaj, tarih } = veri || eski;
+      const adet = veri ? Number(veri.adet) : -eski.fark;
+      const kisi = String((veri || eski).kisi || '').trim();
+      if (!ambalajlar(d, { hepsi: true }).some((a) => a.id === ambalaj) ||
+          !Number.isSafeInteger(adet) || adet < 1 || !kisi || !fiiliTarihGecerli(tarih)) {
+        throw new Error(NT.dil.t('Ambalajı, adedi, alan kişiyi ve tarihi kontrol edin.', 'Check the packaging, quantity, recipient and date.'));
+      }
+      const oncekiCikis = eski && !eski._silindi && eski.ambalaj === ambalaj ? -eski.fark : 0;
+      const onceki = bosMevcut(d, ambalaj) + oncekiCikis;
+      if (adet > onceki && adet !== oncekiCikis) {
+        throw new Error(NT.dil.t('Rafta bu çıkış için yeterli boş kap yok.', 'There are not enough empty containers for this withdrawal.'));
+      }
+      if (op === 'undel') return [{ c: 'sayim', k: id, op }];
+      const v = { tur: 'bos', islem: 'bos-cikis', tarih, ambalaj, kisi, neden: String(veri.neden || '').trim(), fark: -adet };
+      // Çıkış, eski istemcilerde de aynı stok farkını oluşturur.
+      if (!eski || eski.ambalaj !== ambalaj || eski.fark !== v.fark) Object.assign(v, { onceki, sayilan: onceki - adet });
+      if (!eski) v.no = yeniNo(d, 'sayim', tarih);
+      return [{ c: 'sayim', k: id, op, v }];
+    });
+  }
+
   function dolumYaz(depo, kayit, op, v = {}) {
     if (!kayit.isEmriId) return depo.kaydet([{ c: 'dolum', k: kayit.id, op, v }]);
     return depo.numuneIslem((d) => {
@@ -655,7 +704,11 @@
     if (bosMu) {
       for (const r of kayit('alim')) if (r.ambalaj === ambalaj) h.push({ tarih: r.tarih, t: r._olusturma, c: 'alim', r, adet: sayi(r.adet), aciklama: r.tedarikci || 'Satın alma' });
       for (const r of kayit('dolum')) if (r.ambalaj === ambalaj) h.push({ tarih: r.tarih, t: r._olusturma, c: 'dolum', r, adet: -sayi(r.adet), aciklama: `${r.urun}${r.parti ? ' · ' + r.parti : ''} dolumu` });
-      for (const r of kayit('sayim')) if (r.tur === 'bos' && r.ambalaj === ambalaj) h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama: r.neden || 'Sayım düzeltmesi' });
+      for (const r of kayit('sayim')) {
+        if (r.tur !== 'bos' || r.ambalaj !== ambalaj) continue;
+        const aciklama = bosCikisMi(r) ? [r.kisi, r.neden].filter(Boolean).join(' · ') : r.neden || 'Sayım düzeltmesi';
+        h.push({ tarih: r.tarih, t: r._olusturma, c: 'sayim', r, adet: sayi(r.fark), aciklama });
+      }
     } else {
       for (const r of kayit('dolum')) if (ayni(r)) h.push({ tarih: r.tarih, t: r._olusturma, c: 'dolum', r, adet: sayi(r.adet), aciklama: ['Dolum', dolumKaynagi(r), r.dolduranlar?.length ? 'Dolduran: ' + dolduranYaz(r) : r.hazirlayan].filter(Boolean).join(' · ') });
       for (const s of kayit('sevk')) {
@@ -811,8 +864,8 @@
     AMBALAJLAR, URUNLER, SEVK_DURUMLARI, GONDERI_SEKILLERI, DOLUM_KAYNAKLARI, dolumKaynagi, DOLUM_KISILERI, dolumKisileri, dolduranYaz, ONEK,
     kisaAd, anahtar, ambalajlar, ambalajAdi, urunler, urunBul, varsayilanlariYaz, stok, bosMevcut, doluMevcut,
     sevkKontrol, yeniNo, partiler, sonrakiParti, partiNo, defter, whatsappMetni, eskiVeriyiAktar, yedek, yedektenYukle,
-    acikOnizleme, kaynakKaplar, litreYazi,
+    acikOnizleme, kaynakKaplar, litreYazi, bosCikisMi, bosCikisYaz, fiiliTarihGecerli,
     emirAcabilir, emirAcik, emirRezerve, emirSevkeHazir, emirYaz, emirGrubu, emirGruplari, grupSatirlari, grupGorselleri, sevkEmirleri, sevkYaz, dolumYaz, kalemAnahtari, kalemAdedi,
-    siseSlotlari, siseTemizle, siseBul, sevkEtkili, sevkLitre, firmaBilgisi, ulkeler, ulkeIngilizce, ulkeTelefonlari, telefonCoz, telefonBirlestir, ulkeIso,
+    siseSlotlari, siseTemizle, siseBul, sevkEtkili, labSevkMi, labSevkYaz, musteriSevkleri, sevkLitre, firmaBilgisi, ulkeler, ulkeIngilizce, ulkeTelefonlari, telefonCoz, telefonBirlestir, ulkeIso,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

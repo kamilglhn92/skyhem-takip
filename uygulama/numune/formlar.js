@@ -3,7 +3,7 @@
   'use strict';
   const NT = window.NT;
   const cevir = NT.dil.t;
-  const { html, useState, useMemo } = window.htmPreact;
+  const { html, useState, useMemo, useRef } = window.htmPreact;
   const { Ikon, Modal, Alan, AdetGirdi, Oneri, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, SevkRozeti, EkOnizleme, ekAc, bildir, onayla } = NT.ui;
   const H = NT.hesap;
   const { bugun, uid, sayi, trSirala, tarihYaz } = NT.c;
@@ -27,6 +27,7 @@
     try {
       if (c === 'sevk') await H.sevkYaz(d, kayit.id, {}, { mevcut: true, op, eskiEksigeIzin: true });
       else if (c === 'dolum') await H.dolumYaz(d, kayit, op);
+      else if (c === 'sayim' && H.bosCikisMi(kayit)) await H.bosCikisYaz(d, kayit.id, null, { mevcut: true, op });
       else await d.kaydet([{ op, c, k: kayit.id }]);
       return true;
     } catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return false; }
@@ -65,8 +66,8 @@
     const ekstra = deger && !sik.includes(deger) && !hepsi.includes(deger) ? [deger] : [];
     return html`<select class="girdi" style=${stil} value=${deger || ''} onChange=${(e) => degis(e.target.value)}>
       <option value="">${cevir("— Ülke seçin —")}</option>
-      <optgroup label=${cevir("Sık kullanılan", "Frequently used")}>${[...sik, ...ekstra].map((u) => html`<option value=${u}>${cevir(u)}</option>`)}</optgroup>
-      <optgroup label=${cevir("Tüm ülkeler", "All countries")}>${hepsi.map((u) => html`<option value=${u}>${cevir(u)}</option>`)}</optgroup>
+      <optgroup label=${cevir("Sık kullanılan", "Frequently used")}>${[...sik, ...ekstra].map((u) => html`<option value=${u}>${NT.dil.ulkeYaz(u)}</option>`)}</optgroup>
+      <optgroup label=${cevir("Tüm ülkeler", "All countries")}>${hepsi.map((u) => html`<option value=${u}>${NT.dil.ulkeYaz(u)}</option>`)}</optgroup>
     </select>`;
   }
 
@@ -92,7 +93,7 @@
     }, [deger]);
     const { sik } = H.ulkeler(depo());
     const ust = sik.map((ad) => liste.find((u) => u.ad === ad)).filter(Boolean);
-    const secenek = (u) => html`<option value=${u.iso}>${u.ad} +${u.tel}</option>`;
+    const secenek = (u) => html`<option value=${u.iso}>${NT.dil.yerel() === 'ru-RU' ? NT.dil.ulkeYaz(u.ad) : u.ad} +${u.tel}</option>`;
     return html`<div style="display:flex;gap:6px">
       <select class="girdi" style="flex:0 0 150px;min-width:0" aria-label=${cevir("Ülke kodu")} value=${iso} onChange=${(e) => { setIso(e.target.value); degis(H.telefonBirlestir(e.target.value, numara)); }}>
         <optgroup label=${cevir("Sık kullanılan", "Frequently used")}>${ust.map(secenek)}</optgroup>
@@ -330,12 +331,58 @@
             ${x.ek ? html`<${EkOnizleme} ek=${x.ek} />` : html`<span class="ek-simge"><${Ikon} ad="yukle" boyut=${20} /><small>${cevir("Etiket yükle")}</small></span>`}
           </button>
           <div class="sise-alt">
-            <input class="girdi mono" aria-label=${cevir("Şişe no")} value=${x.no} placeholder="Sample no" onInput=${(e) => yaz(i, j, { no: e.target.value })} />
+            <input class="girdi mono" aria-label=${cevir("Şişe no")} value=${x.no} placeholder=${cevir('Sample no')} onInput=${(e) => yaz(i, j, { no: e.target.value })} />
             ${x.ek && html`<button type="button" class="d hayalet ikon-d" title=${cevir("Etiketi kaldır")} onClick=${() => yaz(i, j, { ek: null })}><${Ikon} ad="kapat" boyut=${14} /></button>`}
           </div>
         </div>`)}</div>
       </div>`)}
     </div>`;
+  }
+
+  function LabSevkFormu({ kayit, kapat }) {
+    const d = depo();
+    const id = useRef(kayit?.id || uid()).current;
+    const eskiSise = kayit?.kalemler?.[0];
+    const eskiAnahtar = eskiSise ? H.kalemAnahtari(eskiSise) : '';
+    const [secim, setSecim] = useState(eskiAnahtar);
+    const [tarih, setTarih] = useState(kayit?.tarih || bugun());
+    const [mesgul, setMesgul] = useState(false);
+    const siseler = [...H.stok(d).dolu.values()].filter((s) => s.kullanilabilir >= 1 || s.anahtar === eskiAnahtar);
+    if (eskiSise && !siseler.some((s) => s.anahtar === eskiAnahtar)) siseler.push({ ...eskiSise, anahtar: eskiAnahtar });
+    const siseAdi = (s) => [s.urun, s.parti, H.ambalajAdi(d, s.ambalaj)].filter(Boolean).join(' · ');
+    siseler.sort((a, b) => trSirala(siseAdi(a), siseAdi(b)));
+    const sise = siseler.find((s) => s.anahtar === secim);
+    const gecerli = sise && H.fiiliTarihGecerli(tarih);
+
+    async function kaydet() {
+      if (!gecerli || mesgul) return;
+      setMesgul(true);
+      try {
+        await H.labSevkYaz(d, id, tarih, sise, { mevcut: !!kayit });
+        bildir(NT.dil.m('{0} kaydedildi · ORÜSAN', d.kayit('sevk', id).no));
+        kapat();
+      } catch (e) {
+        bildir(cevir(e.message), { tur: 'hata' });
+      } finally { setMesgul(false); }
+    }
+
+    const siseEtiketi = cevir('Gönderilen şişe', 'Bottle shipped');
+    const tarihEtiketi = cevir('Gönderim tarihi', 'Shipment date');
+    return html`<${Modal} dar baslik=${cevir('ORÜSAN’a Gönderildi', 'Shipped to ORÜSAN')} kapat=${() => { if (!mesgul) kapat(); }}
+      alt=${html`${kayit && html`<div class="sol"><button class="d tehlike" disabled=${mesgul} onClick=${async () => (await sil('sevk', kayit)) && kapat()}>${cevir('Sil')}</button></div>`}
+        <button class="d hayalet" disabled=${mesgul} onClick=${kapat}>${cevir('Vazgeç')}</button>
+        <button class="d ana-d" disabled=${!gecerli || mesgul} onClick=${kaydet}>${cevir('Kaydet')}</button>`}>
+      <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
+        <${Alan} etiket=${siseEtiketi}>
+          <select class="girdi" aria-label=${siseEtiketi} value=${secim} disabled=${mesgul || !siseler.length} onChange=${(e) => setSecim(e.target.value)}>
+            <option value="">${siseler.length ? cevir('Şişe seçin', 'Select a bottle') : cevir('Rafta gönderilebilir şişe yok', 'No bottles available to ship')}</option>
+            ${siseler.map((s) => html`<option key=${s.anahtar} value=${s.anahtar}>${siseAdi(s)}</option>`)}
+          </select>
+        <//>
+        <${Alan} etiket=${tarihEtiketi}><input class="girdi" aria-label=${tarihEtiketi} type="date" max=${bugun()} value=${tarih} disabled=${mesgul} onInput=${(e) => setTarih(e.target.value)} /><//>
+        <button type="submit" class="gizli" />
+      </form>
+    <//>`;
   }
 
   function SevkFormu({ kayit, kapat, on = {} }) {
@@ -349,7 +396,7 @@
     });
     const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
     const [denendi, setDenendi] = useState(false);
-    const onceki = d.kayitlar('sevk').filter((r) => r.id !== kayit?.id);
+    const onceki = H.musteriSevkleri(d).filter((r) => r.id !== kayit?.id);
     const firmalar = benzersiz(onceki.map((r) => r.firma));
 
     function firmaSec(v) {
@@ -419,7 +466,7 @@
           <${Oneri} id="sebep-dl" liste=${benzersiz(onceki.map((r) => r.sebep))} />
         <//>
         <${Alan} etiket=${cevir("Diğer iletişim bilgileri")} sinif="s12" ipucu=${cevir("Unvan, e-posta, ek telefon… Excel’de irtibat kişisinin altına yazılır.")}>
-          <textarea class="girdi" rows="2" value=${f.irtibatDetay} onInput=${(e) => s('irtibatDetay')(e.target.value)} placeholder="Örn: Product Manager · ad.soyad@firma.com" />
+          <textarea class="girdi" rows="2" value=${f.irtibatDetay} onInput=${(e) => s('irtibatDetay')(e.target.value)} placeholder=${cevir("Örn: Product Manager · ad.soyad@firma.com")} />
         <//>
         <${Alan} etiket=${cevir("Talep tarihi")} sinif="s4"><input class="girdi" type="date" value=${f.talepTarihi} onInput=${(e) => s('talepTarihi')(e.target.value)} /><//>
         <${Alan} etiket=${cevir("Sorumlu")} sinif="s4" hata=${denendi && hatalar.sorumlu}>
@@ -511,6 +558,62 @@
         <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>
         <${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Fatura PDF’i vb.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
         <${GecmisBolumu} kayit=${kayit} />
+        <button type="submit" class="gizli" />
+      </form>
+    <//>`;
+  }
+
+  function BosCikisFormu({ kayit, kapat }) {
+    const d = depo();
+    const id = useRef(kayit?.id || uid()).current;
+    const [f, setF] = useState({
+      ambalaj: kayit?.ambalaj || '', adet: kayit ? -kayit.fark : 1,
+      kisi: kayit?.kisi || '', tarih: kayit?.tarih || bugun(), neden: kayit?.neden || '',
+    });
+    const [mesgul, setMesgul] = useState(false);
+    const s = (alan) => (deger) => setF((p) => ({ ...p, [alan]: deger }));
+    const ambalajlar = H.ambalajlar(d, { hepsi: !!kayit });
+    const kisiler = NT.ui.kisiListesi([
+      ...d.kisiler.map((k) => k.ad),
+      ...d.kayitlar('sayim').filter(H.bosCikisMi).map((r) => r.kisi),
+    ]);
+    const adet = Number(f.adet);
+    const mevcut = H.bosMevcut(d, f.ambalaj) + (kayit?.ambalaj === f.ambalaj ? -kayit.fark : 0);
+    const stokYeterli = adet <= mevcut || (kayit?.ambalaj === f.ambalaj && adet === -kayit.fark);
+    const gecerli = f.ambalaj && Number.isSafeInteger(adet) && adet > 0 && stokYeterli && f.kisi.trim() && H.fiiliTarihGecerli(f.tarih);
+    const baslik = cevir('Boş Kap Çıkışı', 'Empty Container Withdrawal');
+    const alanKisi = cevir('Alan kişi', 'Taken by');
+    const aciklama = cevir('Açıklama (isteğe bağlı)', 'Description (optional)');
+
+    async function kaydet() {
+      if (!gecerli || mesgul) return;
+      setMesgul(true);
+      try {
+        await H.bosCikisYaz(d, id, f, { mevcut: !!kayit });
+        bildir(NT.dil.m("{0} kaydedildi.", d.kayit('sayim', id).no));
+        kapat();
+      } catch (e) {
+        bildir(cevir(e.message), { tur: 'hata' });
+      } finally { setMesgul(false); }
+    }
+
+    return html`<${Modal} dar baslik=${baslik} kapat=${() => { if (!mesgul) kapat(); }}
+      alt=${html`${kayit && html`<div class="sol"><button class="d tehlike" disabled=${mesgul} onClick=${async () => (await sil('sayim', kayit)) && kapat()}>${cevir('Sil')}</button></div>`}
+        <button class="d hayalet" disabled=${mesgul} onClick=${kapat}>${cevir('Vazgeç')}</button>
+        <button class="d ana-d" disabled=${!gecerli || mesgul} onClick=${kaydet}>${cevir('Kaydet')}</button>`}>
+      <form class="modal-ic form-izgara" onSubmit=${(e) => { e.preventDefault(); kaydet(); }}>
+        <${Alan} etiket=${cevir('Ambalaj')} sinif="s6">
+          <select class="girdi" aria-label=${cevir('Ambalaj')} value=${f.ambalaj} onChange=${(e) => s('ambalaj')(e.target.value)}>
+            <option value="">${cevir('Seçin…')}</option>
+            ${ambalajlar.map((a) => html`<option key=${a.id} value=${a.id}>${a.ad}</option>`)}
+          </select>
+        <//>
+        <${Alan} etiket=${cevir('Adet')} sinif="s6" hata=${f.ambalaj && !stokYeterli && cevir('Rafta yeterli boş kap yok.', 'There are not enough empty containers on the shelf.')}>
+          <input class="girdi" type="number" min="1" step="1" inputmode="numeric" aria-label=${cevir('Adet')} value=${f.adet} onInput=${(e) => s('adet')(e.target.value)} />
+        <//>
+        <${Alan} etiket=${alanKisi} sinif="s6"><${NT.ui.KisiSec} etiket=${alanKisi} liste=${kisiler} deger=${f.kisi} degis=${s('kisi')} /><//>
+        <${Alan} etiket=${cevir('Tarih')} sinif="s6"><input class="girdi" type="date" aria-label=${cevir('Tarih')} max=${bugun()} value=${f.tarih} onInput=${(e) => s('tarih')(e.target.value)} /><//>
+        <${Alan} etiket=${aciklama}><textarea class="girdi" rows="2" aria-label=${aciklama} value=${f.neden} onInput=${(e) => s('neden')(e.target.value)} /><//>
         <button type="submit" class="gizli" />
       </form>
     <//>`;
@@ -616,13 +719,14 @@
 
   NT.form = {
     KalemBelgeleri,
-    DolumFormu, SevkFormu, AlimFormu, SiseEtiketleri, SayimFormu, FormKatmani, ac, kapat, sil, kayitDurumu, tarihYaz, iptalEt, iptalGeriAl, UlkeSecimi, TelefonGirdisi,
+    DolumFormu, SevkFormu, LabSevkFormu, AlimFormu, BosCikisFormu, SiseEtiketleri, SayimFormu, FormKatmani, ac, kapat, sil, kayitDurumu, tarihYaz, iptalEt, iptalGeriAl, UlkeSecimi, TelefonGirdisi,
     yeniDolum: (on) => NT.eylem?.dolum(on),
     yeniSevk: (on) => NT.eylem?.sevk(on),
     yeniAlim: (on) => ac(AlimFormu, { on }),
     kayitAc: (c, kayit) => {
       if (NT.numunePersonel && c === 'sevk') return;
-      ac({ dolum: DolumFormu, sevk: SevkFormu, alim: AlimFormu }[c], { kayit, key: kayit.id });
+      const sevkFormu = c === 'sevk' && H.labSevkMi(kayit) ? LabSevkFormu : SevkFormu;
+      ac({ dolum: DolumFormu, sevk: sevkFormu, alim: AlimFormu, bosCikis: BosCikisFormu }[c], { kayit, key: kayit.id });
     },
     sayim: (hedef) => ac(SayimFormu, { hedef }),
     acikIslem: (hedef, islem) => ac(AcikKapFormu, { hedef, islem }),

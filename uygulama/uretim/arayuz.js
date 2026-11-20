@@ -135,7 +135,7 @@
     const ortak = { 'data-konum': konum, disabled: salt, 'aria-label': c(sutun.ad, sutun.en) };
     if (sutun.tur === 'secim' || sutun.tur === 'tik') {
       const sec = sutun.tur === 'tik' ? ['✓', '✗'] : sutun.secenekler;
-      return html`<td class=${tur + ' ' + (durum || (sutun.anormal && deger === sutun.anormal ? 'disari' : ''))}><select class="ur-girdi" value=${deger || ''} onChange=${(e) => degis(e.target.value)} ...${ortak}><option value="">—</option>${sec.map((x) => html`<option value=${x}>${x}</option>`)}</select></td>`;
+      return html`<td class=${tur + ' ' + (durum || (sutun.anormal && deger === sutun.anormal ? 'disari' : ''))}><select class="ur-girdi" value=${deger || ''} onChange=${(e) => degis(e.target.value)} ...${ortak}><option value="">—</option>${sec.map((x) => html`<option value=${x}>${c(x, x)}</option>`)}</select></td>`;
     }
     const tus = (e) => {
       if (e.key === '"' && e.target.value === '') { e.preventDefault(); degis('"'); }
@@ -173,7 +173,7 @@
   function AlanGirdi({ alan, deger, degis, salt, partiler }) {
     const ortak = { disabled: salt, value: deger ?? '' };
     let g;
-    if (alan.tur === 'secim') g = html`<select class="girdi" ...${ortak} onChange=${(e) => degis(e.target.value)}><option value="">—</option>${alan.secenekler.map((x) => html`<option value=${x}>${x}</option>`)}</select>`;
+    if (alan.tur === 'secim') g = html`<select class="girdi" ...${ortak} onChange=${(e) => degis(e.target.value)}><option value="">—</option>${alan.secenekler.map((x) => html`<option value=${x}>${c(x, x)}</option>`)}</select>`;
     else if (alan.tur === 'uzun') g = html`<textarea class="girdi" rows="2" ...${ortak} onInput=${(e) => degis(e.target.value)} />`;
     else if (alan.tur === 'parti') g = html`<input class="girdi" list="ur-partiler" placeholder=${c('örn. Batch #24', 'e.g. Batch #24')} ...${ortak} onInput=${(e) => degis(e.target.value)} onBlur=${(e) => degis(U.partiAdi(e.target.value))} />
       <datalist id="ur-partiler">${partiler.map((p) => html`<option value=${p} />`)}</datalist>`;
@@ -251,10 +251,41 @@
     </article>`;
   }
 
+  /* Kâğıt tek A4'ü birazcık aşıyorsa (not, imza ya da alt bilgi ikinci sayfaya düşüyorsa) orantılı küçültülür.
+     Ölçüm ekranda yapılır: alan kâğıt genişliğinde görünmez biçimde açılır (dolgu taban kuralda, yazdırmadakiyle aynı).
+     %60'tan fazla küçültme gerekirse (çok uzun form) küçültülmez; tablo başlığı tekrarlanarak çok sayfa basılır. */
+  function sayfayaSigdir(alan) {
+    const mm = 96 / 25.4;
+    const eski = alan.getAttribute('style');
+    alan.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;visibility:hidden';
+    for (const kagit of alan.querySelectorAll('.ur-a4')) {
+      const yatay = kagit.classList.contains('yatay');
+      const [en, boy] = yatay ? [297, 210] : [210, 297];
+      alan.style.width = en + 'mm';
+      kagit.style.zoom = ''; kagit.style.width = '';
+      const sigacak = boy * mm * 0.985; // yuvarlama payı
+      let oran = 1;
+      for (let i = 0; i < 4; i++) { // küçülünce satırlar genişler; birkaç turda oturur
+        const yuk = kagit.getBoundingClientRect().height;
+        if (yuk <= sigacak) break;
+        oran = Math.max(0.6, oran * (sigacak / yuk) - 0.005);
+        kagit.style.zoom = String(oran);
+        // küçülen kâğıt sayfa genişliğini yine doldursun; yüzde, tarayıcının zoom yorumuna göre ölçülerek düzeltilir
+        kagit.style.width = '100%';
+        const gorunen = kagit.getBoundingClientRect().width;
+        kagit.style.width = `${((100 * en * mm) / gorunen).toFixed(3)}%`;
+        if (oran === 0.6) break;
+      }
+      if (kagit.getBoundingClientRect().height > sigacak * 1.001 && oran === 0.6) { kagit.style.zoom = ''; kagit.style.width = ''; }
+    }
+    if (eski == null) alan.removeAttribute('style'); else alan.setAttribute('style', eski);
+  }
+
   function yazdir(icerik) {
     let alan = document.getElementById('yazdir-alani');
     if (!alan) { alan = document.createElement('div'); alan.id = 'yazdir-alani'; document.body.appendChild(alan); }
     render(icerik, alan);
+    sayfayaSigdir(alan);
     const temizle = () => { render(null, alan); window.removeEventListener('afterprint', temizle); };
     window.addEventListener('afterprint', temizle);
     setTimeout(() => window.print(), 150); // logo yüklensin
@@ -461,24 +492,27 @@
   function Grafikler() {
     const d = depo();
     const tum = U.partiler(d).filter((p) => OLCUMLER.some((o) => olcumNoktalari(p, o).length));
-    const [gorunum, setGorunum] = useState(() => (location.hash.includes('form') ? 'form' : 'parti'));
+    const [gorunum, setGorunum] = useState(() => (/(form|karsilastir)/.test(location.hash) ? 'form' : 'parti'));
     const [partiAd, setParti] = useState('');
     const [olcumId, setOlcum] = useState('reaktorT');
     const [secili, setSecili] = useState(null);
+    const [partiSorgu, setPartiSorgu] = useState('');
     if (!tum.length) return html`<${K.Selam} baslik=${c('Grafikler', 'Charts')} /><${BosDurum} ikon="ozet" baslik=${c('Grafik için işlenmiş FR-011 yok', 'No entered FR-011 to chart')} />`;
     const p = tum.find((x) => x.ad === partiAd) || tum[0];
     const o = OLCUMLER.find((x) => x.id === olcumId) || OLCUMLER[0];
-    const adaylar = tum.filter((x) => olcumNoktalari(x, o).length);
-    const secim = (secili || adaylar.slice(0, 4).map((x) => x.ad)).filter((ad) => adaylar.some((x) => x.ad === ad));
-    const renk = (ad) => PARTI_RENK[adaylar.findIndex((x) => x.ad === ad) % PARTI_RENK.length];
-    const ustUste = adaylar.filter((x) => secim.includes(x.ad)).map((x) => {
-      const l = olcumNoktalari(x, o);
+    const adaylar = tum.map((parti) => ({ ...parti, seri: olcumNoktalari(parti, o) })).filter((x) => x.seri.length);
+    const secim = secili || adaylar.slice(0, 4).map((x) => x.ad);
+    const gosterilen = adaylar.filter((x) => secim.includes(x.ad));
+    const renk = (ad) => PARTI_RENK[gosterilen.findIndex((x) => x.ad === ad) % PARTI_RENK.length];
+    const eslesenler = adaylar.filter((x) => secim.includes(x.ad) || ara(`${x.ad} ${x.urun} ${x.reaktor}`, partiSorgu));
+    const ustUste = gosterilen.map((x) => {
+      const l = x.seri;
       const bas = l[0].x;
       return { ad: x.ad, renk: renk(x.ad), noktalar: l.map((n) => ({ ...n, x: n.x - bas })), ham: l, parti: x };
     });
     const g = gorunum === 'parti' && partiGrafikleri(p);
-    return html`<${K.Selam} baslik=${c('Grafikler', 'Charts')}>${c('Grafikte fareyle gezinin (telefonda parmakla dokunun); o andaki değerler görünür. Partiye göre: bir partinin bütün grafikleri. Forma göre: bir ölçüm, partiler üst üste.', 'Move over a chart (tap on a phone) to see the values at that moment. By batch: all charts of one batch. By form: one reading, batches overlaid.')}<//>
-      <${K.Cipler} secenekler=${[['parti', c('Partiye göre', 'By batch'), tum.length], ['form', c('Forma göre', 'By form'), OLCUMLER.length]]} deger=${gorunum} degis=${setGorunum} />
+    return html`<${K.Selam} baslik=${c('Grafikler', 'Charts')}>${c('Bir partinin ölçümlerini inceleyin veya seçtiğiniz partileri aynı grafikte karşılaştırın. Değerleri görmek için grafiğe dokunun veya fareyle gezinin.', 'View measurements for one batch or compare selected batches on the same chart. Tap or hover to see the values.')}<//>
+      <${K.Cipler} secenekler=${[['parti', c('Partiye göre', 'By batch'), tum.length], ['form', c('Partileri karşılaştır', 'Compare batches')]]} deger=${gorunum} degis=${setGorunum} />
       ${gorunum === 'parti' ? html`
         <div class="ur-secim"><span class="kucuk soluk">${c('Parti', 'Batch')}</span>
           ${tum.map((x) => html`<button type="button" class=${'secenek' + (x.ad === p.ad ? ' secili' : '')} onClick=${() => setParti(x.ad)}>${x.ad}</button>`)}</div>
@@ -491,11 +525,18 @@
       : html`
         <div class="ur-secim"><span class="kucuk soluk">${c('Ölçüm', 'Reading')}</span>
           ${OLCUMLER.map((x) => html`<button type="button" class=${'secenek' + (x.id === o.id ? ' secili' : '')} onClick=${() => setOlcum(x.id)}><span class="ur-form-etiket"><b>${formKisa(x.form)}</b></span> ${c(...x.ad)}</button>`)}</div>
-        <div class="ur-secim"><span class="kucuk soluk">${c('Partiler', 'Batches')}</span>
-          ${adaylar.map((x) => html`<button type="button" class=${'secenek ur-parti-sec' + (secim.includes(x.ad) ? ' secili' : '')} style=${{ '--renk': renk(x.ad) }}
-            onClick=${() => setSecili(secim.includes(x.ad) ? secim.filter((a) => a !== x.ad) : [...secim, x.ad])}><i />${x.ad}</button>`)}</div>
-        <${K.Kart} baslik=${`${c(...o.ad)} · ${formKisa(o.form)}`} sag=${html`<span class="kucuk soluk">${c('x: partinin başından geçen süre', 'x: time since batch start')}</span>`}>
-          <div class="kart-ic">${ustUste.length ? html`<${Cizgi} seriler=${ustUste} birim=${o.birim} sure yukseklik=${260} />
+        <div class="ur-secim">
+          <input type="search" class="girdi ur-parti-ara" aria-label=${c('Parti ara', 'Find a batch')} placeholder=${c('Parti, ürün veya reaktör ara', 'Find a batch, product or reactor')} value=${partiSorgu} onInput=${(e) => setPartiSorgu(e.target.value)} />
+          <span class="kucuk soluk" role="status">${m('{0} parti seçili', '{0} selected', gosterilen.length)}</span>
+          <button type="button" class="d kucuk-d" disabled=${!secim.length} onClick=${() => setSecili([])}>${c('Seçimi temizle', 'Clear selection')}</button>
+        </div>
+        <div class="ur-secim" role="group" aria-label=${c('Karşılaştırılacak partiler', 'Batches to compare')}>
+          ${eslesenler.map((x) => html`<button key=${x.ad} type="button" aria-pressed=${secim.includes(x.ad)} class=${'secenek ur-parti-sec' + (secim.includes(x.ad) ? ' secili' : '')} style=${{ '--renk': renk(x.ad) || 'var(--cizgi2)' }}
+            onClick=${() => setSecili(secim.includes(x.ad) ? secim.filter((a) => a !== x.ad) : [...secim, x.ad])}><i />${x.ad}</button>`)}
+          ${!eslesenler.length && html`<span class="soluk kucuk">${adaylar.length ? c('Eşleşen parti yok', 'No batch matches') : c('Bu ölçüme ait veri yok', 'No data for this measurement')}</span>`}
+        </div>
+        <${K.Kart} baslik=${`${c(...o.ad)} · ${formKisa(o.form)}`} sag=${html`<span class="kucuk soluk">${c('İlk ölçümden geçen süre', 'Time since first reading')}</span>`}>
+          <div class="kart-ic">${ustUste.length ? html`<${Cizgi} key=${o.id + ':' + gosterilen.map((x) => x.ad).join('|')} seriler=${ustUste} birim=${o.birim} sure yukseklik=${260} />
             <div class="tablo-kap"><table class="tablo ur-karsilastir"><thead><tr><th>${c('Parti', 'Batch')}</th><th>${c('Ürün', 'Product')}</th><th>${c('Başlangıç', 'Start')}</th><th class="sag">${c('Süre', 'Duration')}</th><th class="sag">${c('En düşük', 'Min')}</th><th class="sag">${c('En yüksek', 'Max')}</th><th class="sag">${c('Son', 'Last')}</th></tr></thead><tbody>
               ${ustUste.map((s) => { const ys = s.ham.map((n) => n.y); const son = s.noktalar[s.noktalar.length - 1]; return html`<tr class="tik" key=${s.ad} onClick=${() => partiAc(s.ad)}>
                 <td><i class="ur-renk" style=${{ background: s.renk }} /><b>${s.ad}</b></td><td class="kucuk">${s.parti.urun || '—'}</td><td class="kucuk">${s.parti.bas ? tarihYaz(s.parti.bas) : '—'} ${s.ham[0].saat}</td>
@@ -526,8 +567,9 @@
     const egriParti = partiler.find((p) => p.kayitlar.some((k) => k.form === 'FR-011-1' && k.durum !== 'taslak'));
     const g = egriParti && partiGrafikleri(egriParti);
     const uyariToplam = partiler.reduce((t, p) => t + p.uyari, 0);
-    return html`<${K.Selam} bant baslik=${c('Üretim', 'Production')} sag=${html`<button class="d ana-d" onClick=${taraAc}><${Ikon} ad="kamera" />${c('Form tara', 'Scan forms')}</button>`}>
-        ${c('Sahada doldurulan reaksiyon, proses, hammadde ve vardiya formları; tarama ve dijital kayıt.', 'Reaction, process, raw-material and shift forms filled on site; scans and digital records.')}<//>
+    return html`<${K.Selam} bant baslik=${NT.ui.karsilama(b.kullanici)}>
+      ${c('Partiler')} <b>${partiler.length}</b> · ${c('Giriş sırası')} <b>${bekleyen.length}</b> · ${c('Kontrol sırası')} <b class=${kontrol.length ? 'u' : ''}>${kontrol.length}</b><//>
+      <div class="ur-pano-araclar"><button class="d ana-d" onClick=${taraAc}><${Ikon} ad="kamera" />${c('Form tara', 'Scan forms')}</button></div>
       <div class="kpi-sira">
         <${K.Kpi} ad="Son parti" deger=${son ? son.ad : '—'} alt=${son ? [son.urun, tarihYaz(son.bas)].filter(Boolean).join(' · ') : ''} ikon="dolum" />
         <${K.Kpi} ad="İşlenmeyi bekleyen" deger=${bekleyen.length} alt=${c('taranmış sayfa', 'scanned pages')} ikon="kamera" vurgu=${bekleyen.length > 0} />
@@ -554,7 +596,7 @@
     const d = depo();
     const [q, setQ] = useState('');
     const liste = U.partiler(d).filter((p) => ara(`${p.ad} ${p.urun} ${p.reaktor}`, q));
-    return html`<${K.Selam} baslik=${c('Partiler', 'Batches')}>${c('Her parti, FR-011 ve FR-035 kayıtlarından derlenir. Karta tıklayınca parti dosyası açılır.', 'Each batch is compiled from FR-011 and FR-035 records. Click a card for the batch file.')}<//>
+    return html`<${K.Selam} baslik=${c('Partiler', 'Batches')} sag=${html`<a class="d ana-d" href="#/grafikler/karsilastir"><${Ikon} ad="grafik" />${c('Partileri karşılaştır', 'Compare batches')}</a>`}>${c('Her parti, FR-011 ve FR-035 kayıtlarından derlenir. Karta tıklayınca parti dosyası açılır.', 'Each batch is compiled from FR-011 and FR-035 records. Click a card for the batch file.')}<//>
       <div class="tz-cipler"><input class="girdi" style="max-width:260px;border-radius:99px" placeholder=${c('Parti, ürün…', 'Batch, product…')} value=${q} onInput=${(e) => setQ(e.target.value)} /></div>
       ${liste.length ? html`<div class="ur-parti-kartlar">${liste.map((p) => html`<button class="ur-parti-kart" onClick=${() => partiAc(p.ad)}>
         <span class="bas"><b>${p.ad}</b>${p.eksikFormlar.length ? html`<span class="rozet kritik">${m('{0} eksik', '{0} missing', p.eksikFormlar.length)}</span>` : html`<span class="rozet iyi">${c('Tam', 'Complete')}</span>`}</span>
@@ -650,8 +692,7 @@
     ],
     arama: (d, q) => U.kayitlar(d).filter((k) => ara(`${k.no} ${k.form} ${k.parti} ${k.alanlar?.isotank || ''}`, q)).map((k) => ({ tur: 'Form', ad: `${k.no} · ${U.formAdi(k.form)}`, ek: k.parti || '', fn: () => isle(k) })),
     uzakKoleksiyonlar: ['kayit'],
-    // Üretim ayrı bir paneldir (karşılamanın 1. seviyesi); geri bağlantısı panel seçimine gider.
-    geri: { yazi: c('Paneller', 'Panels'), adres: NT.c.adres('portal', { kullanici: new URLSearchParams(location.search).get('kullanici') }) },
+    geri: { yazi: c('Üretim paneli'), adres: NT.c.adres('portal', { panel: 'uretim', kullanici: new URLSearchParams(location.search).get('kullanici') }) },
   });
   void useMemo; void onceYaz;
 })();

@@ -36,7 +36,7 @@
     const klipssiz = sevkler.filter((x) => x.durum === 'Yolda' && !bagliSevk.has(x.id) && !bagliSevk.has(x.no));
     const kullanilan = s.toplam ? Math.round(((s.toplam - s.bosta.length) / s.toplam) * 100) : 0;
     return html`
-      <${K.Selam} baslik=${cevir("Klipsler")}
+      <${K.Selam} bant baslik=${cevir("Klipsler")}
         sag=${html`<button class="d ana-d tz-buyuk" onClick=${() => klipsTak()}><${Ikon} ad="etiket" />${cevir("Klips tak")}</button>`}>
         ${s.sirada ? html`${cevir("Sıradaki klips")} <b class="v">${s.sirada}</b>. ` : ''}<b>${sayiYaz(s.takili)}</b> ${cevir("klips takılı,")} <b>${sayiYaz(s.bosta.length)}</b> ${cevir("klips boşta.")}
       <//>
@@ -209,7 +209,7 @@
       <div class="tz-izgara">
         <div class="tz-sutun">
           <${K.Kart} baslik=${cevir("Klips aralıkları")}>
-            ${liste.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Aralık")}</th><th class="sag">${cevir("Adet")}</th><th>${cevir("Tarih")}</th><th>${cevir("Not")}</th></tr></thead><tbody>
+            ${liste.length ? html`<div class="tablo-kap"><table class="tablo"><thead><tr><th>${cevir("Aralık", undefined, "Диапазон номеров")}</th><th class="sag">${cevir("Adet")}</th><th>${cevir("Tarih")}</th><th>${cevir("Not")}</th></tr></thead><tbody>
               ${liste.map((a) => html`<tr class="tik" key=${a.id} onClick=${() => K.ac(AralikPenceresi, { kayit: a })}><td class="mono"><b>${a.bas}–${a.bit}</b></td><td class="sag sayi">${sayiYaz(+a.bit - +a.bas + 1)}</td><td>${a.tarih ? tarihYaz(a.tarih) : '—'}</td><td class="kucuk">${a.notlar || ''}</td></tr>`)}
             </tbody></table></div>` : html`<${BosDurum} ikon="stok" baslik=${cevir("Aralık tanımlı değil")} aciklama=${cevir("Elinizdeki klipslerin ilk ve son numarasını girin.")} />`}
           <//>

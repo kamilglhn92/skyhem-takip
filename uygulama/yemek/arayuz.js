@@ -16,6 +16,21 @@
   const yaz = K.yazabilir;
   const kisaTarih = (t) => `${+t.slice(8, 10)} ${cevir(AYLAR[+t.slice(5, 7) - 1])}`;
   const ogunYazi = (g) => (g && g.yemekYok ? 'Yemek yok' : Y.OGUNLER.filter((o) => sayi(g && g[o.id]) > 0).map((o) => `${sayi(g[o.id])} ${cevir(o.ad).toLocaleLowerCase(NT.dil.yerel())}`).join(' · ') || '—');
+  const sahaTarihi = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date());
+  const yemekSunumu = new URLSearchParams(location.search).has('demo');
+
+  function PersonelIlave({ tarih, ayrinti = false }) {
+    const ilave = Y.personelIlavesi(depo(), tarih);
+    const kayitlar = ayrinti ? depo().kayitlar('personel_ogun').filter((k) => k.tarih === tarih && Y.toplam(k) > 0) : [];
+    if (!Y.toplam(ilave)) return null;
+    return html`<div class="s12 soluk kucuk">
+      ${cevir('Yukarıdaki adede eklenen personel ilavesi', 'Staff additions to the counts above', 'Дополнительно к указанному выше количеству')} · ${ogunYazi(ilave)}
+      ${kayitlar.map((k) => html`<div class="ym-kafe-satir" key=${k.id}>
+        <span>${k._olusturan} · ${ogunYazi(k)}${k.notlar ? ' · ' + k.notlar : ''}</span>
+        ${yaz() && html`<button type="button" class="d kucuk-d sag" onClick=${() => K.ac(PersonelYemekFormu, { tarih, tur: 'ogun', kayit: k, yonetim: true })}>${cevir('Düzenle')}</button>`}
+      </div>`)}
+    </div>`;
+  }
 
   Object.assign(NT.ui.ALAN_ADLARI, { ogle: 'Öğle', kahvalti: 'Kahvaltı', aksam: 'Akşam', yemekYok: 'Yemek yok', yemekler: 'Menü', eksikBaslangic: 'Eksik gün uyarısı başlangıcı', otoOgle: 'Otomatik öğle sayısı', otoBaslangic: 'Otomatik doldurma başlangıcı', baslangic: 'Başlangıç', bitis: 'Bitiş', faturaNo: 'Fatura no', faturaTarihi: 'Fatura tarihi', ay: 'Dönem', ogun: 'Öğün', kesitler: 'Menü yerleşimi', en: 'Genişlik', boy: 'Yükseklik', ek: 'Menü resmi' });
   NT.ui.DEGER_YAZ.yemekler = (v) => (v || []).join(', ');
@@ -98,6 +113,7 @@
           <${AdetGirdi} deger=${f[o.id]} degis=${s(o.id)} otomatikOdak=${i === 0} /></div>`)}</div>
         ${!g && on.oto && html`<div class="s12 soluk kucuk">${cevir("Bu gün girilmezse otomatik")} <b>${on.ogle} ${cevir("öğle")}</b> ${cevir("sayılır")}${on.kural ? html` ${cevir("(geçici sayı")}${on.kural.notlar ? ': ' + on.kural.notlar : ''})` : cevir(" (Ayarlar › Otomatik doldurma)")}${cevir(". Farklıysa değiştirip kaydedin.")}</div>`}
         ${!g && !on.oto && on.tarih && T.isGunu(tarih) && html`<div class="s12 soluk kucuk">${cevir("Adetler son girilen günden (")}${kisaTarih(on.tarih)}${cevir(") önerildi; değiştirip kaydedin.")}</div>`}
+        <${PersonelIlave} tarih=${tarih} ayrinti />
         <label class="s12 ym-onay"><input type="checkbox" checked=${f.yemekYok} onChange=${(e) => s('yemekYok')(e.target.checked)} />${cevir("Bu gün yemek gelmedi (tatil, izin…) — eksik gün sayılmaz")}</label>
         <${Alan} etiket=${cevir("Açıklama")}><input class="girdi" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${cevir("Örn: Bacacılar için +2 sipariş verildi")} /><//>
         <div class="s12 form-bolum">${cevir("Menü")}</div>
@@ -139,8 +155,9 @@
     }
     return html`<${K.Kart} baslik=${`${cevir('Bugün')} · ${tarihYaz(bg)} ${Y.gunAdi(bg)}`} sinif="ym-bugun"
       sag=${kayitli ? html`<span class="rozet iyi"><${Ikon} ad="daire_tik" />${cevir("Girildi")}</span>` : on.oto ? html`<span class="rozet bilgi"><${Ikon} ad="senkron" />${cevir("Otomatik")}</span>`
-        : html`<span class=${'rozet ' + (isGunu ? 'kritik' : '')}>${isGunu ? cevir("Girilmedi") : T.tatil(bg) || cevir("Hafta sonu")}</span>`}>
+        : html`<span class=${'rozet ' + (isGunu ? 'kritik' : '')}>${isGunu ? cevir("Girilmedi") : cevir(T.tatil(bg) || "Hafta sonu")}</span>`}>
       <div class="ym-adetler">${Y.OGUNLER.map((o) => html`<div class="ym-adet"><span>${cevir(o.ad)}</span><${AdetGirdi} deger=${f[o.id]} degis=${(v) => setF((p) => ({ ...p, [o.id]: v }))} /></div>`)}</div>
+      <${PersonelIlave} tarih=${bg} />
       <div class="ym-bugun-alt">
         <span class="soluk kucuk">${kayitli ? `${g._degistiren} · ${NT.c.onceYaz(g._degisim)}`
           : on.oto ? NT.dil.m('Girilmezse otomatik {0} öğle sayılır{1}. Farklıysa değiştirip kaydedin.', on.ogle, on.kural?.notlar ? ` (${on.kural.notlar})` : '')
@@ -479,7 +496,6 @@
     const grafik = Array.from({ length: 12 }, (_, i) => Y.ayKaydir(bgAy, i - 11)).map((a) => ({ a, x: Y.ayOzet(d, a) }));
     const saat = new Date().getHours();
     const adK = (b.kullanici || '').split(' ')[0];
-    const g = Y.gun(d, bg);
     const e = Y.etkin(d, bg);
     const kafe = Y.kafeOzet(d, bgAy);
     return html`
@@ -487,8 +503,8 @@
         sag=${html`${yaz() && html`<button class="d tz-buyuk" onClick=${() => otoAc()}><${Ikon} ad="takvim" />${cevir("Geçici sayı")}</button>`}
           ${yaz() && html`<button class="d tz-buyuk" onClick=${() => yeniKafe()}><${Ikon} ad="kahve" />${cevir("Kafe siparişi")}</button>`}
           ${yaz() && html`<button class="d tz-buyuk" onClick=${() => menuYukle((a) => { location.hash = '#/menu'; })}><${Ikon} ad="yukle" />${cevir("Menü yükle")}</button>`}`}>
-        ${Y.girildiMi(g) ? html`${cevir("Bugün")} <b class="v">${ogunYazi(g)}</b> ${cevir("girildi.")}` : e && e.oto ? html`${cevir("Bugün otomatik")} <b class="v">${e.ogle} ${cevir("öğle")}</b> ${cevir("sayılıyor")}${e.kural ? cevir(" (geçici sayı)") : ''}${cevir("; farklıysa aşağıdan değiştirin.")}`
-          : T.isGunu(bg) ? html`${cevir("Bugünün yemek sayısı")} <b>${cevir("henüz girilmedi")}</b>.` : html`${cevir("Bugün")} ${T.tatil(bg) || cevir("hafta sonu")}.`}
+        ${Y.girildiMi(e) && (!e.oto || Y.toplam(Y.personelIlavesi(d, bg)) > 0) ? html`${cevir("Bugün")} <b class="v">${ogunYazi(e)}</b>` : e && e.oto ? html`${cevir("Bugün otomatik")} <b class="v">${e.ogle} ${cevir("öğle")}</b> ${cevir("sayılıyor")}${e.kural ? cevir(" (geçici sayı)") : ''}${cevir("; farklıysa aşağıdan değiştirin.")}`
+          : T.isGunu(bg) ? html`${cevir("Bugünün yemek sayısı")} <b>${cevir("henüz girilmedi")}</b>.` : html`${cevir("Bugün")} ${cevir(T.tatil(bg) || "hafta sonu")}.`}
         ${eksik.length > 0 && html` <a href="#/takvim" class="tz-uyari-link" style="color:var(--kritik);font-weight:700">${eksik.length} ${cevir("iş günü girilmemiş →")}</a>`}
       <//>
       <div class="kpi-sira">
@@ -555,7 +571,7 @@
           return html`<button class=${'ym-gun' + (kapali ? ' kapali' : '') + (ek ? ' eksik' : '') + (t === bg ? ' bugun' : '') + (t > bg ? ' gelecek' : '')} onClick=${() => gunAc(t)}>
             <span class="no">${+t.slice(8)}</span>${ad && html`<span class="tatil">${ad}</span>`}
             <span class="sayilar">${g && g.yemekYok ? html`<span class="soluk">${cevir("Yemek yok")}</span>` : Y.OGUNLER.filter((o) => sayi(g && g[o.id]) > 0).map((o) => html`<span class=${'ym-cip ' + o.id + (g.oto && o.id === 'ogle' ? ' oto' : '')}
-                title=${g.oto && o.id === 'ogle' ? NT.dil.m("Otomatik{0}", g.kural ? ' · ' + cevir('geçici sayı', 'temporary count') + (g.kural.notlar ? ': ' + g.kural.notlar : '') : '') : ''}>${o.kisa} ${sayi(g[o.id])}${g.oto && o.id === 'ogle' ? html`<small> ${cevir("oto")}</small>` : ''}</span>`)}
+                title=${g.oto && o.id === 'ogle' ? NT.dil.m("Otomatik{0}", g.kural ? ' · ' + cevir('geçici sayı', 'temporary count') + (g.kural.notlar ? ': ' + g.kural.notlar : '') : '') : ''}>${cevir(o.kisa, o.kisa, o.kisaRu)} ${sayi(g[o.id])}${g.oto && o.id === 'ogle' ? html`<small> ${cevir("oto")}</small>` : ''}</span>`)}
               ${kafeSay(t) > 0 && html`<span class="ym-cip kafe" title=${cevir("Desbaş Kafe siparişi")}><${Ikon} ad="kahve" boyut=${11} /> ${kafeSay(t)}</span>`}</span>
             ${ek && html`<span class="eksik-yazi">${cevir("Girilmedi")}</span>`}
             ${g && g.notlar && html`<span class="not" title=${g.notlar}><${Ikon} ad="bilgi" boyut=${13} /></span>`}
@@ -587,7 +603,7 @@
       ${varMi ? html`<div class="ym-menu-izgara">${gunler.map((t) => {
           const kapali = !T.isGunu(t);
           return html`<button class=${'ym-menu-gun' + (t === bg ? ' bugun' : '') + (kapali ? ' kapali' : '')} onClick=${() => personel ? K.ac(PersonelGunMenusu, { tarih: t }) : gunAc(t)}>
-            <span class="bas"><b>${+t.slice(8)} ${cevir(AYLAR[+t.slice(5, 7) - 1])}</b> ${Y.gunAdi(t)}${(T.tatil(t) || T.yarimGun(t)) && html` · <span class="soluk">${T.tatil(t) || T.yarimGun(t)}</span>`}</span>
+            <span class="bas"><b>${+t.slice(8)} ${cevir(AYLAR[+t.slice(5, 7) - 1])}</b> ${Y.gunAdi(t)}${(T.tatil(t) || T.yarimGun(t)) && html` · <span class="soluk">${cevir(T.tatil(t) || T.yarimGun(t))}</span>`}</span>
             ${Y.MENULU.map((o) => { const l = Y.yemekler(d, t, o.id); return html`<span class="ogun"><small>${cevir(o.ad)}</small>${l.length ? l.join(' · ') : html`<span class="soluk">${Y.kesit(d, t, o.id) ? cevir("resimde") : '—'}</span>`}</span>`; })}
           </button>`;
         })}</div>`
@@ -599,15 +615,83 @@
       <div class="modal-ic form-izgara">${Y.MENULU.map((o) => html`<div class="s6"><${MenuKutusu} tarih=${tarih} ogun=${o.id} /></div>`)}</div><//>`;
   }
 
+  function PersonelYemekFormu({ tarih, tur, kayit, yonetim = false, kapat }) {
+    const ogun = tur === 'ogun';
+    const [f, setF] = useState(() => ({ ogle: 0, kahvalti: 0, aksam: 0, urun: '', adet: 1, notlar: '', ...kayit }));
+    const [mesgul, setMesgul] = useState(false);
+    const [hata, setHata] = useState('');
+    const istek = useRef(null);
+    const alan = (id) => (e) => setF((onceki) => ({ ...onceki, [id]: e.target.value }));
+    async function kaydet(e) {
+      e.preventDefault();
+      if (mesgul) return;
+      if (!yonetim && tarih !== sahaTarihi()) {
+        setHata(cevir('Gün değişti. Bugünün formunu yeniden açın.', 'The day changed. Reopen the form for today.', 'Наступил новый день. Откройте форму заново.'));
+        return;
+      }
+      if (!ogun && !f.urun.trim()) {
+        setHata(cevir('Ürün adını girin.', 'Enter the item name.', 'Введите название блюда.'));
+        return;
+      }
+      setMesgul(true);
+      setHata('');
+      try {
+        const veri = { ogle: +f.ogle, kahvalti: +f.kahvalti, aksam: +f.aksam };
+        if (yonetim && yaz()) {
+          await depo().kaydet([{ c: 'personel_ogun', k: kayit.id, v: { ...veri, tarih, notlar: f.notlar.trim() } }]);
+        } else if (yemekSunumu) {
+          const v = ogun ? veri : { urun: f.urun.trim(), adet: +f.adet, kisiler: [b.kullanici], tutar: '', ekler: [] };
+          await depo().kaydet([{ c: ogun ? 'personel_ogun' : 'kafe', k: ogun ? 'sunum:' + tarih : NT.c.uid(), v: { ...v, tarih, notlar: f.notlar.trim() } }]);
+        } else {
+          istek.current ||= crypto.randomUUID();
+          await depo().rpc('personel_yemek_kaydet', { gun: tarih, istek: istek.current, tur, ...veri, urun: f.urun, adet: +f.adet, notlar: f.notlar.trim() });
+        }
+        bildir(cevir('Kaydedildi.', 'Saved.'));
+        kapat();
+      } catch {
+        setHata(cevir('Kayıt doğrulanamadı. Aynı bilgilerle tekrar deneyin.', 'Could not confirm the save. Retry with the same details.', 'Не удалось подтвердить сохранение. Повторите с теми же данными.'));
+      } finally { setMesgul(false); }
+    }
+    const baslik = ogun ? cevir('Ek Desbaş yemeği', 'Extra Desbaş meals', 'Дополнительное питание Desbaş') : cevir('Kafe siparişi', 'Café order');
+    return html`<${Modal} baslik=${baslik} kapat=${mesgul ? () => {} : kapat}>
+      <form class="modal-ic form-izgara" onSubmit=${kaydet}>
+        <div class="s12 soluk">${tarihYaz(tarih)} · ${yonetim ? kayit._olusturan : cevir('Yalnız bugün', 'Today only', 'Только сегодня')}</div>
+        ${ogun ? Y.OGUNLER.map(({ id, ad }) => html`<${Alan} key=${id} etiket=${cevir(ad)} sinif="s4">
+          <input class="girdi" type="number" inputmode="numeric" min="0" max="9999" required value=${f[id]} onInput=${alan(id)} disabled=${mesgul} /><//>`) : html`
+          <${Alan} etiket=${cevir('Ürün', 'Item')} sinif="s8"><input class="girdi" required maxlength="160" value=${f.urun} onInput=${alan('urun')} disabled=${mesgul} /><//>
+          <${Alan} etiket=${cevir('Adet', 'Quantity')} sinif="s4"><input class="girdi" type="number" inputmode="numeric" min="1" max="9999" required value=${f.adet} onInput=${alan('adet')} disabled=${mesgul} /><//>`}
+        <${Alan} etiket=${cevir('Açıklama')}><input class="girdi" maxlength="500" value=${f.notlar} onInput=${alan('notlar')} disabled=${mesgul} /><//>
+        ${hata && html`<div class="s12" role="alert">${hata}</div>`}
+        <div class="s12"><button class="d ana-d" type="submit" disabled=${mesgul}><${Ikon} ad="tik" />${cevir('Kaydet', 'Save')}</button></div>
+      </form><//>`;
+  }
+
   function PersonelMenusu() {
-    const bg = bugun();
-    return html`<main class="tz-icerik" style="max-width:1050px;margin:auto">
+    const bg = sahaTarihi();
+    const [aciliyor, setAciliyor] = useState(false);
+    async function ogunAc() {
+      if (aciliyor) return;
+      const tarih = sahaTarihi();
+      setAciliyor(true);
+      try {
+        const kayit = yemekSunumu ? depo().kayit('personel_ogun', 'sunum:' + tarih)
+          : await depo().rpc('personel_yemek_bugun', { gun: tarih });
+        K.ac(PersonelYemekFormu, { tarih, tur: 'ogun', kayit: kayit && { ogle: kayit.ogle ?? 0, kahvalti: kayit.kahvalti ?? 0, aksam: kayit.aksam ?? 0, notlar: kayit.notlar || '' } });
+      } catch { bildir(cevir('Bugünün kaydı açılamadı.', 'Could not open today’s entry.', 'Не удалось открыть запись за сегодня.'), { tur: 'hata' }); }
+      finally { setAciliyor(false); }
+    }
+    return html`<div class="ym-personel tz-m-yemek"><main class="tz-icerik" style="max-width:1050px;margin:auto">
       <a class="d kucuk-d" href=${NT.c.adres('personel', { kullanici: b.kullanici })}>← ${cevir('Personel paneli', 'Staff panel')}</a>
-      <${K.Selam} baslik=${cevir('Bugünün yemek menüsü', 'Today’s meal menu')} sag=${html`<a class="d" href="#aylik-menu">${cevir('Aylık menü', 'Monthly menu')} ↓</a>`}>
-        ${tarihYaz(bg)} · ${Y.gunAdi(bg)} · ${cevir('Sunum', 'Demo')}<//>
+      <${K.Selam} bant baslik=${cevir('Bugünün yemek menüsü', 'Today’s meal menu')} sag=${html`<a class="d" href="#aylik-menu">${cevir('Aylık menü', 'Monthly menu')} ↓</a>`}>
+        ${tarihYaz(bg)} · ${Y.gunAdi(bg)}${yemekSunumu && html` · ${cevir('Sunum', 'Demo')}`}<//>
+      ${(yemekSunumu || b.hesap) && html`<${K.Kart} baslik=${cevir('Bugünün girişleri', 'Today’s entries', 'Записи за сегодня')}>
+        <div class="form-izgara">
+          <div class="s6"><button class="d" onClick=${ogunAc} disabled=${aciliyor}><${Ikon} ad="yemek" />${cevir('Ek Desbaş yemeği', 'Extra Desbaş meals', 'Дополнительное питание Desbaş')}</button></div>
+          <div class="s6"><button class="d" onClick=${() => K.ac(PersonelYemekFormu, { tarih: sahaTarihi(), tur: 'kafe' })}><${Ikon} ad="kahve" />${cevir('Kafe siparişi', 'Café order')}</button></div>
+        </div><//>`}
       <div class="form-izgara">${Y.MENULU.map((o) => html`<div class="s6"><${MenuKutusu} tarih=${bg} ogun=${o.id} /></div>`)}</div>
       <section id="aylik-menu"><${MenuSayfasi} personel /></section>
-    </main><${K.Katman} /><${NT.ui.GlobalKatman} />`;
+    </main></div><${K.Katman} /><${NT.ui.GlobalKatman} />`;
   }
 
   /* ---------------- Faturalar ---------------- */
@@ -669,7 +753,7 @@
     const satirlar = Y.ayGunleri(ay).map((t) => {
       const g = Y.etkin(d, t);
       return { hucreler: [{ v: t, tur: 'tarih' }, metin(Y.gunAdi(t)), sayiH(g ? g.ogle : ''), sayiH(g ? g.kahvalti : ''), sayiH(g ? g.aksam : ''), sayiH(g ? Y.toplam(g) : ''),
-        metin([g && g.yemekYok ? cevir('Yemek yok') : '', g && g.oto ? `${cevir('öğle otomatik', 'lunch automatic')}${g.kural?.notlar ? ' (' + g.kural.notlar + ')' : ''}` : '', T.tatil(t) || T.yarimGun(t) || '', g && g.notlar].filter(Boolean).join(' · '), 'sol'),
+        metin([g && g.yemekYok ? cevir('Yemek yok') : '', g && g.oto ? `${cevir('öğle otomatik', 'lunch automatic')}${g.kural?.notlar ? ' (' + g.kural.notlar + ')' : ''}` : '', cevir(T.tatil(t) || T.yarimGun(t) || ''), g && g.notlar].filter(Boolean).join(' · '), 'sol'),
         metin(Y.kafeler(d, t).map((k) => `${kafeYazi(k)} (${(k.kisiler || []).join(', ')})${k.tutar !== '' && k.tutar != null ? ' ' + tl(sayi(k.tutar)) : ''}`).join('; '), 'sol'),
         metin(Y.yemekler(d, t, 'ogle').join(', '), 'sol'), metin(Y.yemekler(d, t, 'aksam').join(', '), 'sol')] };
     });
@@ -731,6 +815,6 @@
       { ad: 'Fatura gir', alt: 'Ay sonu Desbaş faturası', ikon: 'fatura', tus: 'F', fn: () => faturaAc(Y.ayKaydir(bugun().slice(0, 7), -1)) },
     ],
     arama,
-    uzakKoleksiyonlar: ['gun', 'menu', 'menugun', 'fatura', 'kafe', 'kafefatura'],
+    uzakKoleksiyonlar: ['gun', 'menu', 'menugun', 'fatura', 'kafe', 'kafefatura', 'personel_ogun'],
   });
 })();

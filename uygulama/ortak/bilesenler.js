@@ -65,6 +65,13 @@
     return html`<svg class=${'ikon ' + sinif} width=${boyut} height=${boyut} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=${YOLLAR[ad] || ''} /></svg>`;
   }
 
+  function AmbalajCizimi({ tur, boyut = 1 }) {
+    const tip = { IBC: 'IBC', Varil: 'Varil', 'İsotank': 'isotank', 'Dökme': 'dokme' }[tur];
+    if (!tip) return html`<${NT.ui.Sise} litre=${5} boyut=${boyut} />`;
+    const genis = tip === 'isotank' || tip === 'dokme';
+    return html`<span class=${'amb-cizim nt-amb-resim nt-amb-' + tip} aria-hidden="true" style=${{ width: (genis ? 62 : 42) * boyut, height: 42 * boyut }}></span>`;
+  }
+
   /* Hacme göre ölçeklenen gerçekçi kaplar. 10/20 L: kullanıcının kırmızı kapaklı bidonları. */
   function Sise({ litre = 1, boyut = 1 }) {
     const gercek = Number(litre) || 1;
@@ -106,7 +113,7 @@
     return html`<span class=${'avatar' + (kucuk ? ' kucuk-av' : '')} style=${{ background: RENKLER[h % RENKLER.length] }} title=${ad}>${basHarfler(ad)}</span>`;
   }
 
-  function Modal({ baslik, kapat, genis, dar, sag, alt, children, sinif = '' }) {
+  function Modal({ baslik, kapat, genis, dar, sag, alt, children, sinif = '', odagiKoru }) {
     const perde = useRef();
     useLayoutEffect(() => {
       const f = (e) => {
@@ -119,8 +126,19 @@
       window.addEventListener('keydown', f, true);
       return () => window.removeEventListener('keydown', f, true);
     }, [kapat]);
+    function sekmeTusu(e) {
+      if (e.key !== 'Tab') return;
+      const elemanlar = [...e.currentTarget.querySelectorAll('button, input, textarea, a[href], select, [tabindex="0"]')]
+        .filter((el) => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length);
+      if (!elemanlar.length) return;
+      const sinir = e.shiftKey ? elemanlar[0] : elemanlar[elemanlar.length - 1];
+      if (document.activeElement === sinir) {
+        e.preventDefault();
+        (e.shiftKey ? elemanlar[elemanlar.length - 1] : elemanlar[0]).focus();
+      }
+    }
     return html`<div class="perde" ref=${perde} onMouseDown=${(e) => e.target === e.currentTarget && kapat()}>
-      <div class=${`modal ${genis ? 'genis' : ''} ${dar ? 'dar' : ''} ${sinif}`} role="dialog" aria-modal="true" aria-label=${cevir(baslik)}>
+      <div class=${`modal ${genis ? 'genis' : ''} ${dar ? 'dar' : ''} ${sinif}`} role="dialog" aria-modal="true" aria-label=${cevir(baslik)} onKeyDown=${odagiKoru ? sekmeTusu : undefined}>
         ${baslik && html`<div class="modal-bas"><h2>${cevir(baslik)}</h2><div class="sag">${sag}<button class="d hayalet ikon-d" onClick=${kapat} aria-label=${cevir("Kapat")}><${Ikon} ad="kapat" /></button></div></div>`}
         ${children}
         ${alt && html`<div class="modal-alt">${alt}</div>`}
@@ -223,12 +241,249 @@
   function onayla(metin, { baslik = 'Emin misiniz?', evet = 'Evet', hayir = 'Vazgeç', alternatif, tehlike = false, detay } = {}) {
     return new Promise((coz) => { ui.onay = { metin, baslik, evet, hayir, alternatif, tehlike, detay, coz }; uiGuncelle(); });
   }
+
+  const ONERI_PANELLERI = {
+    portal: ['Panel seçimi', 'Panel selection'], yonetim: ['Yönetim paneli', 'Management panel'],
+    personel: ['Personel paneli', 'Staff panel'], 'personel-talepleri': ['Personel talepleri', 'Staff requests'],
+    uretim: ['Üretim', 'Production'], numune: ['Numune Takip', 'Sample tracking'], satis: ['Satış Takip', 'Sales tracking'],
+    klips: ['Klips Takip', 'Seal tracking'], su: ['İçme Suyu', 'Drinking water'], yemek: ['Yemek', 'Meals'],
+    yoklama: ['Yoklama', 'Attendance'], enerji: ['Enerji', 'Energy'],
+  };
+  const oneriPanelAdi = (id) => cevir(...(Object.hasOwn(ONERI_PANELLERI, id) ? ONERI_PANELLERI[id] : ONERI_PANELLERI.portal));
+  const ONERI_SAYFA = 25;
+  const DEMO_ONERILERI = 'nt.sunum.uygulama-onerileri';
+  function sunumOnerileri() {
+    try {
+      const kayitlar = JSON.parse(localStorage.getItem(DEMO_ONERILERI) || '[]');
+      return Array.isArray(kayitlar) ? kayitlar : [];
+    } catch { return []; }
+  }
+
+  function UygulamaOnerileri({ demo }) {
+    const [sayfa, setSayfa] = useState(0);
+    const [sonuc, setSonuc] = useState({ kayitlar: null, hata: false });
+    const [tekrar, setTekrar] = useState(0);
+    useEffect(() => {
+      let guncel = true;
+      const bas = ONERI_SAYFA * sayfa;
+      setSonuc({ kayitlar: null, hata: false });
+      const oku = async () => {
+        try {
+          const kayitlar = demo ? sunumOnerileri().slice(bas, bas + ONERI_SAYFA + 1)
+            : await NT.bulut.uygulamaOnerileriniOku(bas, ONERI_SAYFA + 1);
+          if (guncel) setSonuc({ kayitlar, hata: false });
+        } catch {
+          if (guncel) setSonuc({ kayitlar: null, hata: true });
+        }
+      };
+      oku();
+      return () => { guncel = false; };
+    }, [sayfa, tekrar, demo]);
+    if (sonuc.hata) return html`<p role="alert">${cevir('Öneri kutusu açılmadı.', 'The suggestion inbox could not be opened.')}
+      <button type="button" class="d kucuk-d" onClick=${() => setTekrar((x) => x + 1)}>${cevir('Tekrar dene', 'Try again')}</button></p>`;
+    if (!sonuc.kayitlar) return html`<p role="status" class="soluk">${cevir('Yükleniyor…')}</p>`;
+    return html`${sonuc.kayitlar.length ? html`<ul class="op-gelen" tabindex="0" aria-label=${cevir('Uygulama önerileri', 'App suggestions')}>${sonuc.kayitlar.slice(0, ONERI_SAYFA).map((x) => html`<li key=${x.id}>
+      <small>${oneriPanelAdi(x.panel)} · ${x.gonderen} ·
+        <time dateTime=${x.olusturuldu}>${NT.c.tarihYaz(NT.c.bugun(new Date(x.olusturuldu)))}</time></small>
+      <p>${x.metin}</p>
+    </li>`)}</ul>` : html`<p class="soluk">${cevir('Henüz uygulama önerisi yok.', 'There are no app suggestions yet.')}</p>`}
+      ${(sayfa > 0 || sonuc.kayitlar.length > ONERI_SAYFA) && html`<div class="op-sayfalama">
+        <button type="button" class="d kucuk-d" disabled=${sayfa === 0} onClick=${() => setSayfa(sayfa - 1)}>${cevir('Önceki', 'Previous')}</button>
+        <button type="button" class="d kucuk-d" disabled=${sonuc.kayitlar.length <= ONERI_SAYFA} onClick=${() => setSayfa(sayfa + 1)}>${cevir('Sonraki', 'Next')}</button>
+      </div>`}`;
+  }
+
+  function OneriPostasiPenceresi({ panel, demo, mimar, ad, kapat, durgun, hareketDegistir }) {
+    const [gelen, setGelen] = useState(false);
+    const [metin, setMetin] = useState('');
+    const [mesgul, setMesgul] = useState(false);
+    const [hata, setHata] = useState('');
+    const girdi = useRef();
+    const kilit = useRef(false);
+    useEffect(() => { if (!gelen) girdi.current?.focus(); }, [gelen]);
+    async function gonder(e) {
+      e.preventDefault();
+      const temiz = metin.trim();
+      if (kilit.current || temiz.length < 5 || temiz.length > 1500) return;
+      kilit.current = true;
+      setMesgul(true);
+      setHata('');
+      try {
+        if (demo) {
+          const kayit = { id: NT.c.uid(), panel, metin: temiz, gonderen: ad, olusturuldu: new Date().toISOString() };
+          localStorage.setItem(DEMO_ONERILERI, JSON.stringify([kayit, ...sunumOnerileri()]));
+        } else {
+          await NT.bulut.uygulamaOnerisiYaz(panel, temiz);
+        }
+        kapat();
+        bildir(cevir('Uygulama öneriniz kaydedildi.', 'Your app suggestion was saved.'));
+      } catch {
+        setHata(cevir('Öneri kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.', 'The suggestion could not be saved. Check your connection and try again.'));
+      } finally {
+        kilit.current = false;
+        setMesgul(false);
+      }
+    }
+    return html`<${Modal} dar odagiKoru baslik=${cevir('Öneri Postası', 'Suggestion Mailbox')}
+      kapat=${() => { if (!kilit.current) kapat(); }}
+      alt=${html`<div class="sol"><button type="button" class="d hayalet kucuk-d" onClick=${hareketDegistir}>${cevir(durgun ? 'Hareketi aç' : 'Hareketi durdur', durgun ? 'Enable motion' : 'Pause motion')}</button></div>
+        ${!gelen && html`<button type="submit" form="op-form" class="d ana-d" disabled=${mesgul || metin.trim().length < 5}>${mesgul ? cevir('Gönderiliyor…', 'Sending…') : cevir('Öneriyi gönder', 'Send suggestion')}</button>`}`}>
+      <div class="modal-ic op-pencere">
+        ${mimar && html`<div class="op-sekmeler">
+          <button type="button" class="d kucuk-d" disabled=${mesgul} aria-pressed=${!gelen} onClick=${() => setGelen(false)}>${cevir('Öneri yaz', 'Write a suggestion')}</button>
+          <button type="button" class="d kucuk-d" disabled=${mesgul} aria-pressed=${gelen} onClick=${() => setGelen(true)}>${cevir('Uygulama öneri kutusu', 'App suggestion inbox')}</button>
+        </div>`}
+        ${gelen ? html`<${UygulamaOnerileri} demo=${demo} />` : html`<form id="op-form" onSubmit=${gonder}>
+          <p class="op-panel">${oneriPanelAdi(panel)}</p>
+          <label for="op-metin">${cevir('SKYHEM Takip’te neyi iyileştirebiliriz?', 'What could we improve in SKYHEM Takip?')}</label>
+          <textarea id="op-metin" ref=${girdi} class="girdi" rows="4" maxlength="1500" value=${metin} onInput=${(e) => setMetin(e.target.value)} readonly=${mesgul} aria-describedby="op-bilgi"></textarea>
+          <small id="op-bilgi" class="soluk">${cevir('Önerin, adınla birlikte sistem mimarına gider.', 'Your suggestion goes to the system architect with your name.')}</small>
+          ${hata && html`<p role="alert" class="op-hata">${hata}</p>`}
+        </form>`}
+      </div>
+    <//>`;
+  }
+
+  const POSTA_AYARI = 'nt.oneri-postasi.';
+  function postaAyarOku(alan) {
+    try { return JSON.parse(sessionStorage.getItem(POSTA_AYARI + alan)); } catch { return null; }
+  }
+  function postaAyarYaz(alan, deger) {
+    try { sessionStorage.setItem(POSTA_AYARI + alan, JSON.stringify(deger)); } catch { /* oturum ayarı isteğe bağlı */ }
+  }
+  function postaSinirla(x, y) {
+    const sinir = (n, boyut) => Math.max(8, Math.min(Math.round(n), boyut - 56));
+    return { x: sinir(x, window.innerWidth), y: sinir(y, window.innerHeight) };
+  }
+  function OneriPostasi({ panel, demo, mimar, ad }) {
+    const [konum, setKonum] = useState(() => {
+      const kayitli = postaAyarOku('konum');
+      return Number.isFinite(kayitli?.x) && Number.isFinite(kayitli?.y) ? postaSinirla(kayitli.x, kayitli.y) : null;
+    });
+    const [durgun, setDurgun] = useState(() => postaAyarOku('durgun') === true);
+    const [acik, setAcik] = useState(false);
+    const dugme = useRef();
+    const surukleme = useRef(null);
+    const tasindi = useRef(false);
+    useEffect(() => {
+      const boyutDegisti = () => setKonum((k) => k ? postaSinirla(k.x, k.y) : null);
+      window.addEventListener('resize', boyutDegisti);
+      return () => window.removeEventListener('resize', boyutDegisti);
+    }, []);
+    function baslat(e) {
+      if (!e.isPrimary || e.button !== 0) return;
+      const kutu = e.currentTarget.getBoundingClientRect();
+      tasindi.current = false;
+      surukleme.current = { id: e.pointerId, x: e.clientX, y: e.clientY, sol: kutu.left, ust: kutu.top };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    function tasi(e) {
+      const s = surukleme.current;
+      if (!s || s.id !== e.pointerId) return;
+      const x = e.clientX - s.x, y = e.clientY - s.y;
+      if (!tasindi.current && Math.hypot(x, y) < 6) return;
+      tasindi.current = true;
+      s.konum = postaSinirla(s.sol + x, s.ust + y);
+      setKonum(s.konum);
+    }
+    function bitir(e) {
+      const s = surukleme.current;
+      if (s?.id !== e.pointerId) return;
+      if (s.konum) postaAyarYaz('konum', s.konum);
+      surukleme.current = null;
+    }
+    function klavyeyleTasi(e) {
+      const yon = { ArrowLeft: [-24, 0], ArrowRight: [24, 0], ArrowUp: [0, -24], ArrowDown: [0, 24] }[e.key];
+      if (!yon) return;
+      e.preventDefault();
+      const kutu = e.currentTarget.getBoundingClientRect();
+      const yeni = postaSinirla(kutu.left + yon[0], kutu.top + yon[1]);
+      setKonum(yeni);
+      postaAyarYaz('konum', yeni);
+    }
+    function kapat() {
+      setAcik(false);
+      requestAnimationFrame(() => dugme.current?.focus({ preventScroll: true }));
+    }
+    const etiket = cevir('Uygulama önerisi', 'App suggestion');
+    return html`<button ref=${dugme} type="button" class=${'op-posta' + (konum ? ' sabit' : '') + (durgun ? ' hareket-kapali' : '')} aria-label=${etiket}
+      aria-description=${cevir('Yön tuşlarıyla yerini değiştirin.', 'Use the arrow keys to move it.')} aria-haspopup="dialog"
+      style=${konum ? { left: konum.x + 'px', top: konum.y + 'px', right: 'auto', bottom: 'auto' } : undefined}
+      onPointerDown=${baslat} onPointerMove=${tasi} onPointerUp=${bitir} onPointerCancel=${bitir} onLostPointerCapture=${bitir} onKeyDown=${klavyeyleTasi}
+      onClick=${(e) => { if (!tasindi.current || e.detail === 0) setAcik(true); }}>
+        <span class="op-maskot" aria-hidden="true">
+          <i class="op-golge"></i>
+          <span class="op-sandik"><i class="op-on"></i><i class="op-sag"></i><i class="op-kapak"></i><i class="op-zarf"></i></span>
+        </span>
+      </button>
+      ${acik && html`<${OneriPostasiPenceresi} ...${{ panel, demo, mimar, ad, kapat, durgun }}
+        hareketDegistir=${() => { postaAyarYaz('durgun', !durgun); setDurgun(!durgun); }} />`}`;
+  }
+
+  function Yenilikler({ surum, notlar, hesap, ad }) {
+    const [acik, setAcik] = useState(false);
+    const [metin, setMetin] = useState('');
+    const pencere = useRef();
+    const anahtar = 'nt.surum-okundu.' + (hesap?.kullanici || 'yerel.' + ad) + '.' + surum;
+    const yerelOku = () => { try { return localStorage.getItem(anahtar); } catch { return null; } };
+    const yerelYaz = (v) => { try { localStorage.setItem(anahtar, v); } catch { /* Bu tarayıcıda depo kapalı. */ } };
+    useEffect(() => {
+      let aktif = true;
+      const digerSekme = (e) => { if (e.key === anahtar && e.newValue) setAcik(false); };
+      async function getir() {
+        const durum = yerelOku();
+        if (durum === 'bekliyor' && hesap) {
+          await NT.bulut.surumOkunduYaz(surum).then(() => yerelYaz('evet')).catch(() => {});
+        } else if (!durum) {
+          const okundu = hesap && await NT.bulut.surumOkunduMu(surum).catch(() => false);
+          if (okundu) { yerelYaz('evet'); return; }
+          const yazi = notlar || await NT.bulut.surumNotlari(surum, NT.baglanti.kod || '').catch(() => '');
+          if (aktif && yazi.trim() && !yerelOku()) { setMetin(yazi); setAcik(true); }
+        }
+      }
+      window.addEventListener('storage', digerSekme);
+      window.addEventListener('online', getir);
+      getir();
+      return () => { aktif = false; window.removeEventListener('storage', digerSekme); window.removeEventListener('online', getir); };
+    }, [anahtar]);
+    useLayoutEffect(() => {
+      if (acik && pencere.current && !pencere.current.open) pencere.current.showModal();
+    }, [acik]);
+    function okudum() {
+      yerelYaz(hesap ? 'bekliyor' : 'evet');
+      pencere.current?.close();
+      setAcik(false);
+      if (hesap) NT.bulut.surumOkunduYaz(surum).then(() => yerelYaz('evet')).catch(() => {});
+    }
+    if (!acik) return null;
+    const maddeler = metin.split(/\r?\n/).map((s) => s.replace(/^\s*[-•]\s*/, '').trim()).filter(Boolean);
+    return html`<dialog class="modal dar nt-yenilikler" ref=${pencere} aria-labelledby="nt-yenilik-baslik" onCancel=${(e) => e.preventDefault()}>
+      <div class="modal-bas"><h2 id="nt-yenilik-baslik">${cevir('Bu sürümde neler yeni?')}</h2><span class="rozet iyi">${NT.c.surumYaz(surum)}</span></div>
+      <div class="modal-ic"><ul class="nt-yenilik-listesi">${maddeler.map((s) => html`<li>${cevir(s)}</li>`)}</ul></div>
+      <div class="modal-alt"><button type="button" class="d ana-d" autofocus onClick=${okudum}><${Ikon} ad="tik" />${cevir('Okudum')}</button></div>
+    </dialog>`;
+  }
+
   function GlobalKatman() {
     const [, yenile] = useState(0);
     useEffect(() => { const f = () => yenile((x) => x + 1); ui.dinle.add(f); return () => ui.dinle.delete(f); }, []);
     const o = ui.onay;
     const bitir = (v) => { ui.onay = null; uiGuncelle(); o.coz(v); };
+    const b = NT.baglanti;
+    const q = new URLSearchParams(location.search);
+    const demo = q.has('demo');
+    const modul = b.modul.id;
+    const panel = modul === 'uretimstok' ? 'uretim' : modul === 'portal' && q.get('panel') === 'yonetim' ? 'yonetim'
+      : modul === 'personel' && b.modul.ad === 'Personel talepleri' ? 'personel-talepleri' : modul;
+    const hesap = NT.c.hesap();
+    const postaVar = (b.durum === 'hazir' || (demo && modul === 'portal')) && (demo || !!hesap);
+    const demoAdi = q.get('kullanici') || (modul === 'portal' ? 'Farukcan Bey' : b.kullanici);
+    const surum = window.NT_SURUM_AKTIF;
     return html`
+      ${!demo && b.durum === 'hazir' && Number(surum?.surum) >= 21 &&
+        html`<${Yenilikler} key=${surum.surum + ':' + (hesap?.kullanici || b.kullanici)} surum=${Number(surum.surum)} notlar=${surum.notlar} hesap=${hesap} ad=${b.kullanici} />`}
+      ${postaVar && html`<${OneriPostasi} panel=${panel} demo=${demo} ad=${demo ? demoAdi || 'Sunum' : hesap.ad}
+        mimar=${demo ? ['kamil', 'kamil gülhan'].includes(NT.c.kucuk(demoAdi)) : hesap.mimar} />`}
       <div class="bildirimler" role="status" aria-live="polite">
         ${ui.bildirimler.map((b) => html`<div key=${b.id} class=${'bildirim ' + b.tur}>
           <span>${b.mesaj}</span>
@@ -370,20 +625,37 @@
   /* Belirli bir belge için yükleme kutusu (CoA, irsaliye, kargo belgesi…): boşken kesik çizgili, yüklenince yeşil.
      Dosya sürükle-bırak da olur. Değer, Ekler ile aynı biçimde dosya listesidir. `eski`: eski kayıtlardaki numara vb. */
   /* kamera: telefonda dosya seçici yerine doğrudan arka kamerayı açar (capture="environment"); masaüstünde dosya seçimi kalır. */
-  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, eski, gizli, talep, children }) {
+  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, kameraVeGaleri, eski, gizli, talep,
+    kilitli, yuklemeDegis, children }) {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [surukle, setSurukle] = useState(false);
     const girdi = useRef();
+    const kameraGirdisi = useRef();
+    const yukleme = useRef(false);
+    const ikiSecenek = foto && kameraVeGaleri;
     const yukle = async (dosyalar) => {
-      if (!dosyalar.length) return;
+      if (!dosyalar.length || kilitli || yukleme.current) return;
+      yukleme.current = true;
       setYukleniyor(true);
+      yuklemeDegis?.(true);
       try {
         const yeni = [];
         for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f), { gizli: !!gizli, talep: !!talep }));
         degis([...ekler, ...yeni]);
-      } catch (err) { bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' }); }
-      setYukleniyor(false);
+      } catch (err) {
+        bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' });
+      } finally {
+        yukleme.current = false;
+        setYukleniyor(false);
+        yuklemeDegis?.(false);
+      }
     };
+    const dosyaSecildi = (e) => {
+      const dosyalar = [...e.currentTarget.files];
+      e.currentTarget.value = '';
+      yukle(dosyalar);
+    };
+    const devreDisi = kilitli || yukleniyor;
     const tamam = ekler.length > 0;
     return html`<div class=${'belge-kutu' + (tamam ? ' tamam' : '') + (surukle ? ' surukle' : '')}
       onDragOver=${(e) => { e.preventDefault(); setSurukle(true); }} onDragLeave=${() => setSurukle(false)}
@@ -393,17 +665,26 @@
       ${children}
       ${tamam && html`<div class="belge-dosyalar">${ekler.map((ek) => html`<div class="belge-dosya" key=${ek.dosya}>
         <button type="button" class="belge-onizle" title=${ek.ad + ' — ' + cevir('açmak için tıklayın', 'click to open')} onClick=${() => ekAc(ek)}><${EkOnizleme} ek=${ek} /></button>
-        <button type="button" class="belge-kaldir" title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
+        <button type="button" class="belge-kaldir" disabled=${devreDisi} title=${cevir("Kaldır")} onClick=${() => degis(ekler.filter((x) => x !== ek))}><${Ikon} ad="kapat" boyut=${12} /></button>
       </div>`)}</div>`}
       <div class="belge-alt">
-        <button type="button" class="d kucuk-d" disabled=${yukleniyor} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : tamam ? cevir("Ekle") : kamera ? cevir("Fotoğraf çek", "Take a photo") : foto ? cevir("Fotoğraf yükle") : cevir("Belge yükle")}</button>
+        <button type="button" class="d kucuk-d" disabled=${devreDisi} onClick=${() => girdi.current.click()}><${Ikon} ad="yukle" boyut=${15} />${yukleniyor ? cevir("Yükleniyor…") : ikiSecenek ? cevir("Galeriden seç", "Choose from gallery") : tamam ? cevir("Ekle") : kamera ? cevir("Fotoğraf çek", "Take a photo") : foto ? cevir("Fotoğraf yükle") : cevir("Belge yükle")}</button>
+        ${ikiSecenek && html`<button type="button" class="d kucuk-d" disabled=${devreDisi} onClick=${() => kameraGirdisi.current.click()}><${Ikon} ad="kamera" boyut=${15} />${cevir("Kamerayla çek", "Take a photo")}</button>`}
         ${!tamam && !yukleniyor && html`<span class="ipucu">${ipucu || (foto ? cevir("veya buraya sürükleyin") : cevir("PDF ya da görsel; buraya da sürükleyebilirsiniz"))}</span>`}
       </div>
-      <input ref=${girdi} type="file" multiple accept=${foto ? 'image/*' : 'image/*,application/pdf'} capture=${foto && kamera ? 'environment' : undefined} class="gizli" onChange=${(e) => { const l = [...e.target.files]; e.target.value = ''; yukle(l); }} />
+      <input ref=${girdi} type="file" multiple accept=${foto ? 'image/*' : 'image/*,application/pdf'} capture=${foto && kamera && !ikiSecenek ? 'environment' : undefined} disabled=${devreDisi} class="gizli" onChange=${dosyaSecildi} />
+      ${ikiSecenek && html`<input ref=${kameraGirdisi} type="file" accept="image/*" capture="environment" disabled=${devreDisi} class="gizli" onChange=${dosyaSecildi} />`}
     </div>`;
   }
 
   /* Genel Bakış bandının (.tz-selam-bant) arka plan süsü: dalga ve yaprak çizgisi (yalnızca görünüm). */
+  function karsilama(kullanici) {
+    const saat = new Date().getHours();
+    const selam = NT.dil.t(saat < 11 ? 'Günaydın' : saat < 18 ? 'İyi günler' : 'İyi akşamlar');
+    const ad = (kullanici || '').trim().split(/\s+/)[0];
+    return selam + (ad ? ', ' + ad : '') + '.';
+  }
+
   const BantSus = () => html`<svg class="tz-selam-sus" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <path d="M0 150 C 220 110 440 190 660 145 S 1040 100 1200 135 L1200 200 L0 200 Z" fill="currentColor" opacity=".08" />
     <g fill="none" stroke="currentColor" stroke-width="1.3" opacity=".16"><path d="M1010 20 C 1080 20 1130 70 1130 140 C 1060 140 1010 90 1010 20 Z M1010 20 L1130 140" /></g>
@@ -553,6 +834,6 @@
     <//>`;
   }
 
-  NT.ui = { Kurulum, KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus };
+  NT.ui = { Kurulum, KartDetayDugmesi, KayitDetay, DetayBolumu, DetayEkleri, HataKutusu, ekAc, EkOnizleme, Ikon, YOLLAR, Sise, AmbalajCizimi, StokRozeti, SevkRozeti, Parti, Avatar, Modal, Alan, AdetGirdi, Oneri, BosDurum, GlobalKatman, Gecmis, GecmisBolumu, Ekler, BelgeKutusu, resimKucult, bildir, onayla, ALAN_ADLARI, DEGER_YAZ, DURUM_BILGI, AnaEkranLinki, BantSus, karsilama };
   Object.assign(NT.ui, { PERSONEL, kisiAdi, kisiListesi, KisiSec });
 })();
