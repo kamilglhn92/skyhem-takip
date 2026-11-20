@@ -282,6 +282,10 @@
           <strong>${c(tur)}</strong>${!bos && html`<small>${kg(S.toplam(l))}</small>`}</button>`;
       })}</div><//>`;
   }
+  function YogunSunumBaglantisi() {
+    if (NT.c.sunumKapali || yogunSunum) return null;
+    return html`<a class="d" href=${NT.c.adres('uretimstok', { demo: true, kullanici: b.kullanici }) + '&ornek=yogun'}>${c('Yoğun sunumu aç', 'Open sample inventory', 'Открыть демоверсию с примерами')}</a>`;
+  }
   function Genel() {
     const [konum, setKonum] = useState('');
     const uygun = (x) => !konum || (x.konum || '?') === konum;
@@ -294,7 +298,7 @@
     return html`<${K.Selam} bant baslik=${NT.ui.karsilama(b.kullanici)}>
       ${c('Dolu ambalaj')} <b>${doluSayisi}</b> · ${c('Boş ambalaj')} <b>${bosSayisi}</b><//>
       <div class="ur-pano-araclar"><${Konum} tumu deger=${konum} degis=${setKonum} /><div class="us-islemler">
-      ${!NT.c.sunumKapali && !yogunSunum && html`<a class="d" href=${NT.c.adres('uretimstok',{demo:true,kullanici:b.kullanici})+'&ornek=yogun'}>${c('Yoğun sunumu aç','Open sample inventory','Открыть демоверсию с примерами')}</a>`}
+      <${YogunSunumBaglantisi} />
       ${yogunSunum && K.yetkili() && html`<a class="d" href=${NT.c.adres('satis',{kullanici:b.kullanici})+'#/sevkiyatlar'}>${c('Satış Takip')}</a>`}
       ${dugme('Boş ambalaj girişi','kutu',() => formAc(BosGiris,{ilkKonum:konum}))}
       ${dugme('Stok girişi','arti',() => girisAc(),true)}</div></div>
@@ -312,7 +316,7 @@
     const kaynaklar = aktif(s).filter((k) => !filtre || k.cins === filtre);
     const dolu = [...s.ibcler.values()].filter((i) => i.durum !== 'sevk');
     return html`<${K.Selam} bant baslik=${c('Üretim Stoku')} sag=${html`<div class="us-islemler">
-        ${!yogunSunum && html`<a class="d" href=${NT.c.adres('uretimstok', { demo: true, kullanici: b.kullanici }) + '&ornek=yogun'}>${c('Yoğun sunumu aç', 'Open sample inventory', 'Открыть демоверсию с примерами')}</a>`}
+        <${YogunSunumBaglantisi} />
         ${dugme('Stok girişi', 'arti', () => girisAc(), true)}</div>`}>
       ${c('CTO, gliserin ve son ürün bakiyeleri') }<//>
       <div class="kpi-sira">${Object.entries(S.cinsler).map(([id, ad]) => {
@@ -384,7 +388,7 @@
   };
 
   const sorgu = new URLSearchParams(location.search);
-  const yogunSunum = sorgu.has('demo') && sorgu.get('ornek') === 'yogun';
+  const yogunSunum = !NT.c.sunumKapali && sorgu.has('demo') && sorgu.get('ornek') === 'yogun';
   K.demoTanimla(yogunSunum ? S.yogunSunum : async () => {}, {
     paylas: true, depoAdi: yogunSunum ? 'uretimstok-yogun' : undefined,
   });
