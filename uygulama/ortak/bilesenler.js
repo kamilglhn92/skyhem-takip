@@ -625,7 +625,7 @@
   /* Belirli bir belge için yükleme kutusu (CoA, irsaliye, kargo belgesi…): boşken kesik çizgili, yüklenince yeşil.
      Dosya sürükle-bırak da olur. Değer, Ekler ile aynı biçimde dosya listesidir. `eski`: eski kayıtlardaki numara vb. */
   /* kamera: telefonda dosya seçici yerine doğrudan arka kamerayı açar (capture="environment"); masaüstünde dosya seçimi kalır. */
-  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, kameraVeGaleri, eski, gizli, talep,
+  function BelgeKutusu({ baslik, ipucu, ekler = [], degis, foto, kamera, kameraVeGaleri, eski, gizli, talep, isFotografi,
     kilitli, yuklemeDegis, children }) {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [surukle, setSurukle] = useState(false);
@@ -640,7 +640,7 @@
       yuklemeDegis?.(true);
       try {
         const yeni = [];
-        for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f), { gizli: !!gizli, talep: !!talep }));
+        for (const f of dosyalar) yeni.push(await NT.baglanti.depo.ekYaz(await resimKucult(f), { gizli: !!gizli, talep: !!talep, isFotografi: !!isFotografi }));
         degis([...ekler, ...yeni]);
       } catch (err) {
         bildir(cevir('Dosya yüklenemedi', 'File upload failed') + ': ' + err.message, { tur: 'hata' });

@@ -76,7 +76,11 @@
   }
 
   /* Kullanıcıya gösterilen sürüm: iç sayaç 12 ve 13 = 1.0 (ilk genel dağıtım ve düzeltmesi); 14 = 1.1, 15 = 1.2 … */
-  function gorunen(n) { return n >= 12 ? '1.' + Math.max(0, n - 13) : '0.' + n; }
+  function gorunen(n) {
+    if (window.NT && NT.c && NT.c.surumYaz) return NT.c.surumYaz(n);
+    if (n >= 23) return '2.' + (n - 23);
+    return n >= 12 ? '1.' + Math.max(0, n - 13) : '0.' + n;
+  }
   function ingilizce() { try { return localStorage.getItem('nt.dil') === 'en'; } catch (e) { return false; } }
 
   /* --- sayfayı kur --- */

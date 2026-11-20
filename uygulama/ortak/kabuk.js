@@ -22,7 +22,7 @@
      Giriş ad + ortak erişim kodu olduğundan kısıt ada bakar; gerçek kimlik doğrulaması değildir: kodu bilen biri adını değiştirirse aşılır. */
   const YAZICILAR = ['kamil', 'farukcan'];
   const kisit = { var: false, ek: '', gizli: false };
-  const yetkili = () => YAZICILAR.includes(NT.c.kucuk(String(b.kullanici || '').trim().split(/\s+/)[0]));
+  const yetkili = () => b.hesap ? !!(b.hesap.mimar || b.hesap.onay) : YAZICILAR.includes(NT.c.kucuk(String(b.kullanici || '').trim().split(/\s+/)[0]));
   const yazabilir = () => !kisit.var || yetkili();
   /* gizli: sistem yetkili olmayanlara hiç gösterilmez (Enerji); karşılama ekranı da kartı gizler (portal.js › ozel). */
   /* Canlıda personel rolü (mimar değil) yönetim modüllerini açamaz (sunucu da vermez; context/personel-paneli.md 2. aşama). */

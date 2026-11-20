@@ -112,7 +112,10 @@
 
   /* Kullanıcıya gösterilen sürüm. İç sayaç (surum.js) güncelleme sırası için sürer: 12 ve 13 = 1.0 (ilk genel dağıtım ve
      aynı günkü düzeltmesi), 14 = 1.1, 15 = 1.2 … */
-  const surumYaz = (n) => (n >= 12 ? `1.${Math.max(0, n - 13)}` : `0.${n}`);
+  const surumYaz = (n) => {
+    if (n >= 23) return `2.${n - 23}`;
+    return n >= 12 ? `1.${Math.max(0, n - 13)}` : `0.${n}`;
+  };
 
   /* Kişisel hesap bilgisi (oturum bu tarayıcıda nt.oturum'da; sayfa açılır açılmaz okunabilir). Yetkiyi asıl sunucu (RLS) uygular;
      burası yalnız doğru ekranı açmak içindir. Sunum modunda hesap yok sayılır. */

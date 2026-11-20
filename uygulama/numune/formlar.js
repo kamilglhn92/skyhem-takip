@@ -168,6 +168,7 @@
         else v.kaynakKap = null;
       }
       if (kayit) {
+        if (NT.numunePersonel) { delete v.ekler; delete v.notlar; }
         const fark = farklar(kayit, v);
         try { if (Object.keys(fark).length) await H.dolumYaz(d, kayit, 'put', fark); }
         catch (e) { bildir(cevir(e.message), { tur: 'hata' }); return; }
@@ -223,8 +224,8 @@
           <${Oneri} id="kaynakno-dl" liste=${benzersiz(d.kayitlar('dolum').filter((r) => r.kaynakTur === f.kaynakTur).map((r) => r.kaynakNo))} />
         <//>`}
         ${kayit?.kaynakKap && f.kaynakTur === 'Numune' && html`<div class="s12 uyari-kutu bilgi"><${Ikon} ad="bilgi" /><span>${cevir("Kaynak kap:")} <b>${kayit.kaynakKap.urun} ${kayit.kaynakKap.parti || ''} · ${H.ambalajAdi(d, kayit.kaynakKap.ambalaj)}</b>${cevir(". Adedi değiştirirseniz açık kaptan alınan miktar da değişir.")}</span></div>`}
-        <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${cevir("Örn: Müşteri talebine istinaden hazırlandı, sevkiyat rafına alındı.")} /><//>
-        <${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Analiz sertifikası vb. Buluta kaydedilir (en fazla 8 MB). Şişe etiketleri gönderi kaydına yüklenir.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        ${(!NT.numunePersonel || !kayit) && html`<${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} placeholder=${cevir("Örn: Müşteri talebine istinaden hazırlandı, sevkiyat rafına alındı.")} /><//>`}
+        ${(!NT.numunePersonel || !kayit) && html`<${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Analiz sertifikası vb. Buluta kaydedilir (en fazla 8 MB). Şişe etiketleri gönderi kaydına yüklenir.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>`}
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
       </form>
@@ -533,6 +534,7 @@
       if (hata || !f.tarih || kisiHata) return;
       const v = { tarih: f.tarih, kisi: f.kisi.trim(), ambalaj: f.ambalaj, adet: sayi(f.adet), tedarikci: f.tedarikci.trim(), faturaNo: f.faturaNo.trim(), birimFiyat: f.birimFiyat === '' ? '' : sayi(f.birimFiyat), notlar: f.notlar.trim(), ekler: f.ekler };
       if (kayit) {
+        if (NT.numunePersonel) { delete v.tedarikci; delete v.ekler; delete v.notlar; }
         const fark = farklar(kayit, v);
         if (Object.keys(fark).length) await d.kaydet([{ c: 'alim', k: kayit.id, v: fark }]);
         bildir(NT.dil.m("{0} güncellendi.", kayit.no));
@@ -555,8 +557,8 @@
         <${Alan} etiket=${cevir("Teslim alan")} hata=${denendi && kisiHata}><${NT.ui.KisiSec} etiket=${cevir("Teslim alan")} deger=${f.kisi} degis=${s('kisi')} liste=${NT.ui.kisiListesi(d.kayitlar('alim').map((r) => r.kisi))} /><//>
         ${!NT.numunePersonel && html`<${Alan} etiket=${cevir("Tedarikçi")} sinif="s6"><input class="girdi" list="ted-dl" value=${f.tedarikci} onInput=${(e) => s('tedarikci')(e.target.value)} /><${Oneri} id="ted-dl" liste=${tedarikciler} /><//>`}
         <${Alan} etiket=${cevir("Fatura / irsaliye no")} sinif="s6"><input class="girdi mono" value=${f.faturaNo} onInput=${(e) => s('faturaNo')(e.target.value)} /><//>
-        <${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>
-        <${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Fatura PDF’i vb.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>
+        ${(!NT.numunePersonel || !kayit) && html`<${Alan} etiket=${cevir("Not")}><textarea class="girdi" rows="2" value=${f.notlar} onInput=${(e) => s('notlar')(e.target.value)} /><//>`}
+        ${(!NT.numunePersonel || !kayit) && html`<${Alan} etiket=${cevir("Ekler")} ipucu=${cevir("Fatura PDF’i vb.")}><${Ekler} ekler=${f.ekler} degis=${s('ekler')} /><//>`}
         <${GecmisBolumu} kayit=${kayit} />
         <button type="submit" class="gizli" />
       </form>

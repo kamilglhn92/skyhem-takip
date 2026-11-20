@@ -285,7 +285,7 @@
         for (const x of parcalar) {
           const ad = `${Y.ayAdi(x.ay)} ${x.ogun === 'aksam' ? 'akşam' : 'öğle'}`;
           setMesaj(`${ad}: resim kaydediliyor…`);
-          const ek = await d.ekYaz(x.c.dosya);
+          const ek = await d.ekYaz(x.c.dosya, { menu: true });
           let metin = {};
           try { metin = await M.yaziyaCevir(x.c, (m) => setMesaj(`${ad}: ${m}`)); } catch (e) { okunamayan++; console.error(e); }
           ops.push({ c: 'menu', k: Y.menuAnahtari(x.ay, x.ogun), v: { ay: x.ay, ogun: x.ogun, ek, en: x.c.en, boy: x.c.boy, kesitler: x.esle.kesitler } });

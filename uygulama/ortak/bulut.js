@@ -62,13 +62,18 @@
   async function yenile(eski) {
     const kilitli = async () => {
       const simdiki = oturumOku(); // başka sekme yenilemiş olabilir
-      if (simdiki && simdiki.refresh_token !== eski.refresh_token && simdiki.expires_at - Date.now() / 1000 > 60) return simdiki;
+      if (!simdiki || simdiki.user?.id !== eski.user?.id) throw hataYap('Oturum değişti.', 'OturumHatasi');
+      if (simdiki.refresh_token !== eski.refresh_token && simdiki.expires_at - Date.now() / 1000 > 60) return simdiki;
       try {
         const o = oturumYap(await authIstek('token?grant_type=refresh_token', { govde: { refresh_token: (simdiki || eski).refresh_token } }));
+        if (oturumOku()?.refresh_token !== simdiki.refresh_token) throw hataYap('Oturum değişti.', 'OturumHatasi');
         oturumYaz(o);
         return o;
       } catch (e) {
-        if (e.name === 'OturumHatasi') oturumYaz(null); // oturum geçersiz: yeniden giriş istenir
+        if (e.name === 'OturumHatasi' && oturumOku()?.refresh_token === simdiki.refresh_token) {
+          oturumYaz(null);
+          location.reload();
+        } // oturum geçersiz: yeniden giriş istenir
         throw e;
       }
     };
@@ -111,6 +116,7 @@
     /* İlk girişte (ve istenince) kişinin kendi şifresini belirlemesi. */
     async sifreBelirle(yeni) {
       if (String(yeni).length < 8) throw hataYap('Şifre en az 8 karakter olmalı.', 'OturumHatasi');
+      const ilk = oturumOku();
       const t = await oturum.belirtec();
       if (!t) throw hataYap('Oturum kapanmış; yeniden giriş yapın.', 'OturumHatasi');
       let user;
@@ -122,7 +128,8 @@
         throw e;
       }
       const o = oturumOku();
-      if (o) oturumYaz({ ...o, user: user.id ? user : o.user });
+      if (!ilk || !o || o.user.id !== ilk.user.id || user.id !== ilk.user.id) throw hataYap('Oturum değişti. Yeniden giriş yapın.', 'OturumHatasi');
+      oturumYaz({ ...o, user });
       return oturum.kim();
     },
     async cikis() {
@@ -152,9 +159,10 @@
   NT.oturum = oturum;
 
   async function istek(kod, yol, { method = 'GET', govde, prefer, sure = 20000 } = {}) {
+    const belirtec = await oturum.belirtec();
+    if (!belirtec) throw hataYap('Oturum kapanmış. Yeniden giriş yapın.', 'KodHatasi');
     const iptal = new AbortController();
     const z = setTimeout(() => iptal.abort(), sure);
-    const belirtec = await oturum.belirtec();
     let r;
     try {
       r = await fetch(`${SUNUCU}/rest/v1/${yol}`, {
@@ -162,7 +170,7 @@
         headers: {
           apikey: ANAHTAR,
           ...(belirtec ? { Authorization: 'Bearer ' + belirtec } : {}),
-          'x-nt-kod': kod,
+          // Kişisel veri istekleri yalnız hesabın erişim belirteciyle yapılır.
           ...(govde !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(prefer ? { Prefer: prefer } : {}),
         },
@@ -202,10 +210,11 @@
 
   class BulutDepo extends NT.Depo {
     /* onbellek: { al(): Promise<{sonSira, olaylar}|null>, yaz(veri): Promise } */
-    constructor({ kod, onbellek, tablo = 'olaylar', ...o }) {
+    constructor({ kod, onbellek, tablo = 'olaylar', okumaTablosu = tablo, ...o }) {
       super({ ...o, dizin: null });
       this.kod = kod;
       this.tablo = tablo; // her modülün kendi olay tablosu (numune: olaylar, satış: olaylar_satis …)
+      this.okumaTablosu = okumaTablosu;
       this.onbellek = onbellek;
       this.sonSira = 0;
       this.ekOnbellek = new Map();
@@ -238,7 +247,9 @@
         while (this.bekleyen.length) {
           const parti = this.bekleyen.slice(0, 500);
           const satirlar = parti.map((e) => Object.fromEntries(ALANLAR.map((a) => [a, e[a] ?? null])));
-          await this.kilit(() => istek(this.kod, `${this.tablo}?on_conflict=id`, {
+          if (this.okumaTablosu === 'numune_personel_olaylari') {
+            await this.rpc('numune_personel_gonder', { hareketler: satirlar });
+          } else await this.kilit(() => istek(this.kod, `${this.tablo}?on_conflict=id`, {
             method: 'POST', govde: satirlar, prefer: 'resolution=ignore-duplicates,return=minimal', sure: 60000,
           }));
           this.bekleyen = this.bekleyen.slice(parti.length);
@@ -286,6 +297,10 @@
           method: 'POST', govde: { beklenen_sira: sira, hareketler: olaylar },
         });
         if (yazildi === true) {
+          if (this.okumaTablosu === 'numune_personel_olaylari') {
+            await this.tara();
+            return olaylar;
+          }
           for (const e of olaylar) this.ekle(e);
           this.yenidenHesapla();
           this.bildir({ yerel: olaylar });
@@ -302,7 +317,7 @@
       try {
         let bas = Math.max(0, this.sonSira - ORTUSME);
         for (;;) {
-          const sayfa = await istek(this.kod, `${this.tablo}?select=sira,${ALANLAR.join(',')}&sira=gt.${bas}&order=sira.asc&limit=${SAYFA}`);
+          const sayfa = await istek(this.kod, `${this.okumaTablosu}?select=sira,${ALANLAR.join(',')}&sira=gt.${bas}&order=sira.asc&limit=${SAYFA}`);
           for (const s of sayfa) {
             const { sira, ...e } = s;
             if (e.u === null) delete e.u;
@@ -353,18 +368,20 @@
 
     /* gizli: sağlık raporu gibi görseller; sunucuda yalnız yönetim ve ekleyen görür. talep: personel talebinin görseli;
        talepler gibi yalnız yönetim kadrosu, onay yetkilisi ve ekleyen görür (asama2.sql › ekler). */
-    async ekYaz(dosya, { gizli = false, talep = false } = {}) {
+    async ekYaz(dosya, { gizli = false, talep = false, isFotografi = false, menu = false } = {}) {
       if (dosya.size > EK_SINIRI) throw new Error(`Dosya çok büyük (${Math.round(dosya.size / 1048576)} MB). En fazla 8 MB yüklenebilir.`);
       const uzanti = (dosya.name.match(/\.[a-z0-9]{1,5}$/i) || [''])[0].toLowerCase();
       const ad = `${NT.c.uid(12)}${uzanti}`;
       const bilgi = { dosya: ad, ad: dosya.name, tur: dosya.type || '', boyut: dosya.size };
-      await istek(this.kod, 'ekler', { method: 'POST', govde: { ...bilgi, veri: await base64(dosya), ...(gizli ? { gizli: true } : {}), ...(talep ? { talep: true } : {}) }, prefer: 'return=minimal', sure: 120000 });
+      await istek(this.kod, 'ekler', { method: 'POST', govde: { ...bilgi, veri: await base64(dosya), ...(isFotografi ? { is_fotografi: true } : {}), ...((menu || this.tablo === 'olaylar_uretim') ? { personel_ortak: true } : {}), ...(gizli ? { gizli: true } : {}), ...(talep ? { talep: true } : {}) }, prefer: 'return=minimal', sure: 120000 });
       this.ekOnbellek.set(ad, dosya);
       return bilgi;
     }
     async ekOku(ad) {
       if (this.ekOnbellek.has(ad)) return this.ekOnbellek.get(ad);
-      const [r] = await istek(this.kod, `ekler?dosya=eq.${encodeURIComponent(ad)}&select=ad,tur,veri`, { sure: 120000 });
+      const sorgu = '?dosya=eq.' + encodeURIComponent(ad) + '&select=ad,tur,veri';
+      let [r] = await istek(this.kod, 'ekler' + sorgu, { sure: 120000 });
+      if (!r && NT.c.personelRolu()) [r] = await istek(this.kod, 'numune_personel_fotograflari' + sorgu, { sure: 120000 });
       if (!r) throw hataYap('Ek dosya sunucuda bulunamadı.', 'NotFoundError');
       const ikili = atob(r.veri);
       const bayt = new Uint8Array(ikili.length);

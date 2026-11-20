@@ -54,21 +54,53 @@
   };
   const M = Object.assign({ id: 'numune' }, MODULLER[(window.NT_MODUL || {}).id || 'numune'] || {}, window.NT_MODUL || {});
   const onbellekAdi = (m) => 'bulut-olaylar' + m.ek;
+  function hesapKapsami() {
+    const h = NT.oturum.kim();
+    return h ? JSON.stringify([h.kullanici || h.ad, h.rol, h.mimar, h.onay]) : '';
+  }
+  const ilkKapsam = hesapKapsami();
+  window.addEventListener('storage', (e) => {
+    if ((e.key === 'nt.oturum' || e.key === null) && hesapKapsami() !== ilkKapsam) location.reload();
+  });
+  function kuyrukOku(anahtar) {
+    const metin = ls.al(anahtar);
+    if (!metin) return [];
+    try {
+      const liste = JSON.parse(metin);
+      if (Array.isArray(liste)) return liste;
+    } catch { /* Bozuk kopyayı aşağıda koru. */ }
+    localStorage.setItem(anahtar + '.bozuk.' + Date.now(), metin);
+    ls.sil(anahtar);
+    return [];
+  }
   const personelYemekOnbellek = 'bulut-olaylar-yemek-personel';
 
   /* Bir modülün bulut deposunu kurar (karşılama ekranı özet için salt okunur olarak da kullanır). */
   function depoOlustur(id, kod, kullanici) {
     const m = { id, ...MODULLER[id] };
     const sinirliYemek = id === 'yemek' && NT.c.personelRolu();
-    const onbellek = sinirliYemek ? personelYemekOnbellek : onbellekAdi(m);
-    const bAnahtar = anahtar('bekleyen' + m.ek);
+    const kapsam = hesapKapsami();
+    const onbellek = onbellekAdi(m) + ':' + kapsam;
+    const eski = anahtar('bekleyen' + m.ek);
+    const bAnahtar = eski + ':' + kapsam;
+    // Eski kuyruk cihaz ortaklıydı. Yalnız aynı yazarın olaylarını kendi kuyruğuna taşı.
+    const eskiKuyruk = kuyrukOku(eski);
+    if (Array.isArray(eskiKuyruk) && kullanici && !sinirliYemek) {
+      const benim = eskiKuyruk.filter(e => e?.u === kullanici);
+      if (benim.length) {
+        const kayitli = kuyrukOku(bAnahtar);
+        localStorage.setItem(bAnahtar, JSON.stringify([...new Map([...kayitli, ...benim].map(e => [e.id, e])).values()]));
+        localStorage.setItem(eski, JSON.stringify(eskiKuyruk.filter(e => e?.u !== kullanici)));
+      }
+    }
     let bekleyen = [];
-    try { bekleyen = JSON.parse(ls.al(bAnahtar) || '[]'); } catch { /* yoksay */ }
+    try { bekleyen = kuyrukOku(bAnahtar); } catch { /* yoksay */ }
     return new NT.BulutDepo({
       kod,
       cihaz,
       kullanici: kullanici || 'İsimsiz',
       tablo: m.tablo,
+      okumaTablosu: id === 'numune' && NT.c.personelRolu() ? 'numune_personel_olaylari' : m.tablo,
       bekleyen: sinirliYemek ? [] : bekleyen,
       bekleyenKaydet: sinirliYemek ? undefined : (l) => (l.length ? ls.yaz(bAnahtar, JSON.stringify(l)) : ls.sil(bAnahtar)),
       kilit: navigator.locks ? (fn) => navigator.locks.request('nt-yaz-' + cihaz + m.ek, fn) : undefined,
@@ -109,7 +141,7 @@
       if (!k) return false;
       if (k.ad && k.ad !== this.kullanici) this.kullaniciAyarla(k.ad);
       // Güncelleyici (yukleyici.js, klasörde sabit) yalnız nt.kod doluysa güncelleme arar; hesapla girenlerde boş kalmasın.
-      if (!this.kod) { this.kod = 'HESAP'; ls.yaz('nt.kod', this.kod); }
+      if (this.kod !== 'HESAP') { this.kod = 'HESAP'; ls.yaz('nt.kod', this.kod); }
       return true;
     },
 
@@ -118,6 +150,8 @@
         if (NT.demo && NT.demo.aktif) return await NT.demo.kur(this);
         if (!this.hesapUygula()) return this.durumYap('kurulum');
         if (!this.hesap.sifreBelirlendi) return this.durumYap('sifre');
+        // Önceki sürümün hesaplar arasında paylaşılan çevrimdışı kopyalarını bırakma.
+        await Promise.all([...Object.values(MODULLER).map(onbellekAdi), personelYemekOnbellek].map(idbSil));
         if (M.depoYok) return this.durumYap('hazir');
         await this.bulutAc();
       } catch (e) {
@@ -129,12 +163,15 @@
       try { await NT.oturum.girisYap(ad, sifre); } catch (e) {
         throw Object.assign(new Error(e.message), { detay: e.detay });
       }
-      await this.baslat();
+      this.hesapUygula();
+      if (!this.hesap.sifreBelirlendi) return this.durumYap('sifre');
+      location.reload();
     },
 
     async sifreBelirle(yeni) {
       await NT.oturum.sifreBelirle(yeni);
-      await this.baslat();
+      this.hesapUygula();
+      location.reload();
     },
 
     async bulutAc() {
@@ -144,7 +181,7 @@
     /* Bu bilgisayarın erişimini kaldırır (bütün modüller için). Bulut verilerine dokunmaz. */
     async ayril() {
       this.durdur();
-      for (const m of Object.values(MODULLER)) await idbSil(onbellekAdi(m)).catch(() => {});
+      for (const m of Object.values(MODULLER)) await idbSil(onbellekAdi(m) + ':' + hesapKapsami()).catch(() => {});
       await idbSil(personelYemekOnbellek).catch(() => {});
       await NT.oturum.cikis();
       ls.sil('nt.kod');
@@ -159,7 +196,7 @@
       await depo.hazirla();
       await depo.tara();
       // Varsayılan tanımlar (ör. numunenin ürün listesi) yalnızca sunucu gerçekten boşsa yazılır; internetsizken boş görünmesi yanıltmasın.
-      if (!depo.hata && M.ilkKurulum) await M.ilkKurulum(depo);
+      if (!depo.hata && M.ilkKurulum && !(M.id === 'numune' && NT.c.personelRolu())) await M.ilkKurulum(depo);
       this.depo = depo;
       this.mod = mod;
       this.baslatZamanlayicilar();

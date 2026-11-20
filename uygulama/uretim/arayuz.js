@@ -308,13 +308,17 @@
       if (durum !== 'taslak' && den.eksik.length && !(await onayla(m('Eksik: {0}. Yine de kaydedilsin mi?', 'Missing: {0}. Save anyway?', den.eksik.join(', ')), { baslik: c('Eksik bilgi', 'Missing information'), evet: c('Kaydet', 'Save') }))) return;
       setMesgul(true);
       try {
-        const v = { form: k.form, parti: U.partiAdi(k.parti || k.alanlar.parti), alanlar: k.alanlar, tablolar: k.tablolar, not: k.not, tarih: k.alanlar.tarih || kayitli.tarih || bugun() };
+        const v = { form: k.form, parti: U.partiAdi(k.alanlar.parti ?? k.parti), alanlar: k.alanlar, tablolar: k.tablolar, not: k.not, tarih: k.alanlar.tarih || kayitli.tarih || bugun() };
         if (durum === 'islendi') Object.assign(v, { durum: 'islendi', isleyen: b.kullanici, kontrol: null });
         if (durum === 'kontrol') Object.assign(v, { durum: 'kontrol', kontrol: { kim: b.kullanici, tarih: bugun() }, ...(kayitli.durum === 'taslak' ? { isleyen: b.kullanici } : {}) });
-        await d.kaydet([{ c: 'kayit', k: kayitli.id, v }]);
+        await d.numuneIslem((guncel) => {
+          if (guncel.kayit('kayit', kayitli.id)?.durum === 'kontrol' && !yetkili()) throw new Error(c('Form kontrol edilip kilitlendi.', 'The checked form is locked.'));
+          return [{ c: 'kayit', k: kayitli.id, v }];
+        });
         bildir(durum === 'kontrol' ? m('{0} kontrol edildi.', '{0} checked.', kayitli.no) : m('{0} kaydedildi.', '{0} saved.', kayitli.no));
         kapat();
-      } finally { setMesgul(false); }
+      } catch (e) { bildir(e.message, { tur: 'hata' }); }
+      finally { setMesgul(false); }
     }
     const ornekAktar = () => setK((p) => ({ ...p, form: kayitli.form, parti: kayitli.ornekDegerler.alanlar.parti, alanlar: { ...kayitli.ornekDegerler.alanlar }, tablolar: JSON.parse(JSON.stringify(kayitli.ornekDegerler.tablolar)) }));
     useEffect(() => { const f2 = (e) => { if (e.key === 'Escape' && !document.querySelector('.perde')) kapat(); }; window.addEventListener('keydown', f2); return () => window.removeEventListener('keydown', f2); });
@@ -323,7 +327,7 @@
         <button class="d hayalet ikon-d" onClick=${kapat} aria-label=${c('Kapat', 'Close')}><${Ikon} ad="geri" /></button>
         <div class="ur-isle-baslik"><b>${kayitli.no} · ${f ? `${f.kod} ${f.sayfa} · ${c(f.ad, f.en)}` : c('Form türünü seçin', 'Choose the form type')}</b>
           <small>${kayitli.isleyen ? m('İşleyen: {0}', 'Entered by: {0}', kayitli.isleyen) : c('Henüz işlenmedi', 'Not entered yet')}${kayitli.kontrol ? ' · ' + m('Kontrol: {0}, {1}', 'Checked: {0}, {1}', kayitli.kontrol.kim, tarihYaz(kayitli.kontrol.tarih)) : ''}</small></div>
-        ${f && html`<button class="d kucuk-d" onClick=${() => yazdir(html`<${YazdirmaKagidi} f=${f} kayit=${{ ...tumKayit, parti: U.partiAdi(k.parti || k.alanlar.parti) }} />`)} title=${c('Formu A4 olarak yazdır veya PDF kaydet', 'Print the form on A4 or save as PDF')}><${Ikon} ad="yazici" boyut=${15} />${c('Yazdır', 'Print')}</button>`}
+        ${f && html`<button class="d kucuk-d" onClick=${() => yazdir(html`<${YazdirmaKagidi} f=${f} kayit=${{ ...tumKayit, parti: U.partiAdi(k.alanlar.parti ?? k.parti) }} />`)} title=${c('Formu A4 olarak yazdır veya PDF kaydet', 'Print the form on A4 or save as PDF')}><${Ikon} ad="yazici" boyut=${15} />${c('Yazdır', 'Print')}</button>`}
         <${Durum} d=${kayitli.durum} />
       </header>
       <div class="ur-isle-govde">
@@ -336,7 +340,7 @@
               <option value="">${c('— seçin —', '— choose —')}</option>${Object.entries(U.FORMLAR).map(([id, x]) => html`<option value=${id}>${x.kod} ${x.sayfa} · ${c(x.ad, x.en)}</option>`)}</select></label>
           </div>
           ${f && html`<article class="ur-kagit">
-            <${KagitBaslik} f=${f} kayit=${tumKayit} parti=${U.partiAdi(k.parti || k.alanlar.parti)} />
+            <${KagitBaslik} f=${f} kayit=${tumKayit} parti=${U.partiAdi(k.alanlar.parti ?? k.parti)} />
             <div class="ur-alanlar">${f.alanlar.map((a) => html`<${AlanGirdi} key=${a.id} alan=${a} salt=${salt} partiler=${partiler} deger=${a.id === 'parti' ? (k.alanlar.parti ?? k.parti) : k.alanlar[a.id]} degis=${(v) => alanDegis(a.id, v)} />`)}</div>
             ${oneri && html`<div class=${'uyari-kutu ' + (oneri.karar === 'Kabul' ? 'iyi' : oneri.karar === 'Red' ? 'yok' : 'kritik')}><${Ikon} ad="bilgi" /><span>${m('Program önerisi: {0}', 'Suggested decision: {0}', c(oneri.karar))}${oneri.neden.length ? ' · ' + oneri.neden.join(', ') : ''}. ${c('Kararı kontrol eden kişi verir.', 'The checker makes the decision.')}${k.alanlar.karar && k.alanlar.karar !== oneri.karar ? ' ' + c('Formdaki karar öneriden farklı.', 'The decision on the form differs from the suggestion.') : ''}</span></div>`}
             ${f.tablolar.map((t) => html`<${TabloDuzenle} key=${k.form + t.id} tablo=${t} salt=${salt} satirlar=${U.satirlar(k, t)} degis=${(l) => setK((p) => ({ ...p, tablolar: { ...p.tablolar, [t.id]: l } }))} />`)}
@@ -367,7 +371,8 @@
     const [durum, setDurum] = useState('');
     const [mesgul, setMesgul] = useState(false);
     const [onizleme, setOnizleme] = useState({});
-    useEffect(() => () => Object.values(onizleme).forEach((u) => URL.revokeObjectURL(u)), []);
+    const onizlemeUrl = useRef(new Set());
+    useEffect(() => () => onizlemeUrl.current.forEach(u => URL.revokeObjectURL(u)), []);
     async function sec(e) {
       const dosyalar = [...e.target.files];
       e.target.value = '';
@@ -376,7 +381,7 @@
       try {
         const l = await NT.uretimTara.hazirla(dosyalar, setDurum);
         const yeni = {};
-        l.forEach((s) => { s.id = uid(); yeni[s.id] = URL.createObjectURL(s.blob); });
+        l.forEach((s) => { s.id = uid(); yeni[s.id] = URL.createObjectURL(s.blob); onizlemeUrl.current.add(yeni[s.id]); });
         setOnizleme((o) => ({ ...o, ...yeni }));
         setSayfalar((p) => [...p, ...l]);
         setDurum('');
@@ -391,9 +396,11 @@
           setDurum(m('{0} kaydediliyor…', 'Saving {0}…', s.ad));
           const blob = await NT.uretimTara.dondur(s.blob, s.derece);
           const ek = await d.ekYaz(new File([blob], (s.ad || 'tarama').replace(/[^\wçğıöşüÇĞİÖŞÜ.#-]+/g, '_') + '.jpg', { type: 'image/jpeg' }));
-          const id = uid();
+          const id = s.id;
           await d.kaydet([{ c: 'kayit', k: id, v: { no: K.yeniNo(d, 'kayit', 'UR'), form: s.form || '', parti: U.partiAdi(s.parti), alanlar: s.parti ? { parti: U.partiAdi(s.parti) } : {}, tablolar: {}, tarama: [ek], durum: 'taslak', tarih: bugun(), isleyen: '' } }]);
           olusan.push(d.kayit('kayit', id));
+          // Sonraki dosya yüklenemezse yalnız bekleyen sayfalar yeniden gönderilir.
+          setSayfalar(l => l.filter(x => x.id !== id));
         }
         kapat();
         bildir(m('{0} sayfa işleme sırasına alındı.', '{0} pages queued for entry.', olusan.length), { eylem: { yazi: c('İlkini işle', 'Enter the first'), fn: () => isle(olusan[0]) }, sure: 8000 });

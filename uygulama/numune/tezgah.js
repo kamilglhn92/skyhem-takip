@@ -111,7 +111,7 @@
      Telefonda doğrudan arka kamera açılır; masaüstünde dosya seçilir. */
   const gorselGerekli = (d, ids) => ids.some((id) => !(d.kayit('isemri', id)?.gorseller || []).length);
   function EmirFotografi({ ekler, degis, zorunlu }) {
-    return html`<${BelgeKutusu} foto kamera baslik=${zorunlu ? cevir('İş emri fotoğrafı (zorunlu)', 'Work order photo (required)') : cevir('İş emri fotoğrafı', 'Work order photo')}
+    return html`<${BelgeKutusu} foto kamera isFotografi baslik=${zorunlu ? cevir('İş emri fotoğrafı (zorunlu)', 'Work order photo (required)') : cevir('İş emri fotoğrafı', 'Work order photo')}
       ipucu=${zorunlu ? cevir('Emri kapatmak için yapılan işin fotoğrafını çekin.', 'Take a photo of the finished work to close the order.') : cevir('İsteğe bağlı', 'Optional')}
       ekler=${ekler} degis=${degis} />`;
   }

@@ -362,12 +362,12 @@
     return stok(depo).dolu.get(anahtar(urun, parti, ambalaj))?.mevcut ?? 0;
   }
 
-  const emirAcabilir = (ad) => ['kamil', 'kamil gülhan', 'farukcan', 'farukcan bey', 'farukcan biçer']
+  const emirAcabilir = (ad) => NT.c.hesap?.() ? !!(NT.c.hesap().mimar || NT.c.hesap().onay) : ['kamil', 'kamil gülhan', 'farukcan', 'farukcan bey', 'farukcan biçer']
     .includes(NT.c.kucuk(String(ad || '').normalize('NFC').trim().replace(/\s+/g, ' ')));
   const kalemAnahtari = (k) => anahtar(k.urun, k.parti, k.ambalaj);
   const emirAcik = (e) => e.durum === 'bekliyor' || e.durum === 'ustlenildi';
   const emirRezerve = (e) => !e.sevkId && !e.ayirmaKaldirildi && !e.dolumSilindi && e.durum !== 'iptal' &&
-    (e.tur === 'hazirla' || (e.durum === 'tamamlandi' && !!e.firma));
+    (e.tur === 'hazirla' || (e.durum === 'tamamlandi' && (!!e.firma || e.firmayaAyrildi === true)));
   const emirSevkeHazir = (e) => e && !e._silindi && e.durum === 'tamamlandi' && emirRezerve(e);
   const sevkEmirleri = (depo, id) => depo.kayitlar('isemri').filter((e) => e.sevkId === id && e.durum !== 'iptal');
   const kalemAdedi = (kalemler, a) => (kalemler || []).filter((k) => kalemAnahtari(k) === a).reduce((n, k) => n + sayi(k.adet), 0);
